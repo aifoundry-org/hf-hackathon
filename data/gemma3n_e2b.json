@@ -2,25 +2,25 @@
   "model": "gemma3n_e2b",
   "metric": "tokens_per_second",
   "lower_is_better": false,
-  "updated_at": "2026-06-15T09:48:24.853536+00:00",
+  "updated_at": "2026-06-15T13:42:11.023403+00:00",
   "entries": [
     {
       "team": "AFOliveira",
       "variant": "gemma-3n-E2B-it-Q8_0",
       "kernel_wait_s": null,
-      "tokens_per_second": 1.4870181226771053,
-      "prompt_tokens_per_second": 7.96148410909887,
+      "tokens_per_second": 1.4897393272746877,
+      "prompt_tokens_per_second": 7.973464310773745,
       "prompt_tokens": 18,
       "completion_tokens": 96,
       "total_tokens": 114,
       "perplexity": 32.8325,
       "perplexity_error": 10.20062,
       "perplexity_tokens": 512,
-      "perplexity_prompt_tokens_per_second": 27.53,
-      "sha": "86a9c85022ef72dec3b2c94a98ec6e176e085fc8",
+      "perplexity_prompt_tokens_per_second": 27.54,
+      "sha": "5cdcfc87b03bb0e245e85c700a754d44607a5560",
       "ref": "refs/heads/main",
-      "run_url": "https://github.com/aifoundry-org/hf-hackathon/actions/runs/27537781763",
-      "scored_at": "2026-06-15T09:46:04.212534+00:00"
+      "run_url": "https://github.com/aifoundry-org/hf-hackathon/actions/runs/27550241277",
+      "scored_at": "2026-06-15T13:39:47.210413+00:00"
     }
   ]
 }

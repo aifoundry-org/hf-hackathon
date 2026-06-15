@@ -2,25 +2,25 @@
   "model": "llama32_1b",
   "metric": "tokens_per_second",
   "lower_is_better": false,
-  "updated_at": "2026-06-15T09:48:24.845338+00:00",
+  "updated_at": "2026-06-15T13:42:11.016518+00:00",
   "entries": [
     {
       "team": "AFOliveira",
       "variant": "Llama-3.2-1B-Instruct-Q8_0",
       "kernel_wait_s": null,
-      "tokens_per_second": 13.532276594095137,
-      "prompt_tokens_per_second": 55.77175718216295,
+      "tokens_per_second": 13.54227941954405,
+      "prompt_tokens_per_second": 55.770374776918494,
       "prompt_tokens": 18,
       "completion_tokens": 96,
       "total_tokens": 114,
       "perplexity": 15.3103,
       "perplexity_error": 2.89069,
       "perplexity_tokens": 512,
-      "perplexity_prompt_tokens_per_second": 76.66,
-      "sha": "86a9c85022ef72dec3b2c94a98ec6e176e085fc8",
+      "perplexity_prompt_tokens_per_second": 76.61,
+      "sha": "5cdcfc87b03bb0e245e85c700a754d44607a5560",
       "ref": "refs/heads/main",
-      "run_url": "https://github.com/aifoundry-org/hf-hackathon/actions/runs/27537781763",
-      "scored_at": "2026-06-15T09:45:42.790014+00:00"
+      "run_url": "https://github.com/aifoundry-org/hf-hackathon/actions/runs/27550241277",
+      "scored_at": "2026-06-15T13:39:24.923247+00:00"
     }
   ]
 }

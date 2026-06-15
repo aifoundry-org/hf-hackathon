@@ -2,12 +2,12 @@
   "model": "whisper",
   "metric": "kernel_wait_s",
   "lower_is_better": true,
-  "updated_at": "2026-06-15T09:48:24.829155+00:00",
+  "updated_at": "2026-06-15T13:42:11.002848+00:00",
   "entries": [
     {
       "team": "AFOliveira",
       "variant": "w10_00_base",
-      "kernel_wait_s": 0.0412154,
+      "kernel_wait_s": 0.0413613,
       "tokens_per_second": null,
       "prompt_tokens_per_second": null,
       "prompt_tokens": null,
@@ -17,10 +17,10 @@
       "perplexity_error": null,
       "perplexity_tokens": null,
       "perplexity_prompt_tokens_per_second": null,
-      "sha": "86a9c85022ef72dec3b2c94a98ec6e176e085fc8",
+      "sha": "5cdcfc87b03bb0e245e85c700a754d44607a5560",
       "ref": "refs/heads/main",
-      "run_url": "https://github.com/aifoundry-org/hf-hackathon/actions/runs/27537781763",
-      "scored_at": "2026-06-15T09:45:15.369312+00:00"
+      "run_url": "https://github.com/aifoundry-org/hf-hackathon/actions/runs/27550241277",
+      "scored_at": "2026-06-15T13:38:57.103387+00:00"
     }
   ]
 }
