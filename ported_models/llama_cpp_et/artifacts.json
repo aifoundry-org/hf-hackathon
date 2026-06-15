@@ -1,0 +1,297 @@
+{
+  "artifacts": {
+    "llama_cpp_source": {
+      "kind": "framework_source",
+      "framework": "llama.cpp-et",
+      "submodule_path": "ported_models/llama_cpp_et/src/llama.cpp-et",
+      "license": "MIT",
+      "license_file": "LICENSE",
+      "upstream": {
+        "type": "git",
+        "url": "https://github.com/aifoundry-org/llama.cpp.git",
+        "branch": "et",
+        "revision": "13da97147c0c8c04f0df410e77c8d202cebee3fb",
+        "upstream_pr": "https://github.com/aifoundry-org/llama.cpp/pull/7",
+        "upstream_author": "marty1885",
+        "note": "Informational only: this records where the committed submodule mirrors from. CI builds from the committed submodule_path; it does not clone from this URL. To change the framework version, bump the submodule pin in a PR (see ported_models/llama_cpp_et/src/README.md)."
+      },
+      "note": "Framework source comes from the committed submodule. Submitters who want a different framework version must repin the submodule as part of their PR."
+    },
+    "llama_cpp_build": {
+      "kind": "framework_workdir",
+      "framework": "llama.cpp-et",
+      "env": "LLAMA_CPP_ET_WORKDIR",
+      "env_aliases": ["LFM25_LLAMA_WORKDIR"],
+      "local_cache": "local-artifacts/frameworks/llama.cpp-et/build-et",
+      "build": {
+        "cmake": "cmake",
+        "configure_args": [
+          "-DGGML_ET=ON",
+          "-DCMAKE_BUILD_TYPE=Release",
+          "-DCMAKE_CXX_STANDARD_LIBRARIES=-lglog"
+        ],
+        "build_args": ["--config", "Release"]
+      },
+      "note": "Out-of-tree CMake build of the committed llama_cpp_source submodule. Decoupled from the source path so the submodule working tree stays clean."
+    },
+    "llama_server": {
+      "kind": "framework_binary",
+      "framework": "llama.cpp-et",
+      "env": "LLAMA_CPP_ET_SERVER",
+      "env_aliases": ["LFM25_LLAMA_SERVER"],
+      "relative_to": "llama_cpp_build",
+      "relative_path": "bin/llama-server"
+    },
+    "llama_perplexity": {
+      "kind": "framework_binary",
+      "framework": "llama.cpp-et",
+      "env": "LLAMA_CPP_ET_PERPLEXITY",
+      "env_aliases": ["LFM25_LLAMA_PERPLEXITY"],
+      "relative_to": "llama_cpp_build",
+      "relative_path": "bin/llama-perplexity"
+    },
+    "wikitext2_raw_test": {
+      "kind": "validation_dataset",
+      "dataset": "wikitext-2-raw-v1",
+      "split": "test",
+      "filename": "wiki.test.raw",
+      "env": "WIKITEXT_RAW_PATH",
+      "local_cache": "local-artifacts/datasets/wikitext-2-raw/wiki.test.raw",
+      "source_url": "https://cosmo.zip/pub/datasets/wikitext-2-raw/wiki.test.raw",
+      "sha256": "173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08",
+      "note": "WikiText-2 raw test corpus. Install on the board host as a model validation artifact."
+    },
+    "qwen3_06b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "Qwen3-0.6B-Q8_0",
+      "filename": "Qwen3-0.6B-Q8_0.gguf",
+      "env": "QWEN3_06B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "ggml-org/Qwen3-0.6B-GGUF",
+        "revision": "a41486f827d17edd055fe6b3b0ba3f8d427c0519",
+        "filename": "Qwen3-0.6B-Q8_0.gguf",
+        "url": "https://huggingface.co/ggml-org/Qwen3-0.6B-GGUF/resolve/a41486f827d17edd055fe6b3b0ba3f8d427c0519/Qwen3-0.6B-Q8_0.gguf"
+      },
+      "local_cache": "local-artifacts/models/qwen3_06b/Qwen3-0.6B-Q8_0.gguf",
+      "sha256": "84c0dbe606526d5907251d88ea88b41457f46ce456e9a333d5d2b6245a95cafe",
+      "size_bytes": 804753504,
+      "note": "ET backend docs list non-MoE Qwen3 q8_0 models as fully supported."
+    },
+    "qwen3_17b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "Qwen3-1.7B-Q8_0",
+      "filename": "Qwen3-1.7B-Q8_0.gguf",
+      "env": "QWEN3_17B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "ggml-org/Qwen3-1.7B-GGUF",
+        "revision": "daeb8e2d528a760970442092f6bf1e55c3b659eb",
+        "filename": "Qwen3-1.7B-Q8_0.gguf",
+        "url": "https://huggingface.co/ggml-org/Qwen3-1.7B-GGUF/resolve/daeb8e2d528a760970442092f6bf1e55c3b659eb/Qwen3-1.7B-Q8_0.gguf"
+      },
+      "local_cache": "local-artifacts/models/qwen3_17b/Qwen3-1.7B-Q8_0.gguf",
+      "sha256": "9860780f3a1fab1f8f909a1b549ea3e62c22d19ab1a492b3a1026b38c5bd3ec3",
+      "size_bytes": 2165039200,
+      "note": "ET backend docs list non-MoE Qwen3 q8_0 models as fully supported."
+    },
+    "qwen3_4b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "Qwen3-4B-Q8_0",
+      "filename": "Qwen3-4B-Q8_0.gguf",
+      "env": "QWEN3_4B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "ggml-org/Qwen3-4B-GGUF",
+        "revision": "2f3b082b1356a6123f7ed71e65aea340da25d53c",
+        "filename": "Qwen3-4B-Q8_0.gguf",
+        "url": "https://huggingface.co/ggml-org/Qwen3-4B-GGUF/resolve/2f3b082b1356a6123f7ed71e65aea340da25d53c/Qwen3-4B-Q8_0.gguf"
+      },
+      "local_cache": "local-artifacts/models/qwen3_4b/Qwen3-4B-Q8_0.gguf",
+      "sha256": "865fbdcb8119c5cd5ba557b139d49351aa2c4e33bf93bdd7b08e24b573dd1dd4",
+      "size_bytes": 4280405120,
+      "note": "ET backend docs list non-MoE Qwen3 q8_0 models as fully supported."
+    },
+    "smollm2_135m_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "SmolLM2-135M-Instruct-Q8_0",
+      "filename": "SmolLM2-135M-Instruct-Q8_0.gguf",
+      "env": "SMOLLM2_135M_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "unsloth/SmolLM2-135M-Instruct-GGUF",
+        "revision": "9e6855bc4be717fca1ef21360a1db4b29d5c559a",
+        "filename": "SmolLM2-135M-Instruct-Q8_0.gguf",
+        "url": "https://huggingface.co/unsloth/SmolLM2-135M-Instruct-GGUF/resolve/9e6855bc4be717fca1ef21360a1db4b29d5c559a/SmolLM2-135M-Instruct-Q8_0.gguf"
+      },
+      "local_cache": "local-artifacts/models/smollm2_135m/SmolLM2-135M-Instruct-Q8_0.gguf",
+      "sha256": "c4a3dd037301b6ecea31d6da37f5cd793ead920dd5ddfe6d589294628d6ce66a",
+      "size_bytes": 144811072,
+      "note": "ET backend docs list SmolLM2 q8_0 models as fully supported."
+    },
+    "smollm2_360m_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "SmolLM2-360M-Instruct-Q8_0",
+      "filename": "SmolLM2-360M-Instruct-Q8_0.gguf",
+      "env": "SMOLLM2_360M_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "unsloth/SmolLM2-360M-Instruct-GGUF",
+        "revision": "391ed11137586e383b1be0fab9acf01d282c2e11",
+        "filename": "SmolLM2-360M-Instruct-Q8_0.gguf",
+        "url": "https://huggingface.co/unsloth/SmolLM2-360M-Instruct-GGUF/resolve/391ed11137586e383b1be0fab9acf01d282c2e11/SmolLM2-360M-Instruct-Q8_0.gguf"
+      },
+      "local_cache": "local-artifacts/models/smollm2_360m/SmolLM2-360M-Instruct-Q8_0.gguf",
+      "sha256": "fcb111da119fa42ab856d491088a844b290579e9810bd0792252297d8c6cd7a8",
+      "size_bytes": 386404960,
+      "note": "ET backend docs list SmolLM2 q8_0 models as fully supported."
+    },
+    "smollm2_17b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "SmolLM2-1.7B-Instruct-Q8_0",
+      "filename": "SmolLM2-1.7B-Instruct-Q8_0.gguf",
+      "env": "SMOLLM2_17B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "unsloth/SmolLM2-1.7B-Instruct-GGUF",
+        "revision": "e933f1cdf73cc87cb67915bf5dd6ea81d36080ca",
+        "filename": "SmolLM2-1.7B-Instruct-Q8_0.gguf",
+        "url": "https://huggingface.co/unsloth/SmolLM2-1.7B-Instruct-GGUF/resolve/e933f1cdf73cc87cb67915bf5dd6ea81d36080ca/SmolLM2-1.7B-Instruct-Q8_0.gguf"
+      },
+      "local_cache": "local-artifacts/models/smollm2_17b/SmolLM2-1.7B-Instruct-Q8_0.gguf",
+      "sha256": "0f3fb091804c48a561b42a4ca1be9ce2c353017187f74c48f52299cae790abe5",
+      "size_bytes": 1820414624,
+      "note": "ET backend docs list SmolLM2 q8_0 models as fully supported."
+    },
+    "llama32_3b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "Llama-3.2-3B-Instruct-Q8_0",
+      "filename": "Llama-3.2-3B-Instruct-Q8_0.gguf",
+      "env": "LLAMA32_3B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "lmstudio-community/Llama-3.2-3B-Instruct-GGUF",
+        "revision": "c91307b5cf18c8106b1f8a6218c26ae4dbfee472",
+        "filename": "Llama-3.2-3B-Instruct-Q8_0.gguf",
+        "url": "https://huggingface.co/lmstudio-community/Llama-3.2-3B-Instruct-GGUF/resolve/c91307b5cf18c8106b1f8a6218c26ae4dbfee472/Llama-3.2-3B-Instruct-Q8_0.gguf"
+      },
+      "local_cache": "local-artifacts/models/llama32_3b/Llama-3.2-3B-Instruct-Q8_0.gguf",
+      "sha256": "94f22b7231df5cd1907ff48dba54497b2d7912a4ce60d914f3dcfc0347fa8f21",
+      "size_bytes": 3421899040,
+      "note": "ET backend docs list Llama 3.2 1B/3B q8_0 models as fully supported."
+    },
+    "llama31_8b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "Meta-Llama-3.1-8B-Instruct-Q8_0",
+      "filename": "Meta-Llama-3.1-8B-Instruct-Q8_0.gguf",
+      "env": "LLAMA31_8B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "lmstudio-community/Meta-Llama-3.1-8B-Instruct-GGUF",
+        "revision": "8601e6db71269a2b12255ebdf09ab75becf22cc8",
+        "filename": "Meta-Llama-3.1-8B-Instruct-Q8_0.gguf",
+        "url": "https://huggingface.co/lmstudio-community/Meta-Llama-3.1-8B-Instruct-GGUF/resolve/8601e6db71269a2b12255ebdf09ab75becf22cc8/Meta-Llama-3.1-8B-Instruct-Q8_0.gguf"
+      },
+      "local_cache": "local-artifacts/models/llama31_8b/Meta-Llama-3.1-8B-Instruct-Q8_0.gguf",
+      "sha256": "f6597a0fbdf50364457ed7a077999a1dc45a8cb8d779e12d6fb4be16a52ec31a",
+      "size_bytes": 8540775776,
+      "note": "ET backend docs list the Llama 3.1 family as fully supported; this larger Q8 model is not in the default CI set."
+    },
+    "lfm25_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "LFM2.5-1.2B-Instruct-Q8_0",
+      "filename": "LFM2.5-1.2B-Instruct-Q8_0.gguf",
+      "env": "LFM25_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "LiquidAI/LFM2.5-1.2B-Instruct-GGUF",
+        "revision": "047e06635fbe71469926b35ea414537245218200",
+        "filename": "LFM2.5-1.2B-Instruct-Q8_0.gguf",
+        "url": "https://huggingface.co/LiquidAI/LFM2.5-1.2B-Instruct-GGUF/resolve/047e06635fbe71469926b35ea414537245218200/LFM2.5-1.2B-Instruct-Q8_0.gguf"
+      },
+      "local_cache": "local-artifacts/models/lfm25/LFM2.5-1.2B-Instruct-Q8_0.gguf",
+      "sha256": "f6b981dcb86917fa463f78a362320bd5e2dc45445df147287eedb85e5a30d26a",
+      "size_bytes": 1246253888,
+      "note": "External GGUF artifact; do not commit model blobs to this repo."
+    },
+    "llama32_1b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "Llama-3.2-1B-Instruct-Q8_0",
+      "filename": "Llama-3.2-1B-Instruct-Q8_0.gguf",
+      "env": "LLAMA32_1B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "lmstudio-community/Llama-3.2-1B-Instruct-GGUF",
+        "revision": "199151125cf15a129ab3b548b26afeed976df066",
+        "filename": "Llama-3.2-1B-Instruct-Q8_0.gguf",
+        "url": "https://huggingface.co/lmstudio-community/Llama-3.2-1B-Instruct-GGUF/resolve/199151125cf15a129ab3b548b26afeed976df066/Llama-3.2-1B-Instruct-Q8_0.gguf"
+      },
+      "local_cache": "local-artifacts/models/llama32_1b/Llama-3.2-1B-Instruct-Q8_0.gguf",
+      "sha256": "0abee8eed408d4a73a6f88e23e4ec349aef998ae0fe110e4dd1c724df5019e47",
+      "size_bytes": 1321079232
+    },
+    "gemma3n_e2b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "gemma-3n-E2B-it-Q8_0",
+      "filename": "gemma-3n-E2B-it-Q8_0.gguf",
+      "env": "GEMMA3N_E2B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "ggml-org/gemma-3n-E2B-it-GGUF",
+        "revision": "989cffaba23976934324f5e3abfabe31b30eb73b",
+        "filename": "gemma-3n-E2B-it-Q8_0.gguf",
+        "url": "https://huggingface.co/ggml-org/gemma-3n-E2B-it-GGUF/resolve/989cffaba23976934324f5e3abfabe31b30eb73b/gemma-3n-E2B-it-Q8_0.gguf"
+      },
+      "local_cache": "local-artifacts/models/gemma3n_e2b/gemma-3n-E2B-it-Q8_0.gguf",
+      "sha256": "038a47c482e7af3009c462b56a7592e1ade3c7862540717aa1d9dee1760c337b",
+      "size_bytes": 4788112064,
+      "note": "Public Gemma 3n E2B GGUF. This is the closest public match found for Martin's 'Gemma 3 2B' item."
+    },
+    "tinyllama11b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "TinyLlama-1.1B-Chat-v1.0-Q8_0",
+      "filename": "tinyllama-1.1b-chat-v1.0.Q8_0.gguf",
+      "env": "TINYLLAMA11B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF",
+        "revision": "52e7645ba7c309695bec7ac98f4f005b139cf465",
+        "filename": "tinyllama-1.1b-chat-v1.0.Q8_0.gguf",
+        "url": "https://huggingface.co/TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF/resolve/52e7645ba7c309695bec7ac98f4f005b139cf465/tinyllama-1.1b-chat-v1.0.Q8_0.gguf"
+      },
+      "local_cache": "local-artifacts/models/tinyllama11b/tinyllama-1.1b-chat-v1.0.Q8_0.gguf",
+      "sha256": "a4c9bb1dbaa372f6381a035fa5c02ef087aaa1ff1f843a56a22328114f03fc59",
+      "size_bytes": 1170781568,
+      "note": "Martin noted this should run with the uberkernel disabled. No public uberkernel flag exists in the ET fork; this benchmark uses the public ET backend settings."
+    },
+    "rwkv7_15b_world_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "rwkv7-1.5B-world-q8_0",
+      "filename": "rwkv7-1.5B-world-q8_0.gguf",
+      "env": "RWKV7_15B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "Mungert/rwkv7-1.5B-world-GGUF",
+        "revision": "c8a25c8d349fdf76837c68bfc73c0b953f41b3ce",
+        "filename": "rwkv7-1.5B-world-q8_0.gguf",
+        "url": "https://huggingface.co/Mungert/rwkv7-1.5B-world-GGUF/resolve/c8a25c8d349fdf76837c68bfc73c0b953f41b3ce/rwkv7-1.5B-world-q8_0.gguf"
+      },
+      "local_cache": "local-artifacts/models/rwkv7_15b/rwkv7-1.5B-world-q8_0.gguf",
+      "sha256": "daa7eb795f8a4d956bc305f4ca6f65221f03a6967ab9cdfe77b7a005f499ddee",
+      "size_bytes": 1693646240
+    }
+  }
+}

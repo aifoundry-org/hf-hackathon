@@ -1,0 +1,7 @@
+__pycache__
+.codex
+build/
+.cache/
+.pytest_cache
+.claude
+.benchmark

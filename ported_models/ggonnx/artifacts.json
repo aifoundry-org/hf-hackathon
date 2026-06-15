@@ -1,0 +1,205 @@
+{
+  "framework": {
+    "name": "ggonnx",
+    "license": null,
+    "license_note": "Upstream had no LICENSE file at the time of vendoring; see THIRD_PARTY.md for the dated record. Treat as unlicensed pending upstream clarification.",
+    "upstream": {
+      "type": "git",
+      "url": "https://github.com/marty1885/ggonnx.git",
+      "branch": "master",
+      "revision": "c0453fa516af3e2ae4140fafa798fccb6daff46c",
+      "vendored_date": "2026-05-02"
+    }
+  },
+  "metrics": {
+    "latency_ms": {
+      "lower_is_better": true
+    },
+    "provider_coverage": {
+      "label": "GGML/ET node coverage",
+      "higher_is_better": true
+    },
+    "max_abs_drift": {
+      "lower_is_better": true
+    },
+    "max_rel_drift": {
+      "lower_is_better": true
+    }
+  },
+  "artifacts": {
+    "ggonnx_source": {
+      "kind": "framework_source",
+      "framework": "ggonnx",
+      "submodule_path": "ported_models/ggonnx/src/ggonnx",
+      "license": null,
+      "license_file": null,
+      "upstream": {
+        "type": "git",
+        "url": "https://github.com/marty1885/ggonnx.git",
+        "branch": "master",
+        "revision": "c0453fa516af3e2ae4140fafa798fccb6daff46c",
+        "note": "Informational only: this records where the vendored source mirrors from. CI builds from the committed vendored tree; it does not clone from this URL. To update, replace the contents of ported_models/ggonnx/src/ggonnx with a newer upstream checkout in the same PR."
+      },
+      "note": "Vendored source tree (no upstream LICENSE at vendoring time; see THIRD_PARTY.md). Resolver returns this committed path; CI is forbidden from URL-cloning frameworks."
+    },
+    "tiny_yolov3": {
+      "kind": "model",
+      "framework": "ggonnx",
+      "filename": "tiny-yolov3-11.onnx",
+      "source_url": "https://media.githubusercontent.com/media/onnx/models/c32b9776d06d2ebc7888d705e3a558f62b20e7a8/validated/vision/object_detection_segmentation/tiny-yolov3/model/tiny-yolov3-11.onnx",
+      "validation": "compare_outputs_to_onnxruntime_cpu"
+    },
+    "tiny_yolov2": {
+      "kind": "model",
+      "framework": "ggonnx",
+      "filename": "tinyyolov2-8.onnx",
+      "source_url": "https://github.com/onnx/models/raw/refs/heads/main/validated/vision/object_detection_segmentation/tiny-yolov2/model/tinyyolov2-8.onnx",
+      "validation": "compare_outputs_to_onnxruntime_cpu"
+    },
+    "tinystories_lstm": {
+      "kind": "model",
+      "framework": "ggonnx",
+      "filename": "tinystories_lstm.onnx",
+      "source_url": "https://huggingface.co/phmd/TinyStories-LSTM-5.5M/resolve/main/tinystories_lstm.onnx?download=true",
+      "validation": "logits_and_greedy_tokens_match_onnxruntime_cpu"
+    },
+    "tinystories_lstm_vocab": {
+      "kind": "tokenizer_vocab",
+      "framework": "ggonnx",
+      "filename": "vocab.txt",
+      "source_url": "https://huggingface.co/phmd/TinyStories-LSTM-5.5M/raw/main/vocab.txt"
+    },
+    "piper": {
+      "kind": "model_archive",
+      "framework": "ggonnx",
+      "filename": "en_US-lessac-medium.onnx.json.tar.gz",
+      "source_url": "https://github.com/rhasspy/piper/releases/download/v0.0.2/voice-en-us-lessac-medium.tar.gz",
+      "validation": "tts_smoke_pending"
+    },
+    "marty_streaming_piper_encoder": {
+      "kind": "model",
+      "framework": "ggonnx",
+      "filename": "streaming-piper-ljspeech-encoder.onnx",
+      "source_url": "https://huggingface.co/marty1885/streaming-piper/resolve/2a157126ca6f00f51384ae394145691356213ffc/ljspeech/encoder.onnx",
+      "size_bytes": 28418256,
+      "validation": "streaming_tts_smoke_pending"
+    },
+    "marty_streaming_piper_decoder": {
+      "kind": "model",
+      "framework": "ggonnx",
+      "filename": "streaming-piper-ljspeech-decoder.onnx",
+      "source_url": "https://huggingface.co/marty1885/streaming-piper/resolve/2a157126ca6f00f51384ae394145691356213ffc/ljspeech/decoder.onnx",
+      "size_bytes": 85783473,
+      "validation": "streaming_tts_smoke_pending"
+    },
+    "marty_streaming_piper_config": {
+      "kind": "model_config",
+      "framework": "ggonnx",
+      "filename": "streaming-piper-ljspeech-config.json",
+      "source_url": "https://huggingface.co/marty1885/streaming-piper/resolve/2a157126ca6f00f51384ae394145691356213ffc/ljspeech/config.json",
+      "size_bytes": 6986,
+      "validation": "streaming_tts_smoke_pending"
+    },
+    "marty_zeroeggs_cell_state_encoder": {
+      "kind": "model",
+      "framework": "ggonnx",
+      "filename": "zeroeggs-cell-state-encoder.onnx",
+      "source_url": "https://huggingface.co/marty1885/zeroeggs-onnx/resolve/8fe7e23b016be0310060eac27bff3b366766a2a5/cell_state_encoder.onnx",
+      "size_bytes": 43565,
+      "validation": "onnxruntime_cpu_smoke_pending"
+    },
+    "marty_zeroeggs_decoder_step": {
+      "kind": "model",
+      "framework": "ggonnx",
+      "filename": "zeroeggs-decoder-step.onnx",
+      "source_url": "https://huggingface.co/marty1885/zeroeggs-onnx/resolve/8fe7e23b016be0310060eac27bff3b366766a2a5/decoder_step.onnx",
+      "size_bytes": 174459,
+      "validation": "onnxruntime_cpu_smoke_pending"
+    },
+    "marty_zeroeggs_speech_encoder": {
+      "kind": "model",
+      "framework": "ggonnx",
+      "filename": "zeroeggs-speech-encoder.onnx",
+      "source_url": "https://huggingface.co/marty1885/zeroeggs-onnx/resolve/8fe7e23b016be0310060eac27bff3b366766a2a5/speech_encoder.onnx",
+      "size_bytes": 16330,
+      "validation": "onnxruntime_cpu_smoke_pending"
+    },
+    "arcface": {
+      "kind": "model",
+      "framework": "ggonnx",
+      "filename": "arcfaceresnet100-8.onnx",
+      "source_url": "https://huggingface.co/onnxmodelzoo/arcfaceresnet100-8/resolve/main/arcfaceresnet100-8.onnx?download=true",
+      "validation": "compare_outputs_to_onnxruntime_cpu"
+    },
+    "resnet18": {
+      "kind": "model",
+      "framework": "ggonnx",
+      "filename": "resnet18-v2-7.onnx",
+      "source_url": "https://github.com/onnx/models/raw/c32b9776d06d2ebc7888d705e3a558f62b20e7a8/validated/vision/classification/resnet/model/resnet18-v2-7.onnx",
+      "validation": "compare_outputs_to_onnxruntime_cpu"
+    },
+    "openwakeword_alexa": {
+      "kind": "model",
+      "framework": "ggonnx",
+      "filename": "alexa_v0.1.onnx",
+      "source_url": "https://github.com/dscripka/openWakeWord/releases/download/v0.5.1/alexa_v0.1.onnx",
+      "validation": "compare_outputs_to_onnxruntime_cpu"
+    },
+    "openwakeword_embedding": {
+      "kind": "model",
+      "framework": "ggonnx",
+      "filename": "embedding_model.onnx",
+      "source_url": "https://github.com/dscripka/openWakeWord/releases/download/v0.5.1/embedding_model.onnx",
+      "validation": "compare_outputs_to_onnxruntime_cpu"
+    },
+    "mobilenet_v2": {
+      "kind": "model",
+      "framework": "ggonnx",
+      "filename": "mobilenetv2-12.onnx",
+      "source_url": "https://github.com/onnx/models/raw/c32b9776d06d2ebc7888d705e3a558f62b20e7a8/validated/vision/classification/mobilenet/model/mobilenetv2-12.onnx",
+      "validation": "compare_outputs_to_onnxruntime_cpu"
+    },
+    "ultraface": {
+      "kind": "model",
+      "framework": "ggonnx",
+      "filename": "version-RFB-640.onnx",
+      "source_url": "https://github.com/onnx/models/raw/refs/heads/main/validated/vision/body_analysis/ultraface/models/version-RFB-640.onnx",
+      "validation": "compare_outputs_to_onnxruntime_cpu"
+    },
+    "shufflenet_v2": {
+      "kind": "model",
+      "framework": "ggonnx",
+      "filename": "shufflenet-v2-10.onnx",
+      "source_url": "https://huggingface.co/onnxmodelzoo/shufflenet-v2-10/resolve/main/shufflenet-v2-10.onnx?download=true",
+      "validation": "compare_outputs_to_onnxruntime_cpu"
+    },
+    "waifu2x_cunet": {
+      "kind": "model",
+      "framework": "ggonnx",
+      "filename": "waifu2x_cunet_noise0_scale2x.onnx",
+      "source_url": "https://huggingface.co/deepghs/waifu2x_onnx/resolve/main/20250502/onnx_models/cunet/art/noise0_scale2x.onnx?download=true",
+      "validation": "compare_outputs_to_onnxruntime_cpu"
+    },
+    "waifu2x_swin_unet": {
+      "kind": "model",
+      "framework": "ggonnx",
+      "filename": "waifu2x_swin_unet_art_noise0_scale2x.onnx",
+      "source_url": "https://huggingface.co/deepghs/waifu2x_onnx/resolve/main/20250502/onnx_models/swin_unet/art/noise0_scale2x.onnx?download=true",
+      "validation": "compare_outputs_to_onnxruntime_cpu"
+    },
+    "silero_vad": {
+      "kind": "model",
+      "framework": "ggonnx",
+      "filename": "silero-vad.onnx",
+      "source_url": "https://huggingface.co/onnx-community/silero-vad/resolve/main/onnx/model.onnx?download=true",
+      "validation": "streaming_state_matches_onnxruntime_cpu"
+    },
+    "fast_neural_style_transfer": {
+      "kind": "model",
+      "framework": "ggonnx",
+      "filename": "mosaic-9.onnx",
+      "source_url": "https://github.com/onnx/models/raw/c32b9776d06d2ebc7888d705e3a558f62b20e7a8/validated/vision/style_transfer/fast_neural_style/model/mosaic-9.onnx",
+      "validation": "compare_outputs_to_onnxruntime_cpu"
+    }
+  }
+}

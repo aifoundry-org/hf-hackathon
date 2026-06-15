@@ -1,0 +1,52 @@
+{
+  "runner": "llama_server",
+  "board": true,
+  "framework": {
+    "name": "llama.cpp-et",
+    "runner": "llama_server",
+    "source_artifact": "llama_cpp_source"
+  },
+  "artifacts_file": "../artifacts.json",
+  "canonical_variant": "rwkv7-1.5B-world-q8_0",
+  "score": {
+    "metric": "tokens_per_second",
+    "label": "Decode tokens/s",
+    "higher_is_better": true
+  },
+  "llama_server": {
+    "source_artifact": "llama_cpp_source",
+    "model_artifact": "rwkv7_15b_world_q8_gguf",
+    "server_artifact": "llama_server",
+    "workdir_artifact": "llama_cpp_build",
+    "host": "127.0.0.1",
+    "port": 18084,
+    "device": "ET",
+    "gpu_layers": 99,
+    "ctx_size": 2048,
+    "batch_size": 256,
+    "ubatch_size": 128,
+    "parallel": 1,
+    "cache_ram_mib": 0,
+    "ready_timeout_s": 240,
+    "request_timeout_s": 360,
+    "flash_attn": false,
+    "api": "completion",
+    "prompt": "Repeat this token sequence without commentary: OK OK OK OK OK OK OK OK OK OK",
+    "max_tokens": 96,
+    "temperature": 0,
+    "ignore_eos": true,
+    "min_completion_tokens": 32,
+    "perplexity": {
+      "enabled": true,
+      "perplexity_artifact": "llama_perplexity",
+      "corpus_artifact": "wikitext2_raw_test",
+      "ctx_size": 128,
+      "batch_size": 128,
+      "ubatch_size": 128,
+      "timeout_s": 360,
+      "min_ppl": 1.0,
+      "max_ppl": 1000.0,
+      "chunks": 4
+    }
+  }
+}
