@@ -1,0 +1,174 @@
+{
+  "suite": "smoke",
+  "primary_metric": "kernel_wait_s",
+  "lower_is_better": true,
+  "board": {
+    "device": "soc1sim",
+    "launcher_timeout_s": 600,
+    "outer_timeout_s": 660,
+    "comment": "Real silicon via PCIe on a self-hosted ET board runner.",
+    "models": {
+      "dncnn": {
+        "defines": [
+          "-DDNCNN_PASSES=1",
+          "-DDNCNN_VPU_SHARED_WPACK=1",
+          "-DDNCNN_VPU_OC2=1",
+          "-DNUM_HARTS=16",
+          "-DACTIVE_HARTS=8",
+          "-DBENCH_THREAD0_ONLY=1"
+        ]
+      },
+      "yolo": {
+        "defines": [
+          "-DYOLO_PASSES=1",
+          "-DNUM_HARTS=16",
+          "-DACTIVE_HARTS=8",
+          "-DBENCH_THREAD0_ONLY=1"
+        ]
+      },
+      "whisper": {
+        "defines": [
+          "-DDEPTH_PASSES=1",
+          "-DNUM_HARTS=16",
+          "-DACTIVE_HARTS=8",
+          "-DBENCH_THREAD0_ONLY=1"
+        ]
+      }
+    }
+  },
+  "ci_smoke": {
+    "comment": "Sys-emu on GitHub runners is very slow; use 1 pass and longer launcher timeout in CI.",
+    "launcher_timeout_s": 10800,
+    "outer_timeout_s": 10900,
+    "models": {
+      "dncnn": {
+        "defines": [
+          "-DDNCNN_PASSES=1",
+          "-DDNCNN_VPU_SHARED_WPACK=1",
+          "-DDNCNN_VPU_OC2=1"
+        ]
+      },
+      "yolo": {
+        "defines": ["-DYOLO_PASSES=1"]
+      },
+      "whisper": {
+        "defines": ["-DDEPTH_PASSES=1"]
+      }
+    }
+  },
+  "models": {
+    "dncnn": {
+      "canonical_variant": "v3x_01_oc2_base",
+      "source": "ported_models/dncnn/src/dncnn3_vpu_fp_argbuf.c",
+      "bench_dir": "dncnn3-pmc",
+      "manifest": "v3x_variants.txt",
+      "full_manifest": "v3_100_variants.txt",
+      "build": {
+        "opt": "-O3",
+        "defines": [
+          "-DDNCNN_PASSES=1",
+          "-DDNCNN_VPU_SHARED_WPACK=1",
+          "-DDNCNN_VPU_OC2=1"
+        ]
+      },
+      "file_loads": [
+        {
+          "address": "0x0",
+          "paths": ["zero2m.bin", "dncnn3-bench/zero2m.bin"],
+          "required": true
+        },
+        {
+          "address": "0x2000",
+          "paths": ["dncnn3_input.bin", "dncnn3-bench/dncnn3_input.bin"],
+          "required": true
+        },
+        {
+          "address": "0x4000",
+          "paths": ["dncnn3_weights.bin", "dncnn3-bench/dncnn3_weights.bin"],
+          "required": true
+        }
+      ],
+      "dump_magic": "0xD3C11003",
+      "requires_dncnn_inputs": true
+    },
+    "yolo": {
+      "canonical_variant": "y10_00_base",
+      "source": "ported_models/yolo/src/yolo_vpu_argbuf.c",
+      "bench_dir": "yolo-bench",
+      "manifest": "yolo_10_variants.txt",
+      "full_manifest": "yolo_100_variants.txt",
+      "build": {
+        "opt": "-O3",
+        "defines": ["-DYOLO_PASSES=1"]
+      },
+      "file_loads": [
+        {
+          "address": "0x0",
+          "paths": ["zero2m.bin", "dncnn3-bench/zero2m.bin"],
+          "required": true
+        }
+      ],
+      "dump_magic": "0x10500001",
+      "requires_dncnn_inputs": false
+    },
+    "whisper": {
+      "canonical_variant": "w10_00_base",
+      "source": "ported_models/whisper/src/whisper_transformer_vpu_argbuf.c",
+      "bench_dir": "whisper-bench",
+      "manifest": "whisper_10_variants.txt",
+      "full_manifest": "whisper_100_variants.txt",
+      "build": {
+        "opt": "-O3",
+        "defines": ["-DDEPTH_PASSES=1"]
+      },
+      "file_loads": [
+        {
+          "address": "0x0",
+          "paths": ["zero2m.bin", "dncnn3-bench/zero2m.bin"],
+          "required": true
+        }
+      ],
+      "dump_magic": null,
+      "requires_dncnn_inputs": false
+    },
+    "lfm25": {
+      "config": "ported_models/llama_cpp_et/benchmarks/lfm25.json"
+    },
+    "llama32_1b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/llama32_1b.json"
+    },
+    "gemma3n_e2b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/gemma3n_e2b.json"
+    },
+    "tinyllama11b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/tinyllama11b.json"
+    },
+    "rwkv7_15b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/rwkv7_15b.json"
+    },
+    "qwen3_06b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/qwen3_06b.json"
+    },
+    "qwen3_17b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/qwen3_17b.json"
+    },
+    "qwen3_4b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/qwen3_4b.json"
+    },
+    "smollm2_135m": {
+      "config": "ported_models/llama_cpp_et/benchmarks/smollm2_135m.json"
+    },
+    "smollm2_360m": {
+      "config": "ported_models/llama_cpp_et/benchmarks/smollm2_360m.json"
+    },
+    "smollm2_17b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/smollm2_17b.json"
+    },
+    "llama32_3b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/llama32_3b.json"
+    },
+    "llama31_8b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/llama31_8b.json"
+    }
+  }
+}

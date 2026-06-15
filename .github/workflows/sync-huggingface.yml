@@ -1,0 +1,96 @@
+name: Sync Hugging Face mirror
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+concurrency:
+  group: sync-huggingface
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    name: Mirror main to Hugging Face
+    runs-on: ubuntu-24.04
+    if: github.event_name != 'push' || !contains(github.event.head_commit.message, '[skip hf]')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Hugging Face Hub client
+        run: python -m pip install --upgrade huggingface_hub
+
+      - name: Sync repository mirror
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+          HF_REPO_ID: AIFoundry-hackathon/hf-hackathon
+        run: |
+          python - <<'PY'
+          import os
+          from huggingface_hub import HfApi
+
+          repo_id = os.environ["HF_REPO_ID"]
+          token = os.environ["HF_TOKEN"]
+
+          allow = [
+              ".github/**",
+              ".gitignore",
+              ".gitmodules",
+              "LICENSE",
+              "NOTICE",
+              "README.md",
+              "data/**",
+              "docs/**",
+              "ported_models/**",
+              "scripts/**",
+          ]
+          delete = allow + [
+              "BOARD_ACCESS.md",
+              "ET_SOC1_QUICKSTART.md",
+              "SUBMISSION_GUIDE.md",
+              "THIRD_PARTY.md",
+              "opinionated_porting_options/**",
+          ]
+          ignore = [
+              ".git/**",
+              ".ci-work/**",
+              ".pytest_cache/**",
+              "local-artifacts/**",
+              "__pycache__/**",
+              "**/__pycache__/**",
+              "*.log",
+              "pu_uart*.log",
+              "spio_uart*.log",
+              "sysemu.log",
+          ]
+
+          api = HfApi()
+          api.create_repo(repo_id=repo_id, repo_type="model", private=True, exist_ok=True, token=token)
+          api.update_repo_settings(repo_id=repo_id, repo_type="model", private=True, token=token)
+          info = api.upload_folder(
+              repo_id=repo_id,
+              repo_type="model",
+              folder_path=".",
+              path_in_repo=".",
+              allow_patterns=allow,
+              ignore_patterns=ignore,
+              delete_patterns=delete,
+              commit_message=f"Mirror GitHub main {os.environ['GITHUB_SHA'][:12]}",
+              commit_description=(
+                  "Automated one-way mirror from GitHub. "
+                  "Submit hackathon PRs on GitHub; the Hugging Face repo is a read-only mirror."
+              ),
+              token=token,
+          )
+          print(info.commit_url)
+          PY

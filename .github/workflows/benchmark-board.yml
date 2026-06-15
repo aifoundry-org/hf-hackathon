@@ -1,0 +1,400 @@
+name: ET-SoC1 board benchmark
+
+# Runs leaderboard smoke on a self-hosted ET-SoC1 board runner (real silicon, soc1sim).
+#
+# Public fork PRs do not run directly on the board host. Same-repo PRs select
+# the changed configured board models and run them on the self-hosted ET-SoC1
+# runner. Pushes to main run the default board suite and can update data/*.json.
+
+on:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: "Git ref to benchmark, e.g. refs/pull/1/merge. Empty = current ref."
+        required: false
+        default: ""
+      models:
+        description: "Space/comma-separated models. Empty = default models; use all for every configured model."
+        required: false
+        default: ""
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: et-soc1-board-${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  select-board-models:
+    name: Select board models
+    runs-on: ubuntu-latest
+    outputs:
+      models: ${{ steps.models.outputs.models }}
+      has_models: ${{ steps.models.outputs.has_models }}
+      unregistered: ${{ steps.models.outputs.unregistered }}
+      has_unregistered: ${{ steps.models.outputs.has_unregistered }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.sha }}
+          fetch-depth: 0
+
+      - name: Resolve benchmark models
+        id: models
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_MODELS: ${{ github.event.inputs.models || '' }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha || '' }}
+        run: |
+          set -euo pipefail
+          unregistered=""
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            models="$(python3 .github/ci/scripts/changed_benchmark_models.py \
+              --target board \
+              --base "$PR_BASE_SHA" \
+              --head "$PR_HEAD_SHA" \
+              --scope changed \
+              --format space \
+              --unregistered-out unregistered.txt)"
+            unregistered="$(cat unregistered.txt 2>/dev/null || true)"
+          else
+            models="$(python3 .github/ci/scripts/benchmark_config_helpers.py \
+              --target board \
+              --models "$INPUT_MODELS" \
+              --format space)"
+          fi
+          echo "models=$models" >> "$GITHUB_OUTPUT"
+          echo "unregistered=$unregistered" >> "$GITHUB_OUTPUT"
+          if [[ -n "$models" ]]; then
+            echo "has_models=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_models=0" >> "$GITHUB_OUTPUT"
+          fi
+          if [[ -n "$unregistered" ]]; then
+            echo "has_unregistered=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "has_unregistered=0" >> "$GITHUB_OUTPUT"
+          fi
+          {
+            echo "### Board model selection"
+            echo
+            if [[ -n "$models" ]]; then
+              echo "Selected models: \`$models\`"
+            else
+              echo "No changed board benchmark models were selected."
+            fi
+            if [[ -n "$unregistered" ]]; then
+              echo
+              echo "New ports without a benchmark entry: \`$unregistered\`"
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  board-benchmark:
+    name: board (${{ needs.select-board-models.outputs.models || 'no models' }})
+    needs: select-board-models
+    if: needs.select-board-models.outputs.has_models == '1' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: [self-hosted, Linux, X64, et-soc1, board-ci, single-board]
+    timeout-minutes: 240
+    env:
+      HOME: /root
+      MODELS: ${{ needs.select-board-models.outputs.models }}
+      SOC3_LOCAL: ${{ vars.SOC3_LOCAL || '1' }}
+      SOC3_HOST: ${{ vars.SOC3_HOST || 'local' }}
+      SOC3_SSH_ALIAS: ${{ vars.SOC3_SSH_ALIAS || 'aifoundry1' }}
+      SOC3_SSH_KEY: ${{ vars.SOC3_SSH_KEY || '/root/.ssh/id_rsa' }}
+      USE_TAILSCALE_SSH: "0"
+      SOC3_BUILD_ET: ${{ vars.AIFOUNDRY1_SOC3_BUILD_ET || '/opt/et' }}
+      ET_INSTALL: ${{ vars.AIFOUNDRY1_SOC3_BUILD_ET || '/opt/et' }}
+      SOC3_REMOTE_ET_INSTALL: ${{ vars.AIFOUNDRY1_SOC3_REMOTE_ET_INSTALL || '/opt/et' }}
+      SOC3_REMOTE_ET_PLATFORM: ${{ vars.AIFOUNDRY1_SOC3_REMOTE_ET_PLATFORM || '/opt/et' }}
+      SOC3_FAIL_ON_MODEL_FAILURE: ${{ vars.AIFOUNDRY1_SOC3_FAIL_ON_MODEL_FAILURE || '0' }}
+      ET_PLATFORM_SRC: ${{ vars.AIFOUNDRY1_ET_PLATFORM_SRC || '' }}
+      LAUNCHER: ${{ vars.AIFOUNDRY1_SOC3_LAUNCHER || '' }}
+      ET_LIB_PATH: ${{ vars.AIFOUNDRY1_SOC3_ET_LIB_PATH || '/opt/et/host:/opt/et/lib' }}
+      ET_PLATFORM_REF: ${{ vars.ET_PLATFORM_REF || 'master' }}
+      GITHUB_TOKEN: ${{ github.token }}
+      BENCHMARK_ASSETS_DIR: ${{ vars.AIFOUNDRY1_BENCHMARK_ASSETS_DIR || vars.BENCHMARK_ASSETS_DIR || '' }}
+      BENCHMARK_ASSETS_URL: ${{ secrets.BENCHMARK_ASSETS_URL }}
+      LFM25_MODEL_PATH: ${{ vars.AIFOUNDRY1_LFM25_MODEL_PATH || '' }}
+      WIKITEXT_RAW_PATH: ${{ vars.AIFOUNDRY1_WIKITEXT_RAW_PATH || '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref || github.sha }}
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Resolve benchmark ref
+        id: bench
+        env:
+          INPUT_REF: ${{ github.event.inputs.ref || '' }}
+        run: |
+          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+          echo "ref=${INPUT_REF:-$GITHUB_REF}" >> "$GITHUB_OUTPUT"
+          if [[ "$INPUT_REF" =~ ^refs/pull/([0-9]+)/merge$ ]]; then
+            echo "pr=${BASH_REMATCH[1]}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Resolve board host paths
+        run: |
+          if [[ -z "${ET_PLATFORM_SRC:-}" ]]; then
+            echo "ET_PLATFORM_SRC=${RUNNER_TEMP}/et-platform" >> "$GITHUB_ENV"
+          fi
+
+      - name: Check board access configuration
+        id: board-access
+        run: |
+          mkdir -p board-scores
+          missing=()
+          [[ -e /dev/et0_mgmt ]] || missing+=("/dev/et0_mgmt")
+          [[ -x "${ET_INSTALL}/bin/riscv64-unknown-elf-gcc" ]] || missing+=("${ET_INSTALL}/bin/riscv64-unknown-elf-gcc")
+          if [[ ! -f "${ET_PLATFORM_SRC}/gp-sdk/device/sdk/lib/erbium-soc1sim/erbium.ld" ]]; then
+            command -v git >/dev/null || missing+=("git (needed to clone et-platform)")
+          fi
+          if [[ -n "${LAUNCHER:-}" && ! -x "${LAUNCHER}" ]]; then
+            missing+=("configured launcher ${LAUNCHER}")
+          fi
+          source .github/ci/platform/deploy/soc3-ssh.sh
+          if ! soc3_is_local; then
+            read -r -a ssh_cmd <<<"$(soc3_ssh_cmd)"
+            timeout 20 "${ssh_cmd[@]}" true 2>/dev/null || missing+=("ssh to board host")
+          fi
+
+          if [[ "${#missing[@]}" -eq 0 ]]; then
+            echo "run_board=1" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "run_board=0" >> "$GITHUB_OUTPUT"
+          note="Self-hosted ET-SoC1 board runner is online, but hardware access is incomplete: $(IFS=', '; echo "${missing[*]}")."
+          for model in $MODELS; do
+            python3 .github/ci/scripts/score_results.py \
+              --model "$model" \
+              --output "board-scores/score-${model}.json" \
+              --sha "${{ steps.bench.outputs.sha }}" \
+              --ref "${{ steps.bench.outputs.ref }}" \
+              --actor "${{ github.actor }}" \
+              --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+              --status skipped \
+              --note "$note"
+          done
+
+      - name: Check local prebuild dependencies
+        if: steps.board-access.outputs.run_board == '1'
+        run: |
+          for tool in git curl python3 rsync docker cmake; do
+            command -v "$tool" >/dev/null
+          done
+
+      - name: Prepare Dockerized RISC-V toolchain
+        if: steps.board-access.outputs.run_board == '1'
+        run: |
+          real_et_root="${SOC3_BUILD_ET}"
+          real_platform_src="${ET_PLATFORM_SRC}"
+          cat > "${RUNNER_TEMP}/Dockerfile.et-gcc" <<'EOF'
+          FROM ubuntu:24.04
+          # libmpc3: runtime dep of the ET RISC-V gcc. lld: the ggml-et device
+          # kernels link with -fuse-ld=lld, and the ET /opt/et toolchain ships no
+          # lld, so provide LLVM lld (ld.lld) inside the container.
+          RUN apt-get update \
+            && apt-get install -y --no-install-recommends libmpc3 lld \
+            && rm -rf /var/lib/apt/lists/*
+          EOF
+          docker build -t et-gcc:24.04 -f "${RUNNER_TEMP}/Dockerfile.et-gcc" "${RUNNER_TEMP}"
+          mkdir -p "${RUNNER_TEMP}/et-docker/bin"
+          cat > "${RUNNER_TEMP}/et-docker/bin/riscv64-unknown-elf-gcc" <<EOF
+          #!/usr/bin/env bash
+          set -euo pipefail
+          workspace="\${GITHUB_WORKSPACE:-\$PWD}"
+          exec docker run --rm \
+            -v "\${workspace}:\${workspace}" \
+            -v "${real_et_root}:${real_et_root}:ro" \
+            -v "${real_platform_src}:${real_platform_src}:ro" \
+            -w "\$PWD" \
+            et-gcc:24.04 \
+            "${real_et_root}/bin/riscv64-unknown-elf-gcc" "\$@"
+          EOF
+          chmod +x "${RUNNER_TEMP}/et-docker/bin/riscv64-unknown-elf-gcc"
+          echo "SOC3_BUILD_ET=${RUNNER_TEMP}/et-docker" >> "$GITHUB_ENV"
+          echo "ET_INSTALL=${RUNNER_TEMP}/et-docker" >> "$GITHUB_ENV"
+
+      - name: Prepare local ELF prebuild inputs
+        if: steps.board-access.outputs.run_board == '1'
+        run: |
+          chmod +x .github/ci/scripts/*.sh scripts/*.sh .github/ci/platform/deploy/*.sh
+          .github/ci/scripts/install_toolchain.sh
+          if [[ ! -f "${ET_PLATFORM_SRC}/gp-sdk/device/sdk/lib/erbium-soc1sim/erbium.ld" ]]; then
+            git clone --depth 1 --branch "${ET_PLATFORM_REF}" \
+              "https://github.com/${ET_PLATFORM_REPO:-aifoundry-org/et-platform}.git" \
+              "${ET_PLATFORM_SRC}" || \
+            git clone --depth 1 \
+              "https://github.com/${ET_PLATFORM_REPO:-aifoundry-org/et-platform}.git" \
+              "${ET_PLATFORM_SRC}"
+          fi
+
+      - name: Run board benchmarks
+        id: board_run
+        if: steps.board-access.outputs.run_board == '1'
+        # On PRs the board run is informational: per-model pass/fail is reported in
+        # the PR comment and scores, so a model that does not build yet must not
+        # red-X the PR. Pushes to main stay strict (the leaderboard update depends
+        # on a clean board run).
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
+        run: |
+          .github/ci/platform/deploy/soc3-benchmark.sh
+
+      - name: Pull board outputs
+        if: always() && steps.board-access.outputs.run_board == '1'
+        run: |
+          source .github/ci/platform/deploy/soc3-ssh.sh
+          mkdir -p board-output board-scores
+          if soc3_is_local; then
+            cp -a /root/et-jobs-deploy/benchmark-output/. board-output/ 2>/dev/null || true
+          else
+            rsh="$(soc3_rsync_rsh)"
+            host="$(soc3_rsync_host)"
+            rsync -az -e "${rsh}" "${host}:/root/et-jobs-deploy/benchmark-output/" board-output/ || true
+          fi
+          cp board-output/score-*.json board-scores/ 2>/dev/null || true
+          ls -la board-output || true
+          ls -la board-scores
+
+      - name: Write missing board failure scores
+        if: always() && steps.board-access.outputs.run_board == '1'
+        run: |
+          note="Board benchmark did not produce a score for this model; see board-benchmark-debug artifact and workflow logs."
+          for model in $MODELS; do
+            [[ -f "board-scores/score-${model}.json" ]] && continue
+            python3 .github/ci/scripts/score_results.py \
+              --model "$model" \
+              --output "board-scores/score-${model}.json" \
+              --sha "${{ steps.bench.outputs.sha }}" \
+              --ref "${{ steps.bench.outputs.ref }}" \
+              --actor "${{ github.actor }}" \
+              --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+              --status fail \
+              --note "$note"
+          done
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: board-benchmark-scores
+          path: board-scores/
+          if-no-files-found: ignore
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: board-benchmark-debug
+          path: board-output/
+          if-no-files-found: ignore
+          retention-days: 14
+
+  pr-comment:
+    name: PR board comment
+    needs: [select-board-models, board-benchmark]
+    if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+
+      - uses: actions/download-artifact@v4
+        if: needs.select-board-models.outputs.has_models == '1'
+        continue-on-error: true
+        with:
+          name: board-benchmark-scores
+          path: board-scores
+
+      - name: Build board comment body
+        env:
+          HAS_MODELS: ${{ needs.select-board-models.outputs.has_models }}
+          HAS_UNREGISTERED: ${{ needs.select-board-models.outputs.has_unregistered }}
+          SELECTED_MODELS: ${{ needs.select-board-models.outputs.models }}
+          UNREGISTERED: ${{ needs.select-board-models.outputs.unregistered }}
+          BOARD_RESULT: ${{ needs.board-benchmark.result }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_REF: ${{ github.ref }}
+        run: |
+          set -euo pipefail
+          if [[ "$HAS_MODELS" != "1" && "$HAS_UNREGISTERED" != "1" ]]; then
+            cat > /tmp/board-comment.md <<EOF
+          ## ET-SoC1 board benchmark
+
+          Workflow: [${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+          Commit: \`${GITHUB_SHA:0:12}\` - ref \`${GITHUB_REF}\`
+
+          No changed board benchmark models were selected for this PR.
+
+          _Real ET-SoC1 PR runs are scoped to configured board models touched by the PR._
+          EOF
+            exit 0
+          fi
+
+          mkdir -p board-scores
+          python3 .github/ci/scripts/format_pr_comment.py \
+            --scores-dir board-scores \
+            --output /tmp/board-comment.md \
+            --target board \
+            --models "$SELECTED_MODELS" \
+            --unregistered "$UNREGISTERED" \
+            --title "ET-SoC1 board benchmark" \
+            --sha "$GITHUB_SHA" \
+            --ref "$GITHUB_REF" \
+            --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --footer "Real board PR runs select the changed configured board models only. Main branch pushes update the leaderboard."
+          if [[ "$HAS_MODELS" == "1" && "$BOARD_RESULT" != "success" ]]; then
+            printf '\n_Board job result: `%s`._\n' "$BOARD_RESULT" >> /tmp/board-comment.md
+          fi
+
+      - uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body-path: /tmp/board-comment.md
+          comment-tag: et-soc1-board-benchmark
+
+  update-leaderboard:
+    name: Update board leaderboard
+    needs: board-benchmark
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: board-benchmark-scores
+          path: board-scores
+
+      - name: Merge board scores into leaderboard
+        run: python3 .github/ci/scripts/merge_leaderboard.py --scores-dir board-scores
+
+      - name: Commit leaderboard
+        run: |
+          set -euo pipefail
+          if git diff --quiet data README.md; then
+            echo "No leaderboard changes."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/*.json README.md
+          git commit -m "chore(leaderboard): update ET-SoC1 board scores [skip ci]"
+          git pull --rebase origin main
+          git push origin HEAD:main

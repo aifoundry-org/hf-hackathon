@@ -1,0 +1,185 @@
+name: ET-SoC1 benchmark
+
+# Sys-emu runs on GitHub-hosted runners take hours, so they are NOT part of CI.
+# Board runs (benchmark-board.yml) are the CI signal. Trigger this manually if you
+# ever need a sys-emu pass: Actions -> "ET-SoC1 benchmark" -> Run workflow.
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: benchmark-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  setup-et-sdk:
+    name: Cache ET toolchain + SDK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    outputs:
+      models: ${{ steps.benchmark-models.outputs.models }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Discover benchmark models
+        id: benchmark-models
+        run: echo "models=$(python3 .github/ci/scripts/benchmark_config_helpers.py --target sysemu --format json)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache RISC-V toolchain + ET SDK install
+        uses: actions/cache@v4
+        id: et-cache
+        with:
+          path: |
+            .ci-work/et
+            .ci-work/build/et-sdk
+            .ci-work/build/erbium_soc1sim_argbuf
+          key: et-install-${{ vars.ET_PLATFORM_REF || 'master' }}-${{ hashFiles('.github/ci/scripts/install_toolchain.sh', '.github/ci/scripts/install_et_sdk.sh', '.github/ci/scripts/install_firmware.sh', '.github/ci/scripts/build_launcher.sh', '.github/ci/et-sdk/**', '.github/ci/launcher/**', '.github/ci/firmware/**') }}
+          restore-keys: |
+            et-install-${{ vars.ET_PLATFORM_REF || 'master' }}-
+            et-install-
+
+      - name: Cache et-platform source
+        uses: actions/cache@v4
+        with:
+          path: .ci-work/et-platform
+          key: et-platform-src-${{ vars.ET_PLATFORM_REF || 'master' }}
+          restore-keys: |
+            et-platform-src-
+
+      - name: Install host dependencies
+        if: steps.et-cache.outputs.cache-hit != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential git cmake ninja-build curl jq xz-utils python3 \
+            pkg-config libjson-c-dev libgoogle-glog-dev libgflags-dev \
+            libgmock-dev libgtest-dev liblz4-dev libboost-all-dev \
+            libcap-dev libfmt-dev nlohmann-json3-dev
+
+      - name: Install toolchain and ET SDK
+        if: steps.et-cache.outputs.cache-hit != 'true'
+        run: |
+          chmod +x .github/ci/scripts/*.sh scripts/*.sh
+          .github/ci/scripts/install_toolchain.sh
+          .github/ci/scripts/install_et_sdk.sh
+          .github/ci/scripts/build_launcher.sh
+
+  benchmark:
+    name: sys-emu (${{ matrix.model }})
+    needs: setup-et-sdk
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      matrix:
+        model: ${{ fromJson(needs.setup-et-sdk.outputs.models) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore ET toolchain + SDK cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            .ci-work/et
+            .ci-work/build/et-sdk
+            .ci-work/build/erbium_soc1sim_argbuf
+          key: et-install-${{ vars.ET_PLATFORM_REF || 'master' }}-${{ hashFiles('.github/ci/scripts/install_toolchain.sh', '.github/ci/scripts/install_et_sdk.sh', '.github/ci/scripts/install_firmware.sh', '.github/ci/scripts/build_launcher.sh', '.github/ci/et-sdk/**', '.github/ci/launcher/**', '.github/ci/firmware/**') }}
+          restore-keys: |
+            et-install-${{ vars.ET_PLATFORM_REF || 'master' }}-
+            et-install-
+
+      - name: Restore et-platform source cache
+        uses: actions/cache@v4
+        with:
+          path: .ci-work/et-platform
+          key: et-platform-src-${{ vars.ET_PLATFORM_REF || 'master' }}
+          restore-keys: |
+            et-platform-src-
+
+      - name: Install host dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential git cmake ninja-build curl jq xz-utils python3
+
+      - name: Run model benchmark
+        env:
+          ET_PLATFORM_REF: ${{ vars.ET_PLATFORM_REF }}
+          BENCHMARK_ASSETS_URL: ${{ secrets.BENCHMARK_ASSETS_URL }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_REF: ${{ github.ref }}
+          GITHUB_ACTOR: ${{ github.actor }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+          GITHUB_TOKEN: ${{ github.token }}
+          SYSEMU_TIMEOUT: "10900"
+          SYSEMU_LAUNCHER_TIMEOUT: "10800"
+        run: |
+          chmod +x .github/ci/scripts/*.sh scripts/*.sh
+          .github/ci/scripts/install_toolchain.sh
+          .github/ci/scripts/install_et_sdk.sh
+          .github/ci/scripts/build_launcher.sh
+          .github/ci/scripts/run_model_benchmark.sh "${{ matrix.model }}" || true
+          if [[ ! -f ".ci-work/benchmark-output/score-${{ matrix.model }}.json" ]]; then
+            python3 .github/ci/scripts/score_results.py \
+              --model "${{ matrix.model }}" \
+              --output ".ci-work/benchmark-output/score-${{ matrix.model }}.json" \
+              --status fail \
+              --note "benchmark exited before writing a score (see job log)" \
+              --sha "${{ github.sha }}" \
+              --ref "${{ github.ref }}" \
+              --actor "${{ github.actor }}" \
+              --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: score-${{ matrix.model }}
+          path: .ci-work/benchmark-output/score-${{ matrix.model }}.json
+          if-no-files-found: warn
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: sysemu-logs-${{ matrix.model }}
+          path: .ci-work/benchmark-output/sysemu-${{ matrix.model }}/
+          if-no-files-found: ignore
+
+  pr-comment:
+    name: PR benchmark comment
+    needs: benchmark
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: benchmark-scores
+          pattern: score-*
+          merge-multiple: true
+
+      - name: Build comment body
+        id: comment
+        env:
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_REF: ${{ github.ref }}
+        run: |
+          python3 .github/ci/scripts/format_pr_comment.py \
+            --scores-dir benchmark-scores \
+            --output /tmp/benchmark-comment.md \
+            --target sysemu \
+            --sha "${GITHUB_SHA}" \
+            --ref "${GITHUB_REF}" \
+            --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+      - uses: peter-evans/create-or-update-comment@v4
+        with:
+          issue-number: ${{ github.event.pull_request.number }}
+          body-path: /tmp/benchmark-comment.md
+          comment-tag: et-soc1-benchmark

@@ -1,0 +1,46 @@
+# Public control plane: API + sim worker (no PCIe).
+# Board workers run natively on esperanto-soc* hosts with outbound JOBS_API_URL.
+
+services:
+  api:
+    image: python:3.11-slim
+    working_dir: /app/.github/ci/platform
+    volumes:
+      - ../../../..:/app:ro
+      - et-jobs-data:/var/lib/et-jobs
+    environment:
+      JOBS_BIND: 0.0.0.0:8080
+      JOBS_API_URL: http://api:8080
+      JOBS_DATA_DIR: /var/lib/et-jobs
+      ET_JOBS_PRODUCTION: "1"
+      SUBMITTER_TOKEN: ${SUBMITTER_TOKEN:?set SUBMITTER_TOKEN}
+      OPERATOR_TOKEN: ${OPERATOR_TOKEN:?set OPERATOR_TOKEN}
+      WORKER_TOKENS: ${WORKER_TOKENS:?set WORKER_TOKENS}
+      SIM_ONLY_PUBLIC: "1"
+    command: >
+      bash -c "pip install -q -r requirements.txt &&
+      PYTHONPATH=/app/.github/ci/platform python3 -m et_jobs api"
+    ports:
+      - "8080:8080"
+
+  sim-worker:
+    image: python:3.11-slim
+    working_dir: /app/.github/ci/platform
+    volumes:
+      - ../../../..:/app:ro
+      - et-jobs-data:/var/lib/et-jobs
+    environment:
+      JOBS_API_URL: http://api:8080
+      JOBS_DATA_DIR: /var/lib/et-jobs
+      WORKER_TOKENS: ${WORKER_TOKENS:?set WORKER_TOKENS}
+      HOST_ID: sim-worker-1
+      JOBS_REPO_ROOT: /app
+      SIM_ONLY_PUBLIC: "1"
+    command: >
+      bash -c "pip install -q -r requirements.txt &&
+      PYTHONPATH=/app/.github/ci/platform python3 -m et_jobs worker --pool sim"
+    depends_on:
+      - api
+
+volumes:
+  et-jobs-data:
