@@ -1,6 +1,6 @@
-# Porting Models & Kernels to ET-SoC-1 -- Hackathon Field Guide
+# Porting Models & Kernels to CORE-ET -- Hackathon Field Guide
 
-> A practical guide for people who have never touched the ET-SoC-1 before and
+> A practical guide for people who have never touched CORE-ET or ET-SoC-1 before and
 > want to get a model, or a single hot kernel, running and then running fast
 > without losing a day to footguns we already hit.
 >

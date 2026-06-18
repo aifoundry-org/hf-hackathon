@@ -2,12 +2,18 @@
 license: apache-2.0
 tags:
 - et-soc1
+- core-et
+- openhw
 - hackathon
 - benchmarking
 - model-porting
 ---
 
-# ET-SoC1 Model Porting
+# CORE-ET Model Porting Hackathon
+
+This is an AIFoundry + OpenHW hackathon for porting open AI models onto the
+CORE-ET open hardware platform. The current board workflow runs submissions on
+ET-SoC1 boards and reports reproducible benchmark results.
 
 <!-- leaderboard:start -->
 ## ET-SoC1 Board Leaderboard
@@ -28,10 +34,9 @@ Results are from real ET-SoC1 silicon via the main-branch board workflow. Each m
 Full JSON data lives in [`data/`](data/).
 <!-- leaderboard:end -->
 
-This is an initiation to model porting on the ET-SoC1 board.
-
 In this repo, you will find ready-to-deploy ported models, guides to deploy
-them, and opinionated files on how to optimize them by the nekkoai team.
+them, and opinionated files on how to optimize them for CORE-ET and ET-SoC1
+board runs.
 
 ## Submitting Results
 
@@ -46,12 +51,12 @@ CI can run and comment on your submission.
 
 Start here:
 
-- [`docs/ET_SOC1_QUICKSTART.md`](docs/ET_SOC1_QUICKSTART.md): install the toolchain, download Hugging Face refs, build, and run.
+- [`docs/ET_SOC1_QUICKSTART.md`](docs/ET_SOC1_QUICKSTART.md): CORE-ET quickstart on ET-SoC1 boards; install the toolchain, download Hugging Face refs, build, and run.
 - [`docs/HF_REFERENCES.md`](docs/HF_REFERENCES.md): pinned Hugging Face base models for the showcased workloads and new submissions.
 - [`docs/BOARD_ACCESS.md`](docs/BOARD_ACCESS.md): join Discord and request Tailscale access to the board pool.
 - [`docs/opinionated_porting_options/afonso.md`](docs/opinionated_porting_options/afonso.md): layer-by-layer porting, PMC measurement, and
   optimization workflow.
-- [`docs/opinionated_porting_options/martin.md`](docs/opinionated_porting_options/martin.md): ET-SoC1 mental model, correctness footguns, and
+- [`docs/opinionated_porting_options/martin.md`](docs/opinionated_porting_options/martin.md): ET-SoC1 board mental model, correctness footguns, and
   performance playbook.
 - `ported_models/dncnn/`
 - `ported_models/yolo/`
@@ -66,6 +71,27 @@ tokens/second plus WikiText-2 raw PPL for transformer models. Extra supported
 GGUF and TTS candidates can be run explicitly from the same manifest without
 joining the default main-branch sweep.
 
+## What To Point Your Agents At
+
+For agent-assisted submissions, point your agent at the repo docs first, then at
+the platform sources:
+
+- [`docs/SUBMISSION_GUIDE.md`](docs/SUBMISSION_GUIDE.md): required PR shape and checklist.
+- [`docs/ET_SOC1_QUICKSTART.md`](docs/ET_SOC1_QUICKSTART.md): CORE-ET quickstart on ET-SoC1 boards.
+- [`docs/HF_REFERENCES.md`](docs/HF_REFERENCES.md): pinned base model references.
+- [`docs/opinionated_porting_options/afonso.md`](docs/opinionated_porting_options/afonso.md): model-porting workflow.
+- [`docs/opinionated_porting_options/martin.md`](docs/opinionated_porting_options/martin.md): board and performance guidance.
+- [`ported_models/`](ported_models/): existing ports and artifacts to copy from.
+- [OpenHW CORE-ET RTL](https://github.com/openhwgroup/core-et): RTL and hardware source context.
+- [AIFoundry ET platform](https://github.com/aifoundry-org/et-platform): platform support, runtime pieces, and toolchain setup helpers.
+- [AIFoundry RISC-V GNU toolchain](https://github.com/aifoundry-org/riscv-gnu-toolchain): toolchain source used by the setup flow.
+
+Submissions should include a reusable `.md` recipe or equivalent
+agent-readable notes. Capture the task breakdown, markdown instructions or
+prompt files used, repos/docs/RTL/model files you pointed tools at, commands
+that worked, checks that failed, and the final verification path so another
+participant or agent can reproduce the result.
+
 ## Submitting a port
 
 Submit through GitHub PRs. The Hugging Face repo is a read-only mirror and does
@@ -74,7 +100,8 @@ ask questions in Discord `#Lab` if you need help.
 
 New model submissions should start from pinned Hugging Face model repos whenever
 the model family exists there. Record the repo, revision, filename, license, and
-any export or packing step needed to reproduce the board artifact.
+any export or packing step needed to reproduce the board artifact. Include a
+reusable recipe or agent-readable notes with the PR.
 
 ## License
 

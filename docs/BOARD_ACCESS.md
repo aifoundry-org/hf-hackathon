@@ -1,6 +1,6 @@
 # ET-SoC1 Board Access
 
-ET-SoC1 board access is available to hackathon participants through the lab
+CORE-ET hackathon participants can request ET-SoC1 board access through the lab
 board pool. Use Discord to request access and coordinate debugging.
 
 ## Request Access
@@ -14,7 +14,7 @@ board pool. Use Discord to request access and coordinate debugging.
 Suggested message:
 
 ```text
-Hi, I am participating in the ET-SoC1 hackathon and would like board access.
+Hi, I am participating in the CORE-ET hackathon and would like ET-SoC1 board access.
 
 Name:
 HF/GitHub handle:

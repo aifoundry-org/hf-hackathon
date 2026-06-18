@@ -1,6 +1,7 @@
-# Afonso Opinionated ET-SoC1 Porting Guide
+# Afonso Opinionated CORE-ET Porting Guide
 
-This is the silicon-port workflow for the checked-in ET-SoC1 reference models:
+This is the silicon-port workflow for the checked-in CORE-ET reference models
+running on ET-SoC1 boards:
 DnCNN, YOLO, and Whisper.
 
 The goal is not to ask a model to write an end-to-end model port. The useful

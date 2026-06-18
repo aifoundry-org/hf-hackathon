@@ -27,3 +27,5 @@ sysemu.log
 
 # Draft / WIP content not part of the published repo
 blogpost/
+docs/*.docx
+docs/.~lock*.docx#

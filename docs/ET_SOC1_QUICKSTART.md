@@ -1,13 +1,14 @@
-# ET-SoC1 Model Port Quickstart
+# CORE-ET Quickstart on ET-SoC1 Boards
 
 This guide is for a fresh workstation plus an assigned ET-SoC1 board host.
-It avoids personal paths and lab-specific hostnames. Everything configurable
-is expressed through environment variables.
+It covers the current CORE-ET model-porting flow on ET-SoC1 boards. It avoids
+personal paths and lab-specific hostnames. Everything configurable is expressed
+through environment variables.
 
-The working repo is the model-port repo. The AIFoundry repositories are used
-for the platform support and RISC-V ET toolchain. Hugging Face model references
-are downloaded on demand. Generated ET-SoC1 ELFs are built locally from the
-checked-in port sources.
+The working repo is the model-port repo. AIFoundry and OpenHW repositories are
+used for the platform support, CORE-ET RTL context, and RISC-V ET toolchain.
+Hugging Face model references are downloaded on demand. Generated ET-SoC1 ELFs
+are built locally from the checked-in port sources.
 
 ## Ported Models
 
@@ -37,6 +38,7 @@ Pick locations that make sense for the machine:
 export WORK_ROOT="${WORK_ROOT:-$HOME/et-soc1-work}"
 export MODEL_PORT_REPO="$WORK_ROOT/hf-hackathon"
 export ET_PLATFORM_SRC="$WORK_ROOT/et-platform"
+export CORE_ET_SRC="$WORK_ROOT/core-et"
 export ET_INSTALL="$WORK_ROOT/et"
 export BUILD_ROOT="$WORK_ROOT/build"
 export ARTIFACT_ROOT="$MODEL_PORT_REPO/local-artifacts"
@@ -56,16 +58,18 @@ given by your lab or cluster.
 
 ## Clone Source Repos
 
-Clone the model-port repo and AIFoundry platform repo:
+Clone the model-port repo, AIFoundry platform repo, and OpenHW CORE-ET RTL repo:
 
 ```bash
 mkdir -p "$WORK_ROOT"
 
 git clone https://github.com/aifoundry-org/hf-hackathon.git "$MODEL_PORT_REPO"
 git clone https://github.com/aifoundry-org/et-platform.git "$ET_PLATFORM_SRC"
+git clone https://github.com/openhwgroup/core-et.git "$CORE_ET_SRC"
 
 git -C "$MODEL_PORT_REPO" branch --show-current
 git -C "$ET_PLATFORM_SRC" branch --show-current
+git -C "$CORE_ET_SRC" branch --show-current
 ```
 
 Prefer each repo's default branch unless the project gives you a specific
