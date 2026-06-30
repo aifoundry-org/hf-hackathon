@@ -29,6 +29,37 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  authorize-board-run:
+    name: Authorize board runner
+    runs-on: ubuntu-latest
+    outputs:
+      allowed: ${{ steps.auth.outputs.allowed }}
+      permission: ${{ steps.auth.outputs.permission }}
+    steps:
+      - name: Check actor repository permission
+        id: auth
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          set -euo pipefail
+          permission="$(gh api "repos/${GITHUB_REPOSITORY}/collaborators/${ACTOR}/permission" --jq .permission 2>/dev/null || echo none)"
+          case "$permission" in
+            admin|maintain) allowed=1 ;;
+            *) allowed=0 ;;
+          esac
+          echo "permission=$permission" >> "$GITHUB_OUTPUT"
+          echo "allowed=$allowed" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Board runner authorization"
+            echo
+            if [[ "$allowed" == "1" ]]; then
+              echo "@${ACTOR} may start ET-SoC1 board runs (${permission})."
+            else
+              echo "@${ACTOR} may not start ET-SoC1 board runs (${permission}). Ask a maintainer to run the board workflow."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
   select-board-models:
     name: Select board models
     runs-on: ubuntu-latest
@@ -96,8 +127,8 @@ jobs:
 
   board-benchmark:
     name: board (${{ needs.select-board-models.outputs.models || 'no models' }})
-    needs: select-board-models
-    if: needs.select-board-models.outputs.has_models == '1' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
+    needs: [authorize-board-run, select-board-models]
+    if: needs.authorize-board-run.outputs.allowed == '1' && needs.select-board-models.outputs.has_models == '1' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: [self-hosted, Linux, X64, et-soc1, board-ci, single-board]
     timeout-minutes: 240
     env:
@@ -298,7 +329,7 @@ jobs:
 
   pr-comment:
     name: PR board comment
-    needs: [select-board-models, board-benchmark]
+    needs: [authorize-board-run, select-board-models, board-benchmark]
     if: always() && github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     permissions:
@@ -323,6 +354,9 @@ jobs:
           SELECTED_MODELS: ${{ needs.select-board-models.outputs.models }}
           UNREGISTERED: ${{ needs.select-board-models.outputs.unregistered }}
           BOARD_RESULT: ${{ needs.board-benchmark.result }}
+          BOARD_AUTH_ALLOWED: ${{ needs.authorize-board-run.outputs.allowed }}
+          BOARD_AUTH_PERMISSION: ${{ needs.authorize-board-run.outputs.permission }}
+          BOARD_ACTOR: ${{ github.actor }}
           GITHUB_SHA: ${{ github.sha }}
           GITHUB_REF: ${{ github.ref }}
         run: |
@@ -354,6 +388,10 @@ jobs:
             --ref "$GITHUB_REF" \
             --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
             --footer "Real board PR runs select the changed configured board models only. Main branch pushes update the leaderboard."
+          if [[ "$BOARD_AUTH_ALLOWED" != "1" ]]; then
+            printf '\n_Board run was not started: `@%s` has `%s` permission. Ask an admin or maintainer to run the board workflow._\n' \
+              "$BOARD_ACTOR" "$BOARD_AUTH_PERMISSION" >> /tmp/board-comment.md
+          fi
           if [[ "$HAS_MODELS" == "1" && "$BOARD_RESULT" != "success" ]]; then
             printf '\n_Board job result: `%s`._\n' "$BOARD_RESULT" >> /tmp/board-comment.md
           fi
