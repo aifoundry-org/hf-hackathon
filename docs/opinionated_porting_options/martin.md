@@ -7,7 +7,7 @@
 > This guide complements the repo quickstart
 > [`ET_SOC1_QUICKSTART.md`](../ET_SOC1_QUICKSTART.md) and the upstream
 > ET backend reference
-> [`docs/backend/ET.md`](../ported_models/llama_cpp_et/src/llama.cpp-et/docs/backend/ET.md).
+> [`docs/backend/ET.md`](../../ported_models/llama_cpp_et/src/llama.cpp-et/docs/backend/ET.md).
 > Read the quickstart for this repo's CI flow. Read ET.md for the exact
 > toolchain install and CMake flags. Read this for the mental model, the
 > footguns that cause silent corruption or hangs, and the performance playbook.
@@ -119,7 +119,7 @@ Path B for the single kernel that dominates runtime. Use `ET_PERF`,
 
 Build and toolchain details live in
 [`ET_SOC1_QUICKSTART.md`](../ET_SOC1_QUICKSTART.md) and upstream
-[`docs/backend/ET.md`](../ported_models/llama_cpp_et/src/llama.cpp-et/docs/backend/ET.md).
+[`docs/backend/ET.md`](../../ported_models/llama_cpp_et/src/llama.cpp-et/docs/backend/ET.md).
 The short version:
 
 1. Install the ET toolchain and platform under `/opt/et`, or set
