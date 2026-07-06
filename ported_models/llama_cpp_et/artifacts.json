@@ -205,6 +205,24 @@
       "size_bytes": 8540775776,
       "note": "ET backend docs list the Llama 3.1 family as fully supported; this larger Q8 model is not in the default CI set."
     },
+    "lfm25_350m_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "LFM2.5-350M-Q8_0",
+      "filename": "LFM2.5-350M-Q8_0.gguf",
+      "env": "LFM25_350M_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "LiquidAI/LFM2.5-350M-GGUF",
+        "revision": "bb7ee58b243e4cede04187e323e760b04f8a0091",
+        "filename": "LFM2.5-350M-Q8_0.gguf",
+        "url": "https://huggingface.co/LiquidAI/LFM2.5-350M-GGUF/resolve/bb7ee58b243e4cede04187e323e760b04f8a0091/LFM2.5-350M-Q8_0.gguf"
+      },
+      "local_cache": "local-artifacts/models/lfm25_350m/LFM2.5-350M-Q8_0.gguf",
+      "sha256": "be036a757295e550098b85e13f6af2735d0fa73b41e1156a40c7d8e8e32a5766",
+      "size_bytes": 379217632,
+      "note": "Smaller LFM2.5 edge model; same lfm2 arch as LFM2.5-1.2B board row. License: lfm1.0."
+    },
     "lfm25_q8_gguf": {
       "kind": "model",
       "framework": "llama.cpp-et",

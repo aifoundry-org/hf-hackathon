@@ -134,6 +134,9 @@
     "lfm25": {
       "config": "ported_models/llama_cpp_et/benchmarks/lfm25.json"
     },
+    "lfm25_350m": {
+      "config": "ported_models/llama_cpp_et/benchmarks/lfm25_350m.json"
+    },
     "llama32_1b": {
       "config": "ported_models/llama_cpp_et/benchmarks/llama32_1b.json"
     },
