@@ -22,6 +22,9 @@ Mirrors existing Qwen3 rows (`qwen3_4b`) and the 8B Llama row (`llama31_8b`):
 `device=ET`, `gpu_layers=99`, completion API, longer timeouts for the ~8.7 GiB
 weight file.
 
+Batch tuning (Modal Q8-F, 7-trial matrix): `batch_size=512`, `ubatch_size=256`
+(+47% Modal decode proxy vs baseline; board CI re-run pending).
+
 ## Verification
 
 ```bash

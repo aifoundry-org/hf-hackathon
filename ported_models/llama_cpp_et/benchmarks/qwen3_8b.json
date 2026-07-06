@@ -14,7 +14,7 @@
     "label": "Decode tokens/s",
     "higher_is_better": true
   },
-  "note": "Non-MoE Qwen3 q8_0; ET backend lists this family as fully supported (gpu_layers=99).",
+  "note": "Non-MoE Qwen3 q8_0; ET backend lists this family as fully supported (gpu_layers=99). batch_size/ubatch_size tuned via Modal Q8-F (+47% proxy decode vs baseline).",
   "llama_server": {
     "source_artifact": "llama_cpp_source",
     "model_artifact": "qwen3_8b_q8_gguf",
@@ -25,8 +25,8 @@
     "device": "ET",
     "gpu_layers": 99,
     "ctx_size": 2048,
-    "batch_size": 256,
-    "ubatch_size": 128,
+    "batch_size": 512,
+    "ubatch_size": 256,
     "parallel": 1,
     "cache_ram_mib": 0,
     "ready_timeout_s": 600,
