@@ -19,6 +19,7 @@ from the pinned Hugging Face base model.
 | `gemma3n_e2b` | `ggml-org/gemma-3n-E2B-it-GGUF` | `989cffaba23976934324f5e3abfabe31b30eb73b` | `gemma` | `gemma-3n-E2B-it-Q8_0.gguf` |
 | `tinyllama11b` | `TheBloke/TinyLlama-1.1B-Chat-v1.0-GGUF` | `52e7645ba7c309695bec7ac98f4f005b139cf465` | `apache-2.0` | `tinyllama-1.1b-chat-v1.0.Q8_0.gguf` |
 | `rwkv7_15b` | `Mungert/rwkv7-1.5B-world-GGUF` | `c8a25c8d349fdf76837c68bfc73c0b953f41b3ce` | `apache-2.0` | `rwkv7-1.5B-world-q8_0.gguf` |
+| `qwen3_8b` | `ggml-org/Qwen3-8B-GGUF` | `2473489dc243ccaffb4ce569c55bf1df66b2088f` | `apache-2.0` | `Qwen3-8B-Q8_0.gguf` |
 
 ## Submission rule
 

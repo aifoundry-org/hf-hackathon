@@ -155,6 +155,9 @@
     "qwen3_4b": {
       "config": "ported_models/llama_cpp_et/benchmarks/qwen3_4b.json"
     },
+    "qwen3_8b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/qwen3_8b.json"
+    },
     "smollm2_135m": {
       "config": "ported_models/llama_cpp_et/benchmarks/smollm2_135m.json"
     },

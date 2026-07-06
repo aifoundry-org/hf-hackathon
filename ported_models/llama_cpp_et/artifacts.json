@@ -115,6 +115,24 @@
       "size_bytes": 4280405120,
       "note": "ET backend docs list non-MoE Qwen3 q8_0 models as fully supported."
     },
+    "qwen3_8b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "Qwen3-8B-Q8_0",
+      "filename": "Qwen3-8B-Q8_0.gguf",
+      "env": "QWEN3_8B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "ggml-org/Qwen3-8B-GGUF",
+        "revision": "2473489dc243ccaffb4ce569c55bf1df66b2088f",
+        "filename": "Qwen3-8B-Q8_0.gguf",
+        "url": "https://huggingface.co/ggml-org/Qwen3-8B-GGUF/resolve/2473489dc243ccaffb4ce569c55bf1df66b2088f/Qwen3-8B-Q8_0.gguf"
+      },
+      "local_cache": "local-artifacts/models/qwen3_8b/Qwen3-8B-Q8_0.gguf",
+      "sha256": "e15cc67ee93f33145ae47ed35e390c88af210f55e14fa3f91cc599a05a64342d",
+      "size_bytes": 8709518528,
+      "note": "ET backend docs list non-MoE Qwen3 q8_0 models as fully supported."
+    },
     "smollm2_135m_q8_gguf": {
       "kind": "model",
       "framework": "llama.cpp-et",
