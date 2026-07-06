@@ -8,12 +8,11 @@
       "license_file": "LICENSE",
       "upstream": {
         "type": "git",
-        "url": "https://github.com/aifoundry-org/llama.cpp.git",
-        "branch": "et",
-        "revision": "13da97147c0c8c04f0df410e77c8d202cebee3fb",
-        "upstream_pr": "https://github.com/aifoundry-org/llama.cpp/pull/7",
-        "upstream_author": "marty1885",
-        "note": "Informational only: this records where the committed submodule mirrors from. CI builds from the committed submodule_path; it does not clone from this URL. To change the framework version, bump the submodule pin in a PR (see ported_models/llama_cpp_et/src/README.md)."
+        "url": "https://github.com/SaqibAkram-10xE/llama.cpp.git",
+        "branch": "upstream_dev",
+        "revision": "2120e727c9fb2e3685d97b93670ed46bb7aabc03",
+        "upstream_author": "SaqibAkram-10xE",
+        "note": "Informational only: this records where the committed submodule mirrors from. CI builds from the committed submodule_path; it does not clone from this URL. To change the framework version, bump the submodule pin in a PR (see ported_models/llama_cpp_et/src/README.md). This fork adds ET-backend Q4_0/Q8_0/Q4_K support with an uberkernel decode path and a Q4_K matrix-engine (TensorFMA32) prefill kernel."
       },
       "note": "Framework source comes from the committed submodule. Submitters who want a different framework version must repin the submodule as part of their PR."
     },
