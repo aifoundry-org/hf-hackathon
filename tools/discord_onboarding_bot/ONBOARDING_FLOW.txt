@@ -1,0 +1,6 @@
+Discord onboarding and Hackathon role flow:
+1. New members get a tagged copy of the pinned #hackathon-intros template.
+2. Both the pinned template and each personal copy have ✅ and ❌ reactions.
+3. ✅ adds the existing Hackathon role.
+4. ❌ removes the Hackathon role.
+5. Personal copies are deleted when the user posts in #hackathon-intros or after 24 hours.
