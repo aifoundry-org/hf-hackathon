@@ -69,7 +69,8 @@ _Static_assert(PADW >= IMG_W + 2u, "PADW must cover the halo-padded width");
 #define SCP_B_LINE      16u        /* activations B: GTAPS*(CH/QUARTET) quartet lines       */
 #define SCP_SCALE_LINE  28u        /* requant per-OC scale vector: 1 line (past 12 B lines)  */
 #define OPCODE_INT8     3u         /* tensor_fma type = int8                     */
-#define BPK_STRIDE  (GTAPS * (CH / QUARTET) * ROW_STRIDE_BYTES) /* per-hart B pack: 12 lines  */
+#define GROUP_B_BYTES (GTAPS * (CH / QUARTET) * ROW_STRIDE_BYTES) /* one folded group's B: 12 lines */
+#define BPK_STRIDE  (NGRP * GROUP_B_BYTES) /* per-hart B pack: all NGRP groups (B1 batched evict) */
 #define TEMP_STRIDE (CH * P)       /* per-hart quant output [OC][P]: 256 B (4 lines)         */
 
 /* Baked-in shape assumptions; assert so a wrong constant fails the build. */
@@ -118,9 +119,9 @@ _Static_assert(ACTIVE_HARTS <= IMG_H, "ACTIVE_HARTS must not exceed image rows (
 #define QPADB_OFFSET   0x72000u    /* hidden ping-pong B (padded uint8)        */
 #define AW_TAP_OFFSET  0x84000u    /* hidden weights, re-arranged per layer    */
 #define MVEC_OFFSET    0x87000u    /* per-OC requant scale line                */
-#define BPACK_OFFSET   0x88000u    /* per-hart folded B pack (GTAPS*4 lines)   */
-#define TEMP_OFFSET    0x89800u    /* per-hart quant output [OC][P] (after 8x768B bpk) */
-#define TEMP_END       0x8A000u    /* ceiling of the per-hart temp slots; 0x8A000..0xD0000 unused */
+#define BPACK_OFFSET   0x88000u    /* per-hart folded B pack: all NGRP groups (B1) */
+#define TEMP_OFFSET    0x8C800u    /* per-hart quant output [OC][P] (after 8x2304B bpk) */
+#define TEMP_END       0x8D000u    /* ceiling of the per-hart temp slots; 0x8D000..0xC0000 unused */
 #define QDUMP_OFFSET   0xD0000u    /* 4x copies of q0..q3 interiors (debug)    */
 #define DUMP_END       (QDUMP_OFFSET + 4u * ACT_BYTES)
 #ifdef DNCNN_PMC
@@ -321,14 +322,18 @@ static void conv_tile(const uint8_t *restrict pad, const int8_t *restrict aw,
 		      uint8_t *restrict temp, uint8_t *restrict padout,
 		      uint32_t y, uint32_t x0)
 {
-	for (uint32_t g = 0; g < NGRP; g++) {
-		pack_b_group(bpk, pad, y, x0, (int)g - 1);          /* kernel row dy = g-1 */
-		FENCE; evict(bpk, GTAPS * (CH / QUARTET) * ROW_STRIDE_BYTES); WAIT_CACHEOPS;
+	/* B1: pack ALL groups' B up front, then ONE FENCE+evict+WAIT for the whole tile
+	 * (was one per group). Same bytes, but the per-tile blocking WAIT_CACHEOPS go NGRP->1. */
+	for (uint32_t g = 0; g < NGRP; g++)
+		pack_b_group(bpk + g * GROUP_B_BYTES, pad, y, x0, (int)g - 1);  /* kernel row dy = g-1 */
+	FENCE; evict(bpk, NGRP * GROUP_B_BYTES); WAIT_CACHEOPS;
 
+	for (uint32_t g = 0; g < NGRP; g++) {
 		tensor_load(false, false, SCP_A_LINE, 0, 0,
 			    (uint64_t)(aw + g * CH * ROW_STRIDE_BYTES), 0,
 			    CH - 1u, ROW_STRIDE_BYTES, 0);              /* A_g: 16 OC lines (GTAPS taps each) */
-		tensor_load(false, false, SCP_B_LINE, 0, 0, (uint64_t)bpk, 0,
+		tensor_load(false, false, SCP_B_LINE, 0, 0,
+			    (uint64_t)(bpk + g * GROUP_B_BYTES), 0,
 			    GTAPS * (CH / QUARTET) - 1u, ROW_STRIDE_BYTES, 0);  /* B_g: 12 quartet lines */
 		tensor_wait(TENSOR_LOAD_WAIT_0);
 
