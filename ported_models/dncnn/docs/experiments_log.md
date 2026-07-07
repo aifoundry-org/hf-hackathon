@@ -55,6 +55,13 @@ DDR 37.5k rd / 36.4k wr. This is the number every experiment must beat on `kerne
   hart0 IPC (2.64) as "waits don't matter" when the 9× per-tile blocking `WAIT`s were a fixed serial
   tax that folding could cut. **Rule:** absence of a win on axes A and B says nothing about axis C —
   enumerate the *untested* axis before declaring a floor.
+- **L10 — Don't judge a rolled-loop body change by static code size.** The pack word-copy (P1) barely
+  moved the static op-mix (`lbu` 123→119), which nearly talked me out of testing it — yet it cut
+  **−18 %** wall. The loops stayed rolled, so static size hid a 4× *dynamic* reduction (word vs byte
+  copy, plus a hoisted `PAD_AT` that had been a multiply-add per byte). Verify loop-body wins on the
+  board, not in `objdump` line counts. Corollary: the pack *copy-cost* was the single biggest lever and
+  it was layout-neutral — "pack is the hard B4-adjacent lever" conflated the cheap copy half with the
+  hard data-volume half.
 
 ## Diagnostics
 
@@ -132,22 +139,40 @@ serial-sync tail, not shared-shire bandwidth.
   the *sequential* `LOAD_WAIT`/`FMA_WAIT` (3 groups), not batchable — 3 groups' A+B (3×12+16 lines)
   exceed the 48-line SCP, so the loads/FMAs must stay serialized.
 
-## Status — B8+B1 shipped (~9.69 ms, −7.3 % end-to-end); "near floor" was premature
+### P1 — word-copy the pack_B quartet gather — **WIN (−18 %)** · 2026-07-07
 
-New best: **~9.69 ms** (was ~10.46 ms) — **direct baseline-vs-combined A/B: −7.31 %**, non-overlapping
-(baseline min 10.39 > combined max 9.79), `max_abs=0`, ~3.5× the leaderboard leader (was ~3.8×). Two
-stacked wins on the per-tile fixed-overhead axis: **B8** fold 9→3 dispatches (−4.3 %) + **B1** batch
-3→1 evict-waits (−2.7 %). After five experiments the picture is a **three-axis** trade:
+- **Hypothesis:** the `pack_B` scalar gather (~47 % of instructions) is the dominant sink; each
+  IC-quartet is 4 contiguous bytes in both pad and the B line, so moving it as one aligned word (not 4
+  byte ops) with hoisted addressing cuts the gather cost *pack-locally* — no layout/traffic change.
+- **Change:** `pack_b_group` inner loop → one `quartet_word` (may_alias uint32) copy per quartet, with
+  the pad row + quartet-source pointers hoisted out of the loop (was a full `PAD_AT` multiply-add per
+  byte). Output layout byte-identical. Committed on top of B8+B1.
+- **Result:** correct (`max_abs=0`), **−18.34 %** on B8+B1 — A/B (plain, interleaved, 5×): B8+B1 median
+  9.71 ms vs P1 **7.93 ms**, non-overlapping (B8+B1 min 9.65 > P1 max 7.98).
+- **Lesson (→ L10):** the pack copy-cost was the biggest single lever of the run and it was
+  layout-neutral. The static op-count "barely moved" — the win was purely the 4× *dynamic* reduction
+  from rolled loops, only visible on the board.
 
-- Cut **instruction volume** by re-laying-out memory → **B4 failed** (+8 %; added traffic/latency).
-- Cut **off-critical-path traffic** → **B3 failed** (+3.2 %; not on the path, added skew).
-- Cut **per-tile dispatch/sync overhead** without touching bytes/layout → **B8 + B1 won** (−7.3 % total).
+## Status — B8+B1+P1 shipped (~7.93 ms, ~−24 % end-to-end)
 
-The per-tile fixed-overhead axis is now **spent** (3 dispatches is the `acols` minimum; the remaining
-LOAD/FMA waits are serialized by the 48-line SCP budget). The remaining prize is the dominant `pack_B`
-scalar gather (~47 % of instructions) — the hard, B4-trap-adjacent one: attack it **pack-locally**
-(a cheaper gather, not a re-layout) and A/B-gate every step.
+New best: **~7.93 ms** (was ~10.46 ms), `max_abs=0`, **~2.9× the leaderboard leader** (was ~3.8×).
+Four wins stacked, on two distinct productive axes:
 
-**Durable deliverables:** the shipped B8+B1 speedup (~−7.3 %, board-verified `max_abs=0`), the
-CI-matched noise-calibrated A/B harness (`run_ab_scored.sh`, now generic ref/chal), the hart-sweep
-tooling (`build_hart_sweep.sh` / `run_hart_sweep.sh`), and this log.
+| step | change | wall | Δ |
+|---|---|---:|---:|
+| baseline | — | 10.46 ms | — |
+| B8 | fold 9→3 FMA dispatches | 9.98 ms | −4.3 % |
+| B1 | batch 3→1 evict-waits | 9.71 ms | −2.7 % |
+| **P1** | word-copy the pack gather | **7.93 ms** | **−18.3 %** |
+
+Rejected (still true): **B4** (layout-changing instruction cut, +8 %), **B3** (off-critical-path
+traffic, +3.2 %). The productive levers were (1) per-tile fixed dispatch/sync overhead (B8, B1 — now
+spent) and (2) the *copy-cost* of the pack gather (P1 — the big one).
+
+**Remaining headroom is smaller.** The pack's *data volume* (2304 quartet-moves/tile) is the residual;
+shrinking it needs an 8-byte-copy restructure (marginal, quartets scatter to different lines) or
+cutting the gather itself (a layout change → B4 trap). So the next lever is a much smaller prize.
+
+**Durable deliverables:** the shipped B8+B1+P1 speedup (~−24 %, board-verified `max_abs=0`), the
+CI-matched noise-calibrated A/B harness (`run_ab_scored.sh`, generic ref/chal), the hart-sweep tooling
+(`build_hart_sweep.sh` / `run_hart_sweep.sh`), and this log.
