@@ -153,9 +153,10 @@ serial-sync tail, not shared-shire bandwidth.
   layout-neutral. The static op-count "barely moved" — the win was purely the 4× *dynamic* reduction
   from rolled loops, only visible on the board.
 
-## Status — B8+B1+P1 shipped (~7.93 ms, ~−24 % end-to-end)
+## Status — B8+B1+P1 shipped (~7.90 ms, −24.24 % end-to-end, direct 8× A/B)
 
-New best: **~7.93 ms** (was ~10.46 ms), `max_abs=0`, **~2.9× the leaderboard leader** (was ~3.8×).
+New best: **~7.90 ms** (was ~10.43 ms) — **direct baseline-vs-full A/B (8×): −24.24 %**, non-overlapping
+(baseline min 10.39 > full max 7.93), `max_abs=0`, **~2.9× the leaderboard leader** (was ~3.8×).
 Four wins stacked, on two distinct productive axes:
 
 | step | change | wall | Δ |
