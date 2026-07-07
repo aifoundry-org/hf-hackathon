@@ -59,24 +59,32 @@ _Static_assert(PADW >= IMG_W + 2u, "PADW must cover the halo-padded width");
 #define ROW_STRIDE_BYTES 64u       /* one L1 scratchpad cache line               */
 #define QUARTET          4u        /* int8 IC packing unit (4 IC per FMA step)   */
 
+/* Tap folding (B8): fold GTAPS taps (one 3-wide kernel row) into ONE FMA dispatch with a
+ * GTAPS*CH contraction, so the 9 per-tap dispatch/load/evict/wait sets collapse to NGRP=3. */
+#define GTAPS           3u         /* taps folded per dispatch (kernel row: dx=-1,0,1)       */
+#define NGRP            (TAPS / GTAPS)  /* folded dispatches per tile (= 3, was 9)           */
+
 /* L1 scratchpad line allocation for one int8 tile (per hart/minion) */
-#define SCP_A_LINE      0u         /* weights A: 16 lines (one OC per line)      */
-#define SCP_B_LINE      16u        /* activations B: CH/QUARTET quartet lines    */
-#define SCP_SCALE_LINE  20u        /* requant per-OC scale vector: 1 line        */
+#define SCP_A_LINE      0u         /* weights A: 16 lines (one OC/line, GTAPS*CH bytes)     */
+#define SCP_B_LINE      16u        /* activations B: GTAPS*(CH/QUARTET) quartet lines       */
+#define SCP_SCALE_LINE  28u        /* requant per-OC scale vector: 1 line (past 12 B lines)  */
 #define OPCODE_INT8     3u         /* tensor_fma type = int8                     */
-#define HART_SCRATCH    256u       /* per-hart bpk / temp stride (bytes)         */
+#define BPK_STRIDE  (GTAPS * (CH / QUARTET) * ROW_STRIDE_BYTES) /* per-hart B pack: 12 lines  */
+#define TEMP_STRIDE (CH * P)       /* per-hart quant output [OC][P]: 256 B (4 lines)         */
 
 /* Baked-in shape assumptions; assert so a wrong constant fails the build. */
 _Static_assert(CH == 16u,        "CH must be 16 (4 IC-quartets, 32 FREGs)");
 _Static_assert(P  == 16u,        "P must be 16 (FMA bcols / one store block)");
 _Static_assert(IMG_W % P == 0u,  "IMG_W must be a multiple of P");
+_Static_assert(TAPS % GTAPS == 0u, "TAPS must divide into whole folded groups");
+_Static_assert(GTAPS * (CH / QUARTET) <= 16u, "folded contraction must fit acols (<=16 quartets)");
+_Static_assert(SCP_SCALE_LINE >= SCP_B_LINE + GTAPS * (CH / QUARTET), "B lines overlap the scale line");
 
 /* Per-hart scratch (bpk, temp) must hold each buffer AND be line-aligned, so that a
  * hart's own evict of its slot never shares a 64B line with the neighbouring hart's
  * slot (same false-sharing hazard as the band seams). */
-_Static_assert((CH / QUARTET) * ROW_STRIDE_BYTES <= HART_SCRATCH, "bpk exceeds HART_SCRATCH");
-_Static_assert(CH * P <= HART_SCRATCH, "temp exceeds HART_SCRATCH");
-_Static_assert(HART_SCRATCH % 64u == 0u, "HART_SCRATCH must be a whole number of 64B lines");
+_Static_assert(BPK_STRIDE  % 64u == 0u, "BPK_STRIDE must be a whole number of 64B lines");
+_Static_assert(TEMP_STRIDE % 64u == 0u, "TEMP_STRIDE must be a whole number of 64B lines");
 
 /* Hart count must fit the barrier mask (1u<<ACTIVE_HARTS) and leave every band non-empty. */
 _Static_assert(ACTIVE_HARTS >= 1u && ACTIVE_HARTS <= 32u, "ACTIVE_HARTS must be in [1,32]");
@@ -96,7 +104,7 @@ _Static_assert(ACTIVE_HARTS <= IMG_H, "ACTIVE_HARTS must not exceed image rows (
 #define IMG_BYTES     (IMG_W * IMG_H)               /* 1-channel uint8 image        */
 #define ACT_BYTES     (IMG_W * IMG_H * CH)          /* NHWC uint8 activation        */
 #define PAD_BYTES     (PADW * PADH * CH)            /* padded NHWC uint8            */
-#define AW_TAP_BYTES  (TAPS * CH * ROW_STRIDE_BYTES)/* tap-major A operand          */
+#define AW_TAP_BYTES  (NGRP * CH * ROW_STRIDE_BYTES)/* group-major A operand (GTAPS taps/OC line) */
 
 /* ---- memory map (byte offsets from base; explicit + asserted non-overlapping) ---- */
 #define SLOTS_OFFSET   0x0000u     /* per-hart attestation slots (ACTIVE_HARTS x 64B) */
@@ -110,8 +118,8 @@ _Static_assert(ACTIVE_HARTS <= IMG_H, "ACTIVE_HARTS must not exceed image rows (
 #define QPADB_OFFSET   0x72000u    /* hidden ping-pong B (padded uint8)        */
 #define AW_TAP_OFFSET  0x84000u    /* hidden weights, re-arranged per layer    */
 #define MVEC_OFFSET    0x87000u    /* per-OC requant scale line                */
-#define BPACK_OFFSET   0x88000u    /* quartet B tile (4 lines), per hart       */
-#define TEMP_OFFSET    0x89000u    /* quant output [OC][P], per hart           */
+#define BPACK_OFFSET   0x88000u    /* per-hart folded B pack (GTAPS*4 lines)   */
+#define TEMP_OFFSET    0x89800u    /* per-hart quant output [OC][P] (after 8x768B bpk) */
 #define TEMP_END       0x8A000u    /* ceiling of the per-hart temp slots; 0x8A000..0xD0000 unused */
 #define QDUMP_OFFSET   0xD0000u    /* 4x copies of q0..q3 interiors (debug)    */
 #define DUMP_END       (QDUMP_OFFSET + 4u * ACT_BYTES)
@@ -133,8 +141,8 @@ _Static_assert(QPADA_OFFSET   + PAD_BYTES    <= QPADB_OFFSET,  "qpadA overlaps q
 _Static_assert(QPADB_OFFSET   + PAD_BYTES    <= AW_TAP_OFFSET, "qpadB overlaps aw_tap");
 _Static_assert(AW_TAP_OFFSET  + AW_TAP_BYTES <= MVEC_OFFSET,   "aw_tap overlaps mvec");
 _Static_assert(DUMP_END <= 16u * 1024u * 1024u, "buffers exceed the 16MB launch region");
-_Static_assert(ACTIVE_HARTS * HART_SCRATCH <= (TEMP_OFFSET - BPACK_OFFSET), "per-hart bpk region overflow");
-_Static_assert(ACTIVE_HARTS * HART_SCRATCH <= (TEMP_END - TEMP_OFFSET),     "per-hart temp region overflow");
+_Static_assert(ACTIVE_HARTS * BPK_STRIDE  <= (TEMP_OFFSET - BPACK_OFFSET), "per-hart bpk region overflow");
+_Static_assert(ACTIVE_HARTS * TEMP_STRIDE <= (TEMP_END - TEMP_OFFSET),     "per-hart temp region overflow");
 _Static_assert(ACTIVE_HARTS * SLOT_BYTES <= SUMMARY_OFFSET, "attestation slots overflow into summary");
 
 /* pointer to padded pixel (y,x)'s CH channels; y,x are REAL coords (-1..IMG ok) */
@@ -265,23 +273,28 @@ static inline void bench_barrier(void)
 
 /* ================= tile helpers (each tensor CSR encoding lives here once) ========= */
 
-/* Gather one tap's activation window into the quartet-interleaved B layout (4 lines). */
-static inline void pack_b_tile(int8_t *restrict bpk, const uint8_t *restrict pad,
-			       uint32_t y, uint32_t x0, int dy, int dx)
+/* Gather one folded group's activation windows (kernel row dy, taps dx=-1,0,1) into the
+ * quartet-interleaved B layout: GTAPS*(CH/QUARTET) lines, ordered [tap ti][IC-quartet q] on
+ * line ti*(CH/QUARTET)+q, matching the group's A byte order (tap ti occupies A bytes ti*CH..). */
+static inline void pack_b_group(int8_t *restrict bpk, const uint8_t *restrict pad,
+				uint32_t y, uint32_t x0, int dy)
 {
-	for (uint32_t q = 0; q < CH / QUARTET; q++)
-		for (uint32_t j = 0; j < P; j++)
-			for (uint32_t x = 0; x < QUARTET; x++)
-				bpk[q * ROW_STRIDE_BYTES + j * QUARTET + x] =
-					(int8_t)PAD_AT(pad, (int)y + dy, (int)(x0 + j) + dx)[q * QUARTET + x];
+	for (uint32_t ti = 0; ti < GTAPS; ti++) {
+		const int dx = (int)ti - 1;
+		for (uint32_t q = 0; q < CH / QUARTET; q++)
+			for (uint32_t j = 0; j < P; j++)
+				for (uint32_t x = 0; x < QUARTET; x++)
+					bpk[(ti * (CH / QUARTET) + q) * ROW_STRIDE_BYTES + j * QUARTET + x] =
+						(int8_t)PAD_AT(pad, (int)y + dy, (int)(x0 + j) + dx)[q * QUARTET + x];
+	}
 }
 
-/* One int8 tap MAC (16 OC x 16 IC x 16 spatial). A is signed / B unsigned — note the
- * tensors.h argument names for the two operands are swapped. first: reset the TENC
- * accumulator; last: copy TENC into the float registers for the store. */
-static inline void fma_tap(int first, int last)
+/* One folded-group int8 MAC (16 OC x GTAPS*16 IC x 16 spatial) — GTAPS taps contracted in a
+ * single dispatch. A is signed / B unsigned — note the tensors.h operand-name swap. first:
+ * reset the TENC accumulator; last: copy TENC into the float registers for the store. */
+static inline void fma_group(int first, int last)
 {
-	tensor_fma(false, (P / QUARTET) - 1u, CH - 1u, (CH / QUARTET) - 1u, 0,
+	tensor_fma(false, (P / QUARTET) - 1u, CH - 1u, GTAPS * (CH / QUARTET) - 1u, 0,
 		   (bool)last, false, true, false, SCP_B_LINE, SCP_A_LINE, OPCODE_INT8, (bool)first);
 }
 
@@ -301,25 +314,25 @@ static inline void store_u8_tile(uint8_t *dst)
 	tensor_store(1, 0, 0, CH - 1u, (uint64_t)dst, 0, P);
 }
 
-/* One hidden-layer output tile: 9-tap int8 accumulate -> requant -> uint8 [OC][P],
+/* One hidden-layer output tile: 9 taps folded into NGRP dispatches -> requant -> uint8 [OC][P],
  * scattered into a PADDED destination's interior (so the next layer's pack_B has neighbors). */
 static void conv_tile(const uint8_t *restrict pad, const int8_t *restrict aw,
 		      int8_t *restrict bpk, const float *restrict mvec,
 		      uint8_t *restrict temp, uint8_t *restrict padout,
 		      uint32_t y, uint32_t x0)
 {
-	for (uint32_t t = 0; t < TAPS; t++) {
-		pack_b_tile(bpk, pad, y, x0, (int)(t / K) - 1, (int)(t % K) - 1);
-		FENCE; evict(bpk, (CH / QUARTET) * ROW_STRIDE_BYTES); WAIT_CACHEOPS;
+	for (uint32_t g = 0; g < NGRP; g++) {
+		pack_b_group(bpk, pad, y, x0, (int)g - 1);          /* kernel row dy = g-1 */
+		FENCE; evict(bpk, GTAPS * (CH / QUARTET) * ROW_STRIDE_BYTES); WAIT_CACHEOPS;
 
 		tensor_load(false, false, SCP_A_LINE, 0, 0,
-			    (uint64_t)(aw + t * CH * ROW_STRIDE_BYTES), 0,
-			    CH - 1u, ROW_STRIDE_BYTES, 0);              /* A_t: 16 weight lines */
+			    (uint64_t)(aw + g * CH * ROW_STRIDE_BYTES), 0,
+			    CH - 1u, ROW_STRIDE_BYTES, 0);              /* A_g: 16 OC lines (GTAPS taps each) */
 		tensor_load(false, false, SCP_B_LINE, 0, 0, (uint64_t)bpk, 0,
-			    (CH / QUARTET) - 1u, ROW_STRIDE_BYTES, 0);  /* B_t: 4 quartet lines */
+			    GTAPS * (CH / QUARTET) - 1u, ROW_STRIDE_BYTES, 0);  /* B_g: 12 quartet lines */
 		tensor_wait(TENSOR_LOAD_WAIT_0);
 
-		fma_tap(/*first*/ t == 0u, /*last*/ t == TAPS - 1u);
+		fma_group(/*first*/ g == 0u, /*last*/ g == NGRP - 1u);
 		tensor_wait(TENSOR_FMA_WAIT);
 	}
 
@@ -481,17 +494,20 @@ static uint32_t stripe_checksum(const uint8_t *out, uint32_t row0, uint32_t row1
 	return sum;
 }
 
-/* re-arrange one hidden layer's weights from the blob's WH[l][oc][ic][k] into the
- * FMA's tap-major A layout aw_tap[t][oc][ic] (tap t == kernel index k). */
+/* re-arrange one hidden layer's weights from the blob's WH[l][oc][ic][k] into the FMA's
+ * folded group-major A layout aw_tap[g][oc]: one 64B line per (group g, OC), holding GTAPS taps
+ * back-to-back — bytes ti*CH+ic = W[oc][ic][tap g*GTAPS+ti] — so a group's GTAPS*CH contraction
+ * is one contiguous A line (quartet k -> byte 4k, matching pack_b_group's B-line order). */
 static void rearrange_hidden_weights(const int8_t *restrict wh, uint32_t layer,
 				     int8_t *restrict aw_tap)
 {
 	const int8_t *const W = wh + layer * CH * CH * (K * K);   /* WH[layer] */
-	for (uint32_t oc = 0; oc < CH; oc++)
-		for (uint32_t ic = 0; ic < CH; ic++)
-			for (uint32_t t = 0; t < TAPS; t++)
-				aw_tap[t * CH * ROW_STRIDE_BYTES + oc * ROW_STRIDE_BYTES + ic] =
-					W[oc * CH * (K * K) + ic * (K * K) + t];
+	for (uint32_t g = 0; g < NGRP; g++)
+		for (uint32_t oc = 0; oc < CH; oc++)
+			for (uint32_t ti = 0; ti < GTAPS; ti++)
+				for (uint32_t ic = 0; ic < CH; ic++)
+					aw_tap[g * CH * ROW_STRIDE_BYTES + oc * ROW_STRIDE_BYTES + ti * CH + ic] =
+						W[oc * CH * (K * K) + ic * (K * K) + (g * GTAPS + ti)];
 }
 
 #ifdef DNCNN_DUMP
@@ -527,8 +543,8 @@ int main(uintptr_t arg_area)
 	uint8_t *const qpadB  = base + QPADB_OFFSET;
 	int8_t  *const aw_tap = (int8_t *)(base + AW_TAP_OFFSET);   /* shared (hart 0 builds) */
 	float   *const mvec   = (float *)(base + MVEC_OFFSET);      /* shared (hart 0 builds) */
-	int8_t  *const bpk    = (int8_t *)(base + BPACK_OFFSET + hart_id * HART_SCRATCH);  /* per-hart */
-	uint8_t *const temp   = base + TEMP_OFFSET + hart_id * HART_SCRATCH;               /* per-hart */
+	int8_t  *const bpk    = (int8_t *)(base + BPACK_OFFSET + hart_id * BPK_STRIDE);   /* per-hart */
+	uint8_t *const temp   = base + TEMP_OFFSET + hart_id * TEMP_STRIDE;               /* per-hart */
 #ifdef DNCNN_DUMP
 	uint8_t *const qdump  = base + QDUMP_OFFSET;
 #endif
