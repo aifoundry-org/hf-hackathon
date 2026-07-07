@@ -274,6 +274,11 @@ static inline void bench_barrier(void)
 
 /* ================= tile helpers (each tensor CSR encoding lives here once) ========= */
 
+/* A whole IC-quartet (4 int8) is 4 contiguous bytes in both pad (channels are *CH=*16 apart, so
+ * quartet q at +q*4 is 4-aligned) and the packed B line; move it as one 4-byte word instead of 4
+ * byte ops. may_alias keeps this strict-aliasing-safe over the int8/uint8 buffers. */
+typedef uint32_t quartet_word __attribute__((__may_alias__));
+
 /* Gather one folded group's activation windows (kernel row dy, taps dx=-1,0,1) into the
  * quartet-interleaved B layout: GTAPS*(CH/QUARTET) lines, ordered [tap ti][IC-quartet q] on
  * line ti*(CH/QUARTET)+q, matching the group's A byte order (tap ti occupies A bytes ti*CH..). */
@@ -281,12 +286,15 @@ static inline void pack_b_group(int8_t *restrict bpk, const uint8_t *restrict pa
 				uint32_t y, uint32_t x0, int dy)
 {
 	for (uint32_t ti = 0; ti < GTAPS; ti++) {
-		const int dx = (int)ti - 1;
-		for (uint32_t q = 0; q < CH / QUARTET; q++)
+		/* first spatial column of this tap's window; consecutive columns are CH bytes apart */
+		const uint8_t *restrict row = PAD_AT(pad, (int)y + dy, (int)x0 + ((int)ti - 1));
+		for (uint32_t q = 0; q < CH / QUARTET; q++) {
+			int8_t *restrict dstl = bpk + (ti * (CH / QUARTET) + q) * ROW_STRIDE_BYTES;
+			const uint8_t *restrict srcq = row + q * QUARTET;
 			for (uint32_t j = 0; j < P; j++)
-				for (uint32_t x = 0; x < QUARTET; x++)
-					bpk[(ti * (CH / QUARTET) + q) * ROW_STRIDE_BYTES + j * QUARTET + x] =
-						(int8_t)PAD_AT(pad, (int)y + dy, (int)(x0 + j) + dx)[q * QUARTET + x];
+				*(quartet_word *)(dstl + j * QUARTET) =
+					*(const quartet_word *)(srcq + j * CH);
+		}
 	}
 }
 
