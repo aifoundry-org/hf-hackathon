@@ -19,4 +19,5 @@
 #define H_OFFSET          0xA0000u
 #define Y_OFFSET          0xE0000u
 
+#define DEPTH_VPU_OC4 1
 #include "whisper_vpu_bench_common.c"

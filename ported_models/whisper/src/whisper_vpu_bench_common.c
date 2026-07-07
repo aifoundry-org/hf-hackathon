@@ -326,6 +326,96 @@ static void vpu_dotx2_f32(const float *a, const float *b0,
 	*out1 = acc1;
 }
 
+static inline void vpu_dot16x4_f32(const float *a, const float *w0,
+				   const float *w1, const float *w2, const float *w3,
+				   float *out0, float *out1, float *out2, float *out3)
+{
+	__attribute__((aligned(32))) float tmp0[8];
+	__attribute__((aligned(32))) float tmp1[8];
+	__attribute__((aligned(32))) float tmp2[8];
+	__attribute__((aligned(32))) float tmp3[8];
+	const uint64_t zero = 0;
+
+	__asm__ __volatile__(
+		"fbcx.ps f0, %[zero]\n"
+		"fbcx.ps f3, %[zero]\n"
+		"fbcx.ps f5, %[zero]\n"
+		"fbcx.ps f7, %[zero]\n"
+		"flq2    f1, 0(%[a0])\n"
+		"flq2    f2, 0(%[w0])\n"
+		"fmadd.ps f0, f1, f2, f0\n"
+		"flq2    f4, 0(%[w1])\n"
+		"fmadd.ps f3, f1, f4, f3\n"
+		"flq2    f6, 0(%[w2])\n"
+		"fmadd.ps f5, f1, f6, f5\n"
+		"flq2    f8, 0(%[w3])\n"
+		"fmadd.ps f7, f1, f8, f7\n"
+		"flq2    f1, 32(%[a0])\n"
+		"flq2    f2, 32(%[w0])\n"
+		"fmadd.ps f0, f1, f2, f0\n"
+		"flq2    f4, 32(%[w1])\n"
+		"fmadd.ps f3, f1, f4, f3\n"
+		"flq2    f6, 32(%[w2])\n"
+		"fmadd.ps f5, f1, f6, f5\n"
+		"flq2    f8, 32(%[w3])\n"
+		"fmadd.ps f7, f1, f8, f7\n"
+		"fsq2    f0, 0(%[tmp0])\n"
+		"fsq2    f3, 0(%[tmp1])\n"
+		"fsq2    f5, 0(%[tmp2])\n"
+		"fsq2    f7, 0(%[tmp3])\n"
+		:
+		: [zero] "r"(zero), [a0] "r"(a), [w0] "r"(w0),
+		  [w1] "r"(w1), [w2] "r"(w2), [w3] "r"(w3),
+		  [tmp0] "r"(tmp0), [tmp1] "r"(tmp1), [tmp2] "r"(tmp2), [tmp3] "r"(tmp3)
+		: "memory", "f0", "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8");
+
+	float sum0 = 0.0f;
+	float sum1 = 0.0f;
+	float sum2 = 0.0f;
+	float sum3 = 0.0f;
+
+	for (uint32_t i = 0; i < 8u; i++) {
+		sum0 += tmp0[i];
+		sum1 += tmp1[i];
+		sum2 += tmp2[i];
+		sum3 += tmp3[i];
+	}
+
+	*out0 = sum0;
+	*out1 = sum1;
+	*out2 = sum2;
+	*out3 = sum3;
+}
+
+static void vpu_dotx4_f32(const float *a, const float *b0,
+			  const float *b1, const float *b2, const float *b3,
+			  uint32_t k,
+			  float *out0, float *out1, float *out2, float *out3)
+{
+	float acc0 = 0.0f;
+	float acc1 = 0.0f;
+	float acc2 = 0.0f;
+	float acc3 = 0.0f;
+
+	for (uint32_t i = 0; i < k; i += 16u) {
+		float part0;
+		float part1;
+		float part2;
+		float part3;
+
+		vpu_dot16x4_f32(a + i, b0 + i, b1 + i, b2 + i, b3 + i, &part0, &part1, &part2, &part3);
+		acc0 += part0;
+		acc1 += part1;
+		acc2 += part2;
+		acc3 += part3;
+	}
+
+	*out0 = acc0;
+	*out1 = acc1;
+	*out2 = acc2;
+	*out3 = acc3;
+}
+
 static void prefetch_block(const void *ptr, uint32_t bytes)
 {
 	uint64_t addr = (uint64_t)ptr;
@@ -411,7 +501,32 @@ static void matmul_t(const float *a, const float *b, float *out,
 	maybe_evict_read_rows(a, k, row0, row1);
 	maybe_prefetch_inputs(a, k, b, n, k, row0, row1);
 
-#ifdef DEPTH_VPU_OC2
+#ifdef DEPTH_VPU_OC4
+	for (uint32_t r = row0; r < row1; r++) {
+		const float *const ar = a + r * k;
+
+		for (uint32_t c = 0; c < n; c += 4u) {
+			float acc0, acc1, acc2, acc3;
+
+			vpu_dotx4_f32(ar, b + c * k, b + (c + 1u) * k, b + (c + 2u) * k, b + (c + 3u) * k,
+				      k, &acc0, &acc1, &acc2, &acc3);
+			acc0 *= scale;
+			acc1 *= scale;
+			acc2 *= scale;
+			acc3 *= scale;
+			if (relu) {
+				acc0 = relu_f32(acc0);
+				acc1 = relu_f32(acc1);
+				acc2 = relu_f32(acc2);
+				acc3 = relu_f32(acc3);
+			}
+			out[r * n + c] = acc0;
+			out[r * n + c + 1u] = acc1;
+			out[r * n + c + 2u] = acc2;
+			out[r * n + c + 3u] = acc3;
+		}
+	}
+#elif defined(DEPTH_VPU_OC2)
 	for (uint32_t r = row0; r < row1; r++) {
 		const float *const ar = a + r * k;
 
