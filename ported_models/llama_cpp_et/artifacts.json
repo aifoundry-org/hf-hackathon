@@ -292,6 +292,24 @@
       "local_cache": "local-artifacts/models/rwkv7_15b/rwkv7-1.5B-world-q8_0.gguf",
       "sha256": "daa7eb795f8a4d956bc305f4ca6f65221f03a6967ab9cdfe77b7a005f499ddee",
       "size_bytes": 1693646240
+    },
+    "deepseek_r1_15b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "DeepSeek-R1-Distill-Qwen-1.5B-Q8_0",
+      "filename": "DeepSeek-R1-Distill-Qwen-1.5B-Q8_0.gguf",
+      "env": "DEEPSEEK_R1_15B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "unsloth/DeepSeek-R1-Distill-Qwen-1.5B-GGUF",
+        "revision": "3cb4d15544a2a5e07439592b9a0965b6445fbd34",
+        "filename": "DeepSeek-R1-Distill-Qwen-1.5B-Q8_0.gguf",
+        "url": "https://huggingface.co/unsloth/DeepSeek-R1-Distill-Qwen-1.5B-GGUF/resolve/3cb4d15544a2a5e07439592b9a0965b6445fbd34/DeepSeek-R1-Distill-Qwen-1.5B-Q8_0.gguf"
+      },
+      "local_cache": "local-artifacts/models/deepseek_r1_15b/DeepSeek-R1-Distill-Qwen-1.5B-Q8_0.gguf",
+      "sha256": "068a721e47419ccfc94b6420118f772478544e1a0d4fad7118212774b3f9ba9e",
+      "size_bytes": 1894532416,
+      "note": "DeepSeek R1 Distill Qwen 1.5B GGUF model."
     }
   }
 }

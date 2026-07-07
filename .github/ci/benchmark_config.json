@@ -169,6 +169,9 @@
     },
     "llama31_8b": {
       "config": "ported_models/llama_cpp_et/benchmarks/llama31_8b.json"
+    },
+    "deepseek_r1_15b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/deepseek_r1_15b.json"
     }
   }
 }
