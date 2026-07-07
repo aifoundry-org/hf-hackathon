@@ -10,6 +10,9 @@
     "models": {
       "dncnn": {
         "defines": [
+          "-DDNCNN_PASSES=1",
+          "-DDNCNN_VPU_SHARED_WPACK=1",
+          "-DDNCNN_VPU_OC4=1",
           "-fno-tree-loop-distribute-patterns",
           "-DNUM_HARTS=16",
           "-DACTIVE_HARTS=8",
@@ -41,6 +44,9 @@
     "models": {
       "dncnn": {
         "defines": [
+          "-DDNCNN_PASSES=1",
+          "-DDNCNN_VPU_SHARED_WPACK=1",
+          "-DDNCNN_VPU_OC4=1",
           "-fno-tree-loop-distribute-patterns",
           "-DACTIVE_HARTS=1",
           "-DBENCH_THREAD0_ONLY=1"
@@ -64,6 +70,9 @@
       "build": {
         "opt": "-O3",
         "defines": [
+          "-DDNCNN_PASSES=1",
+          "-DDNCNN_VPU_SHARED_WPACK=1",
+          "-DDNCNN_VPU_OC4=1",
           "-fno-tree-loop-distribute-patterns",
           "-DBENCH_THREAD0_ONLY=1"
         ]
