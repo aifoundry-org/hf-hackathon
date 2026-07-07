@@ -514,7 +514,11 @@ jobs:
       - name: Merge board scores into leaderboard
         env:
           SELECTED_MODELS: ${{ needs.select-board-models.outputs.models }}
-        run: python3 .github/ci/scripts/merge_leaderboard.py --scores-dir board-scores --models "$SELECTED_MODELS"
+        run: |
+          python3 .github/ci/scripts/merge_leaderboard.py \
+            --scores-dir board-scores \
+            --models "$SELECTED_MODELS" \
+            --announcements-output leaderboard-announcements.json
 
       - name: Commit leaderboard
         run: |
@@ -529,3 +533,12 @@ jobs:
           git commit -m "chore(leaderboard): update ET-SoC1 board scores [skip ci]"
           git pull --rebase origin main
           git push origin HEAD:main
+
+      - name: Notify Discord
+        continue-on-error: true
+        env:
+          # Prefer a channel-specific webhook for #hackathon-general.
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_HACKATHON_GENERAL_WEBHOOK_URL || secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          python3 .github/ci/scripts/post_discord_webhook.py \
+            --messages-file leaderboard-announcements.json

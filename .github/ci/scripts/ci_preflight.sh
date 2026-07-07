@@ -235,6 +235,67 @@ PY
 python3 .github/ci/scripts/leaderboard_gate.py --scores-dir "$tmp" --output "$tmp/gate-ci-only-pass.md" \
   --target board --models "yolo" --base-ref HEAD >/dev/null \
   || bad "leaderboard_gate.py should allow non-submission CI/scoring-only changes without runtime improvement"
+
+step "Discord leaderboard announcement renders"
+python3 - "$tmp" <<'PY' || bad "Discord leaderboard announcement render failed"
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+root = Path.cwd()
+tmp = Path(sys.argv[1])
+sys.path.insert(0, str(root / ".github/ci/scripts"))
+
+from merge_leaderboard import announcement_for_change
+
+yolo_before = [{"team": "oldteam", "variant": "base", "kernel_wait_s": 0.200000, "sha": "old"}]
+yolo_after = [{"team": "newteam", "variant": "fast", "kernel_wait_s": 0.100000, "sha": "new"}]
+yolo_msg = announcement_for_change("yolo", yolo_before, yolo_after)
+assert yolo_msg == (
+    "yolo has been beaten by newteam: Kernel wait 0.100000s "
+    "(was 0.200000s by oldteam)."
+)
+assert announcement_for_change("yolo", yolo_before, [dict(yolo_before[0])]) is None
+
+llama_before = [{
+    "team": "oldteam",
+    "variant": "base",
+    "tokens_per_second": 10.0,
+    "perplexity": 12.0,
+    "perplexity_error": 1.0,
+    "sha": "old",
+}]
+llama_after = [{
+    "team": "newteam",
+    "variant": "fast",
+    "tokens_per_second": 12.345,
+    "perplexity": 11.0,
+    "perplexity_error": 2.0,
+    "sha": "new",
+}]
+llama_msg = announcement_for_change("llama32_1b", llama_before, llama_after)
+assert "llama32_1b has been beaten by newteam" in llama_msg
+assert "Decode tokens/s 12.35, PPL 11.00 (+/- 2.00)" in llama_msg
+
+messages = tmp / "discord-messages.json"
+messages.write_text(json.dumps([yolo_msg, llama_msg]) + "\n")
+proc = subprocess.run(
+    [
+        sys.executable,
+        str(root / ".github/ci/scripts/post_discord_webhook.py"),
+        "--messages-file",
+        str(messages),
+        "--dry-run",
+    ],
+    cwd=root,
+    check=True,
+    text=True,
+    stdout=subprocess.PIPE,
+)
+assert yolo_msg in proc.stdout
+assert llama_msg in proc.stdout
+PY
 rm -rf "$tmp"
 
 step "Leaderboard team resolver"
