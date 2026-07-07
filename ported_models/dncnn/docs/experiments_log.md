@@ -32,6 +32,26 @@ DDR 37.5k rd / 36.4k wr. This is the number every experiment must beat on `kerne
   This constrains any layout that puts a 16-element vector on the A side.
 - **L5 — The store bypasses cache.** `tensor_store` writes DRAM directly; useful to know for
   traffic accounting (it shows up as DDR writes, not L2).
+- **L6 — We are NOT bandwidth-bound; the kernel scales.** The 1/2/4/8-hart sweep gives 6.98×
+  speedup / 87 % efficiency at 8 harts, so the single shire's L2/DDR is not saturated — the
+  per-hart bottleneck is instruction volume, and instruction-cutting levers that don't add traffic
+  (B8) are on the right axis. The ~13 % droop 4→8 is recoverable *serial sync* (hart0's O(image)
+  halo evict, Amdahl), i.e. a B3/B5 target — not a memory wall.
+
+## Diagnostics
+
+### ACTIVE_HARTS sweep (1/2/4/8) — 2026-07-07 · all `max_abs=0`
+
+| harts | wall | GMAC/s | speedup | efficiency |
+|---:|---:|---:|---:|---:|
+| 1 | 75.32 ms | 0.392 | 1.00× | 100 % |
+| 2 | 39.48 ms | 0.747 | 1.91× | 95.4 % |
+| 4 | 19.98 ms | 1.476 | 3.77× | 94.2 % |
+| 8 | 10.78 ms | 2.735 | 6.98× | 87.3 % |
+
+Near-linear → per-hart compute is the ceiling (see L6). Scripts: `local-artifacts/build_hart_sweep.sh`,
+`run_hart_sweep.sh` (gitignored). Confirms overhead is per-hart instruction volume + a small
+serial-sync tail, not shared-shire bandwidth.
 
 ## Experiments
 
