@@ -177,3 +177,36 @@ cutting the gather itself (a layout change → B4 trap). So the next lever is a 
 **Durable deliverables:** the shipped B8+B1+P1 speedup (~−24 %, board-verified `max_abs=0`), the
 CI-matched noise-calibrated A/B harness (`run_ab_scored.sh`, generic ref/chal), the hart-sweep tooling
 (`build_hart_sweep.sh` / `run_hart_sweep.sh`), and this log.
+
+## S1 — output-scatter reorder — inconclusive (~−0.8 %, within noise) · not committed
+
+Reordered the OC-major→NHWC scatter to spatial-outer (hoist `PAD_AT` once/column, contiguous pixel
+writes). A/B (5×): −0.76 %, **inside** the 2.06 % spread → not a win. The compiler had already
+strength-reduced the original scatter, so it was near-optimal; the scatter was *not* the residual sink
+P1 implied. Reverted (trivial reorder; ELF `int8_scatter_plain.elf` kept if we revisit at 8 rounds).
+
+## Evidence-based re-ranking of the remaining playbook levers
+
+The original `IMPROVEMENT_PLAYBOOK.md` was written **before any board measurement** and ranked levers
+by "cache-ops / fences / waits / barriers removed" on a *sync/overhead-bound* assumption. The session's
+board data revises the model: wall ≈ per-hart critical path ≈ **scalar pack/marshalling + per-tile
+fixed dispatch/sync overhead**; it is **NOT** bandwidth-bound, barrier-bound, or DRAM-traffic-bound
+(sweep L6 + B3). So score a lever by whether it cuts *per-tile scalar/overhead on the critical path*
+without a layout change — not by traffic/barriers. Under that model the untested levers re-rank as:
+
+| Lever | Targets | Measured-model verdict | Grounding |
+|---|---|---|---|
+| **B6** depth-first fusion | kill intermediate DRAM round-trips + 2 barriers | **Predicted REGRESSION** | both targets are non-bottlenecks (not bandwidth-bound; B3 showed barrier restructuring regressed) *and* the ~1.9× redundant halo tiles = ~1.9× redundant `pack_B` — inflating the one sink P1 proved dominant. Trades non-bottleneck saving for bottleneck cost. |
+| **B5** mask/FCC cheaper barriers | the 2 global barriers/layer | **Predicted LOW / regress** | same axis B3 already lost on; barriers are not the measured binder. |
+| **B7** weight/activation residency + coop load | operand-reload traffic | **Predicted LOW** | not bandwidth-bound, so traffic cuts don't move wall (B3); B8 already cut A-load ~3×. Coop-load might shave a few *load instructions* — marginal at best. |
+| **B9** bigger tiles / re-partition | amortize per-tile fixed overhead | **Blocked by HW** | right axis, but FMA `b_num_col` is 2-bit → bcols ≤ 16, so P can't exceed 16; tiles can't be made larger. Re-partition alone doesn't cut total per-tile cost. |
+| pack **data-volume** cut (implicit-GEMM / indirect conv) | the 2304 quartet-moves/tile (P1 residual) | **Dead-end here** | needs a strided/pointer view to skip the gather, but `tensor_load` stride is 64B-granular (L4) → the quartet-interleave can't be a load; any re-layout to enable it is the B4 traffic trap. |
+| Winograd / separable / FFT / INT4 / block-sparse | fewer MACs | **Rejected (unchanged)** | we are not MAC-bound; all cut FLOPs, not the scalar/overhead critical path (original research §D still holds, now with the measurement to back it). |
+
+**Conclusion — we are at the practical single-shire floor (~7.9 ms, −24 %).** Every remaining lever
+either targets a measured non-bottleneck (B5/B6/B7), is blocked by a hardware field limit (B9,
+`acols`/`bcols` ≤ 16), or requires the layout change that regresses (pack-volume, B6). Genuinely
+new gains would need out-of-scope moves: **QAT/retraining** (shift-conv → collapse each hidden layer
+to a 1×1 GEMM, the structural fix for the pack) or **policy-gated >8-hart / multi-shire** parallelism
+(the sweep says it scales, but the benchmark fixes `ACTIVE_HARTS=8`). Recommendation: **merge
+B8+B1+P1 and stop**; treat B6/B5/B7 as documented-dead rather than untried.
