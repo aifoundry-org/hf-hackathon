@@ -23,6 +23,7 @@
 #include "erbium/isa/hart.h"
 #include "erbium/isa/tensors.h"
 #include "dncnn_int8_scales.h"     /* generated: DNCNN_QUANT0, DNCNN_REQUANT[3], DNCNN_DEQUANT3 */
+#include "pmc_probe.h"             /* -DDNCNN_PMC: hardware perf-counter probe (else no-op) */
 
 extern char heap0_end[];
 
@@ -114,6 +115,11 @@ _Static_assert(ACTIVE_HARTS <= IMG_H, "ACTIVE_HARTS must not exceed image rows (
 #define TEMP_END       0x8A000u    /* ceiling of the per-hart temp slots; 0x8A000..0xD0000 unused */
 #define QDUMP_OFFSET   0xD0000u    /* 4x copies of q0..q3 interiors (debug)    */
 #define DUMP_END       (QDUMP_OFFSET + 4u * ACT_BYTES)
+#ifdef DNCNN_PMC
+#define PMC_OFFSET     0xC0000u    /* perf-counter dump region (in 0x8A000..0xD0000 gap) */
+_Static_assert(PMC_OFFSET >= TEMP_END, "PMC region collides with per-hart temp");
+_Static_assert(PMC_OFFSET + sizeof(struct pmc_region) <= QDUMP_OFFSET, "PMC region overruns into QDUMP");
+#endif
 
 /* All tensor-touched buffers must be 64-byte aligned (tensor_load rounds addr). */
 _Static_assert(WEIGHTS_OFFSET % 64u == 0u, "weights misaligned");
@@ -536,6 +542,10 @@ int main(uintptr_t arg_area)
 	const uint32_t row0 = (IMG_H * hart_id) / ACTIVE_HARTS;
 	const uint32_t row1 = (IMG_H * (hart_id + 1u)) / ACTIVE_HARTS;
 
+#ifdef DNCNN_PMC
+	pmc_probe_begin(base + PMC_OFFSET, hart_id, ACTIVE_HARTS);
+#endif
+
 	/* ---- Stage 1: conv_first + quantize -> qpadA band, then publish it across harts ---- */
 	conv_first_quant(input, w0, qpadA, DNCNN_QUANT0, row0, row1);
 #ifdef DNCNN_DUMP
@@ -578,6 +588,10 @@ int main(uintptr_t arg_area)
 	evict(output + (uint64_t)row0 * IMG_W, (uint64_t)(row1 - row0) * IMG_W);   /* my band */
 	WAIT_CACHEOPS;
 	bench_barrier();   /* whole output image in DRAM before anyone checksums it */
+
+#ifdef DNCNN_PMC
+	pmc_probe_end(base + PMC_OFFSET, hart_id);
+#endif
 
 	/* Attest this hart's band: publish a slot with the band checksum, so hart 0 can
 	 * fold them and cross-check against a fresh whole-image sum (the CI correctness gate). */
