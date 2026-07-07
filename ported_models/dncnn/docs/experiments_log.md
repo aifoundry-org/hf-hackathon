@@ -115,21 +115,39 @@ serial-sync tail, not shared-shire bandwidth.
   median 10.43 ms vs B8 **9.98 ms**, **non-overlapping** (baseline min 10.39 > B8 max 10.02), spread
   1.28 %. Bonus: A-load traffic ~3× lower (weights loaded once/group, not once/tap). **Committed.**
 - **Lesson (→ L8):** the per-tap *tensor-op* overhead was ~4 % of wall — a third axis. 3 dispatches is
-  the minimum at the 4-taps/dispatch `acols` limit, so this specific lever is now spent.
+  the minimum at the 4-taps/dispatch `acols` limit, so the *dispatch-count* lever is spent (but the
+  per-tile *sync* on the same axis was not yet — see B1).
 
-## Status — B8 shipped (~9.98 ms); "near floor" was premature
+### B1 — batch the folded per-tile evicts — **WIN (−2.7 % on B8)** · 2026-07-07
 
-New best: **~9.98 ms** (was ~10.4 ms), `max_abs=0`, ~4.0× the leaderboard leader. After four
-experiments the picture is a **three-axis** trade, not the two-axis one the post-B3 note assumed:
+- **Hypothesis:** after B8 each tile still does one `FENCE+evict+WAIT_CACHEOPS` per group (3 of them);
+  those per-tile blocking waits are on the critical path — batch them to one.
+- **Change:** pack all NGRP groups' B up front into one per-hart buffer (grew 768 B→2304 B/hart), then
+  a single `FENCE+evict+WAIT_CACHEOPS` per tile; the group loop keeps its sequential load/FMA. Same
+  bytes, same layout, same output path. Committed on top of B8.
+- **Result:** correct (`max_abs=0`), **−2.68 %** on B8 — A/B (plain, interleaved, 5×): B8 median
+  9.98 ms vs B1 **9.71 ms**, non-overlapping (B8 min 9.88 > B1 max 9.73). Bigger than the 3→1
+  wait-count ratio predicted → per-tile blocking sync is a heavy cost.
+- **Lesson (→ L8):** same axis as B8, one notch further. Now spent: the remaining per-tile waits are
+  the *sequential* `LOAD_WAIT`/`FMA_WAIT` (3 groups), not batchable — 3 groups' A+B (3×12+16 lines)
+  exceed the 48-line SCP, so the loads/FMAs must stay serialized.
+
+## Status — B8+B1 shipped (~9.69 ms, −7.3 % end-to-end); "near floor" was premature
+
+New best: **~9.69 ms** (was ~10.46 ms) — **direct baseline-vs-combined A/B: −7.31 %**, non-overlapping
+(baseline min 10.39 > combined max 9.79), `max_abs=0`, ~3.5× the leaderboard leader (was ~3.8×). Two
+stacked wins on the per-tile fixed-overhead axis: **B8** fold 9→3 dispatches (−4.3 %) + **B1** batch
+3→1 evict-waits (−2.7 %). After five experiments the picture is a **three-axis** trade:
 
 - Cut **instruction volume** by re-laying-out memory → **B4 failed** (+8 %; added traffic/latency).
 - Cut **off-critical-path traffic** → **B3 failed** (+3.2 %; not on the path, added skew).
-- Cut **per-tile dispatch overhead** without touching bytes/layout → **B8 won** (−4.3 %).
+- Cut **per-tile dispatch/sync overhead** without touching bytes/layout → **B8 + B1 won** (−7.3 % total).
 
-So the kernel was not at the floor — it had headroom in per-tile fixed overhead, now taken. The
-remaining prize is the dominant `pack_B` scalar gather (~47 % of instructions); it is the hard one,
-because any layout change to shrink it risks re-triggering the B4 traffic trap. Attack it
-**pack-locally** (a cheaper gather, not a re-layout) and A/B-gate every step.
+The per-tile fixed-overhead axis is now **spent** (3 dispatches is the `acols` minimum; the remaining
+LOAD/FMA waits are serialized by the 48-line SCP budget). The remaining prize is the dominant `pack_B`
+scalar gather (~47 % of instructions) — the hard, B4-trap-adjacent one: attack it **pack-locally**
+(a cheaper gather, not a re-layout) and A/B-gate every step.
 
-**Durable deliverables:** the shipped B8 speedup, the CI-matched noise-calibrated A/B harness
-(`run_ab_scored.sh`), the hart-sweep tooling (`build_hart_sweep.sh` / `run_hart_sweep.sh`), and this log.
+**Durable deliverables:** the shipped B8+B1 speedup (~−7.3 %, board-verified `max_abs=0`), the
+CI-matched noise-calibrated A/B harness (`run_ab_scored.sh`, now generic ref/chal), the hart-sweep
+tooling (`build_hart_sweep.sh` / `run_hart_sweep.sh`), and this log.
