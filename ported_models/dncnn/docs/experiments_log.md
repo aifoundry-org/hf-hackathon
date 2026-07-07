@@ -41,6 +41,20 @@ DDR 37.5k rd / 36.4k wr. This is the number every experiment must beat on `kerne
   base-vs-change interleaved, medians) matches CI — baseline median 10.44 ms ≈ CI 10.4 ms. Use PMC
   builds for *counters*, plain A/B for *wall* (the probe adds ~3 %). Single manual runs carry ~1 %
   spread; require **non-overlapping** distributions before believing a wall delta.
+- **L8 — The lever that worked: cut critical-path *dispatch* overhead, not bytes.** B8 folded the 9
+  per-tap FMA dispatches into 3 → **−4.3 % wall** (non-overlapping A/B). It removed per-tap
+  dispatch/load/`WAIT` sets 9→3 while keeping the same pack work, same evict bytes, and the baseline
+  weights=A/activations=B layout. So there is a **third axis** — per-tile fixed *tensor-op* overhead —
+  distinct from instruction *volume* (the pack, untouched) and *traffic* (unchanged). "Near the floor"
+  (the post-B3 read) was premature: the floor was in the axes B4/B3 hit, not in per-tile overhead.
+- **L9 — "Near the floor" was a false generalization; name the axis each experiment tested.** Two
+  regressions (B4, B3) were over-generalized to "all single-axis pushes fail." But **B4 tested
+  layout-changing instruction cuts** (which add traffic) and **B3 tested off-critical-path traffic** —
+  *neither touched per-tile dispatch overhead*, the axis B8 then won on. Two compounding mistakes:
+  (a) collapsing distinct mechanisms into one "instructions vs traffic" verdict; (b) reading high
+  hart0 IPC (2.64) as "waits don't matter" when the 9× per-tile blocking `WAIT`s were a fixed serial
+  tax that folding could cut. **Rule:** absence of a win on axes A and B says nothing about axis C —
+  enumerate the *untested* axis before declaring a floor.
 
 ## Diagnostics
 
@@ -88,22 +102,34 @@ serial-sync tail, not shared-shire bandwidth.
   so cutting it saved traffic but no time; distributing the halo added barrier/skew cost exceeding the
   saving. Off-critical-path traffic reduction does not move wall here.
 
-## Status — consolidated (near the single-shire floor)
+### B8 — fold 9 taps into 3 FMA dispatches — **WIN (−4.3 %)** · 2026-07-07
 
-After **B4** (−12 % instructions, but **+8 %** wall) and **B3** (−17 % L2 writes, but **+3.2 %** wall),
-both rigorously measured, plus the hart sweep (6.98×/87 %, not bandwidth-bound), the int8 DnCNN kernel
-is assessed **well-balanced and near a practical single-shire floor** (~10.4 ms, ~3.8× the leaderboard
-leader). Wall ≈ hart0 cycles at a fixed ~0.55 GHz, and every single-axis restructure lands on the
-wrong side of the instruction / traffic / sync trade:
+- **Hypothesis:** the 9 per-tap FMA dispatch/load/evict/`WAIT` sets are per-tile fixed overhead on the
+  critical path; folding taps into fewer dispatches cuts them *without* adding traffic or touching the
+  memory layout that bit B4.
+- **Change:** fold each 3-wide kernel row into one int8 FMA with a `GTAPS*CH` (48-element, 12-quartet)
+  contraction — within the 16-quartet `acols` hardware limit. Weights repacked group-major (GTAPS taps
+  per OC line, built once per layer); B packed 12 lines/group. Orientation and requant/store/scatter
+  unchanged (small blast radius, no seam-surface change).
+- **Result:** correct (`max_abs=0`), wall **−4.34 %** — board A/B (plain, interleaved, 5×): baseline
+  median 10.43 ms vs B8 **9.98 ms**, **non-overlapping** (baseline min 10.39 > B8 max 10.02), spread
+  1.28 %. Bonus: A-load traffic ~3× lower (weights loaded once/group, not once/tap). **Committed.**
+- **Lesson (→ L8):** the per-tap *tensor-op* overhead was ~4 % of wall — a third axis. 3 dispatches is
+  the minimum at the 4-taps/dispatch `acols` limit, so this specific lever is now spent.
 
-- Cutting **instructions** helps only if it adds no cache-op or barrier stall — **B4 failed here.**
-- Cutting **traffic** doesn't help — it isn't on the critical path — **B3 failed here.**
+## Status — B8 shipped (~9.98 ms); "near floor" was premature
 
-**Decision: consolidate.** Keep the board-verified baseline; stop single-axis pushes.
+New best: **~9.98 ms** (was ~10.4 ms), `max_abs=0`, ~4.0× the leaderboard leader. After four
+experiments the picture is a **three-axis** trade, not the two-axis one the post-B3 note assumed:
 
-**Deferred (eyes-open, A/B-gated only):** **B8** — fold the 9 tap dispatches / feed the FMA an
-addressing view to cut the dominant `pack_B` instructions *without* touching the memory layout that
-bit B4. The one remaining lever with a different shape; expect the trade above to fight back.
+- Cut **instruction volume** by re-laying-out memory → **B4 failed** (+8 %; added traffic/latency).
+- Cut **off-critical-path traffic** → **B3 failed** (+3.2 %; not on the path, added skew).
+- Cut **per-tile dispatch overhead** without touching bytes/layout → **B8 won** (−4.3 %).
 
-**Durable deliverables:** the CI-matched, noise-calibrated A/B harness (`run_ab_scored.sh`), the
-hart-sweep tooling (`build_hart_sweep.sh` / `run_hart_sweep.sh`), and this log.
+So the kernel was not at the floor — it had headroom in per-tile fixed overhead, now taken. The
+remaining prize is the dominant `pack_B` scalar gather (~47 % of instructions); it is the hard one,
+because any layout change to shrink it risks re-triggering the B4 traffic trap. Attack it
+**pack-locally** (a cheaper gather, not a re-layout) and A/B-gate every step.
+
+**Durable deliverables:** the shipped B8 speedup, the CI-matched noise-calibrated A/B harness
+(`run_ab_scored.sh`), the hart-sweep tooling (`build_hart_sweep.sh` / `run_hart_sweep.sh`), and this log.
