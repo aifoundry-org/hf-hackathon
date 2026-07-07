@@ -41,5 +41,14 @@ Need help? Ask in Discord `#Lab`: <https://discord.gg/CbSA2umxf6>
 9. Open the GitHub PR.
 
 PR board CI selects the configured models touched by the diff and comments with
-the ET-SoC1 board result. Public fork PRs do not run directly on the board host; a
-maintainer can move trusted changes to a branch that can run board CI.
+the ET-SoC1 board result. External fork PRs reach the board runner only after
+GitHub's external-contributor workflow approval gate releases the run.
+
+The `Leaderboard gate` check is the merge signal for benchmarked submissions.
+Every selected model must produce a passing board score and strictly improve the
+current base-branch leaderboard value for that model's primary metric. Higher is
+better for token/second metrics; lower is better for kernel wait time. A new
+configured model with no prior leaderboard entry can pass by producing its first
+valid board score. Set the optional repository variable
+`LEADERBOARD_MIN_RELATIVE_IMPROVEMENT` to require a larger fractional gain, such
+as `0.01` for 1%.

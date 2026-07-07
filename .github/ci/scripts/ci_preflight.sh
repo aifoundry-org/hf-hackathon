@@ -59,6 +59,15 @@ tmp="$(mktemp -d)"
 python3 .github/ci/scripts/format_pr_comment.py --scores-dir "$tmp" --output "$tmp/c.md" \
   --target board --models "" --unregistered "smoketest" --sha x --ref y >/dev/null \
   || bad "format_pr_comment.py failed"
+
+step "Leaderboard gate renders"
+python3 .github/ci/scripts/leaderboard_gate.py --scores-dir "$tmp" --output "$tmp/gate-pass.md" \
+  --target board --models "" --unregistered "" --base-ref HEAD >/dev/null \
+  || bad "leaderboard_gate.py no-op render failed"
+if python3 .github/ci/scripts/leaderboard_gate.py --scores-dir "$tmp" --output "$tmp/gate-fail.md" \
+  --target board --models "" --unregistered "smoketest" --base-ref HEAD >/dev/null; then
+  bad "leaderboard_gate.py should fail unregistered ports"
+fi
 rm -rf "$tmp"
 
 step "Selector runs against merge-base (if available)"
