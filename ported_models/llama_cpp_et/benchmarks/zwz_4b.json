@@ -1,0 +1,54 @@
+{
+  "runner": "llama_server",
+  "board": true,
+  "benchmark_default": false,
+  "framework": {
+    "name": "llama.cpp-et",
+    "runner": "llama_server",
+    "source_artifact": "llama_cpp_source"
+  },
+  "artifacts_file": "../artifacts.json",
+  "canonical_variant": "ZwZ-4B-Q4_K_M",
+  "score": {
+    "metric": "tokens_per_second",
+    "label": "Decode tokens/s",
+    "higher_is_better": true
+  },
+  "note": "ZwZ-4B fine-grained perception VLM (qwen3vl arch, same as Qwen3-VL-4B). Q4_K_M primary to fit board DRAM. Architecture proven with Qwen3-8B.",
+  "llama_server": {
+    "source_artifact": "llama_cpp_source",
+    "model_artifact": "zwz_4b_q4_gguf",
+    "server_artifact": "llama_server",
+    "workdir_artifact": "llama_cpp_build",
+    "host": "127.0.0.1",
+    "port": 18105,
+    "device": "ET",
+    "gpu_layers": 99,
+    "ctx_size": 4096,
+    "batch_size": 512,
+    "ubatch_size": 256,
+    "parallel": 1,
+    "cache_ram_mib": 0,
+    "ready_timeout_s": 900,
+    "request_timeout_s": 1200,
+    "flash_attn": false,
+    "api": "completion",
+    "prompt": "Repeat this token sequence without commentary: OK OK OK OK OK OK OK OK OK OK",
+    "max_tokens": 96,
+    "temperature": 0,
+    "ignore_eos": true,
+    "min_completion_tokens": 32,
+    "perplexity": {
+      "enabled": true,
+      "perplexity_artifact": "llama_perplexity",
+      "corpus_artifact": "wikitext2_raw_test",
+      "ctx_size": 128,
+      "batch_size": 128,
+      "ubatch_size": 128,
+      "timeout_s": 1200,
+      "min_ppl": 1.0,
+      "max_ppl": 1000.0,
+      "chunks": 4
+    }
+  }
+}

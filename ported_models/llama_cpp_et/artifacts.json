@@ -485,6 +485,42 @@
       "sha256": "d1eb8b6b23979205fdf63703ed10f788131a3f812c7b1f72e0119d5d81295150",
       "size_bytes": 108783360,
       "note": "SmolVLM 500M vision projector (SigLIP ~93M + MLP). Q8_0 quantized. Must be loaded alongside smolvlm_500m_q8_gguf."
+    },
+    "zwz_4b_q4_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "ZwZ-4B-Q4_K_M",
+      "filename": "ZwZ-4B-Q4_K_M.gguf",
+      "env": "ZWZ_4B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "inclusionAI/ZwZ-4B-GGUF",
+        "revision": "af96680eb7d0978e4844e8395cb6fd727f0a1d84",
+        "filename": "ZwZ-4B-Q4_K_M.gguf",
+        "url": "https://huggingface.co/inclusionAI/ZwZ-4B-GGUF/resolve/af96680eb7d0978e4844e8395cb6fd727f0a1d84/ZwZ-4B-Q4_K_M.gguf"
+      },
+      "local_cache": "local-artifacts/models/zwz_4b/ZwZ-4B-Q4_K_M.gguf",
+      "sha256": "0c1e633a544708ff3d52060f764ddeccba8a98535f223c40361fddeb59c79d33",
+      "size_bytes": 2716069408,
+      "note": "ZwZ-4B fine-grained perception VLM LLM Q4_K_M (qwen3vl arch: Qwen3 text decoder ~4B, 36 layers, hidden 2560, SwiGLU, tied embeddings). Requires mmproj for vision."
+    },
+    "zwz_4b_mmproj_q8": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "ZwZ-4B-mmproj-Q8_0",
+      "filename": "mmproj-ZwZ-4B-Q8_0.gguf",
+      "env": "ZWZ_4B_MMPROJ_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "inclusionAI/ZwZ-4B-GGUF",
+        "revision": "af96680eb7d0978e4844e8395cb6fd727f0a1d84",
+        "filename": "mmproj-ZwZ-4B-Q8_0.gguf",
+        "url": "https://huggingface.co/inclusionAI/ZwZ-4B-GGUF/resolve/af96680eb7d0978e4844e8395cb6fd727f0a1d84/mmproj-ZwZ-4B-Q8_0.gguf"
+      },
+      "local_cache": "local-artifacts/models/zwz_4b/mmproj-ZwZ-4B-Q8_0.gguf",
+      "sha256": "ba2f4e1b792ce56bbfc78a322e99fd0efbbbe8ea23479894851ab7a060872f6c",
+      "size_bytes": 450828416,
+      "note": "ZwZ-4B vision projector Q8_0 (SigLIP2-Large ~300M, 24 layers, hidden 1024, patch 16, temporal patch 2, DeepStack multi-level injection at layers [5,11,17]). Must be loaded alongside zwz_4b_q4_gguf."
     }
   }
 }

@@ -315,6 +315,9 @@
     },
     "smolvlm_500m": {
       "config": "ported_models/llama_cpp_et/benchmarks/smolvlm_500m.json"
+    },
+    "zwz_4b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/zwz_4b.json"
     }
   }
 }
