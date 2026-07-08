@@ -146,6 +146,9 @@
     "rwkv7_15b": {
       "config": "ported_models/llama_cpp_et/benchmarks/rwkv7_15b.json"
     },
+    "qwen25_05b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/qwen25_05b.json"
+    },
     "qwen3_06b": {
       "config": "ported_models/llama_cpp_et/benchmarks/qwen3_06b.json"
     },

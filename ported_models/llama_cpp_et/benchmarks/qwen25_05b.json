@@ -1,0 +1,21 @@
+{
+  "benchmark_type": "llama_server",
+  "model_artifact": "qwen25_05b_q8_gguf",
+  "framework_binary": "llama_server",
+  "server_args": [
+    "-ngl", "99",
+    "-cb",
+    "-ub", "128",
+    "-b", "128"
+  ],
+  "client_args": [
+    "--system-message", "You are a helpful assistant.",
+    "--prompt", "Explain how loop unrolling improves performance.",
+    "--n-predict", "128",
+    "--slot-save-path", "prompt_cache/qwen25_05b"
+  ],
+  "metrics": {
+    "primary": "tokens_per_second",
+    "parser": "llama_cpp_et/scripts/parse_server_metrics.py"
+  }
+}

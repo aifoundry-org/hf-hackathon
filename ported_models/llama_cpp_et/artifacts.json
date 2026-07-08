@@ -61,6 +61,24 @@
       "sha256": "173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08",
       "note": "WikiText-2 raw test corpus. Install on the board host as a model validation artifact."
     },
+    "qwen25_05b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "Qwen2.5-0.5B-Instruct-Q8_0",
+      "filename": "qwen2.5-0.5b-instruct-q8_0.gguf",
+      "env": "QWEN25_05B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "Qwen/Qwen2.5-0.5B-Instruct-GGUF",
+        "revision": "main",
+        "filename": "qwen2.5-0.5b-instruct-q8_0.gguf",
+        "url": "https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q8_0.gguf"
+      },
+      "sha256": "ca59ca7f13d0e15a8cfa77bd17e65d24f6844b554a7b6c12e07a5f89ff76844e",
+      "size": 675710816,
+      "local_cache": "local-artifacts/models/Qwen2.5-0.5B-Instruct-Q8_0.gguf",
+      "board_path": "/data/models/Qwen2.5-0.5B-Instruct-Q8_0.gguf"
+    },
     "qwen3_06b_q8_gguf": {
       "kind": "model",
       "framework": "llama.cpp-et",
