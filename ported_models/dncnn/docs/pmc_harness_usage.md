@@ -15,7 +15,7 @@ The harness has two halves:
 ## Prerequisites
 
 - The docker-wrapped ET toolchain at `~/et-src/et` (build must run inside the
-  repo tree — `/tmp` is not mounted in the toolchain container).
+  repo tree - `/tmp` is not mounted in the toolchain container).
 - Board access over Tailscale (`ivan@aifoundry2`); announce on Discord before use.
 - Input/weight blobs under `local-artifacts/erbium_amp_probe/dncnn3-bench/`.
 
@@ -27,10 +27,10 @@ bash local-artifacts/build_pmc_probe.sh
 
 Produces two ELFs in `local-artifacts/board/`:
 
-- `int8_pmc.elf` — the profile build (`-DDNCNN_PMC`, canonical 8-hart flags).
-- `int8_plain.elf` — no probe, used to confirm the probe is a no-op.
+- `int8_pmc.elf` - the profile build (`-DDNCNN_PMC`, canonical 8-hart flags).
+- `int8_plain.elf` - no probe, used to confirm the probe is a no-op.
 
-**Sanity check the probe is free when off** — its `.text` must match the
+**Sanity check the probe is free when off** - its `.text` must match the
 pristine kernel byte-for-byte:
 
 ```bash
@@ -49,7 +49,7 @@ This copies `int8_pmc.elf` + blobs to the board, runs the launcher with a
 `--dump_size` large enough to include the PMC region at `0xC0000`, pulls the
 dump to `local-artifacts/pmc_board_dump.bin`, parses `kernel_wait_s` from the
 log, and prints the report. The launcher's `Kernel wait seconds` line and the
-dump are genuine — only the ELF differs from the leaderboard build.
+dump are genuine - only the ELF differs from the leaderboard build.
 
 ## 3. Read the report
 
@@ -69,12 +69,12 @@ What to look at, and what it means:
 
 | Signal | Reads as |
 |--------|----------|
-| **MAC / retired-inst** low (≪1) | scalar-instruction-bound — the marshalling around the tensor op dominates, not the MACs |
-| **IPC** near issue width | harts are executing, not stalling/spinning (→ not sync-bound) |
+| **MAC / retired-inst** low (<<1) | scalar-instruction-bound - the marshalling around the tensor op dominates, not the MACs |
+| **IPC** near issue width | harts are executing, not stalling/spinning (-> not sync-bound) |
 | **per-hart spread** small | work is balanced; no straggler band to fix |
 | **L2 miss (hpm6)** skewed on one hart | that band hits a seam or a non-resident operand |
 | **DDR reads+writes** small | not memory-bound; data lives in cache |
-| **icache req vs ietlink (misses)** | icache pressure; ietlink≈0 means the code fits |
+| **icache req vs ietlink (misses)** | icache pressure; ietlink~0 means the code fits |
 
 Cross-check `hart0 cycles / wall` (the implied clock) run-to-run for stability.
 
@@ -97,7 +97,7 @@ python3 ported_models/dncnn/scripts/decode_pmc.py <dump.bin> --wall-seconds 0.01
 
 ## Iterating on the kernel
 
-The intended loop: change the kernel → rebuild → run → compare the report. The
+The intended loop: change the kernel -> rebuild -> run -> compare the report. The
 number to drive down is **retired instructions per hart** (equivalently, MAC /
 retired-inst upward); watch that `kernel_wait_s` falls with it and `max_abs`
 stays 0. The probe costs ~3% wall time, so compare probe-build to probe-build,
@@ -109,5 +109,5 @@ and take the leaderboard number from the plain build.
   instead of the whole network (add more region slots). Costs extra cache ops in
   the hot loop, so use sparingly.
 - **Other minion events** (dcache, `TFMA_WAIT_TENB`, `TQUANT_INST`): these need
-  `mhpmevent*` reprogrammed, which is M-mode with no syscall on this backend —
+  `mhpmevent*` reprogrammed, which is M-mode with no syscall on this backend -
   it would require a firmware change. See `perf_counters.md`.

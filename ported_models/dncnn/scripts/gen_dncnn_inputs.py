@@ -1,7 +1,7 @@
 """Generate a SYNTHETIC DnCNN test vector + numpy host reference.
 
 Produces dncnn3_input.bin (64x64 uint8) and dncnn3_weights.bin (int8, in the
-exact layout dncnn3_vpu_fp_argbuf.c expects), plus dncnn_reference.npy — the
+exact layout dncnn3_vpu_fp_argbuf.c expects), plus dncnn_reference.npy - the
 expected output computed by replicating the kernel's math in numpy.
 
 Note: these are synthetic random weights (fixed seed) shaped to exercise the
@@ -14,8 +14,8 @@ from pathlib import Path
 
 IMG_W = IMG_H = 64
 CH    = 16                 # hidden channels
-K     = 3                  # 3×3 conv
-LAYERS = 5                 # conv_first + 3×conv_hidden + conv_final
+K     = 3                  # 3x3 conv
+LAYERS = 5                 # conv_first + 3xconv_hidden + conv_final
 FIRST_SCALE  = 1.0/128.0
 HIDDEN_SCALE = 1.0/256.0
 FINAL_SCALE  = 1.0/16.0
@@ -28,14 +28,14 @@ INPUT_BYTES   = IMG_W * IMG_H                    # 4096
 assert WEIGHTS_BYTES == 7200 and INPUT_BYTES == 4096
 
 # Anchor output dir to the script location so cwd doesn't matter.
-REPO = Path(__file__).resolve().parents[3]       # scripts→dncnn→ported_models→repo root
+REPO = Path(__file__).resolve().parents[3]       # scripts->dncnn->ported_models->repo root
 OUT  = REPO / "local-artifacts/erbium_amp_probe/dncnn3-bench"
 
 def make_input(rng):
     return rng.integers(0, 256, size=(IMG_H, IMG_W), dtype=np.uint8)
 
 def make_weights(rng):          
-    W0 = rng.integers(-8,  8,  size=(CH, K, K),       dtype=np.int8)   # first: input is ±128, small W0 keeps range sane
+    W0 = rng.integers(-8,  8,  size=(CH, K, K),       dtype=np.int8)   # first: input is +/-128, small W0 keeps range sane
     WH = rng.integers(-64, 64, size=(3, CH, CH, K*K), dtype=np.int8)   # hidden: bigger, else 1/256 scale kills the signal
     WF = rng.integers(-8,  8,  size=(CH, K, K),       dtype=np.int8)   # final: small, keeps output inside 0..255 (no clip)
     return W0, WH, WF

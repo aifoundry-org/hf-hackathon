@@ -1,5 +1,5 @@
 /*
- * pmc_probe.h — drop-in ET-SoC1 hardware performance-counter probe.
+ * pmc_probe.h - drop-in ET-SoC1 hardware performance-counter probe.
  *
  * Brackets a compute region and records, per active hart, the six minion HPM
  * counters the firmware programs by default, plus (on hart 0) the shire-cache
@@ -11,7 +11,8 @@
  * nothing, so the leaderboard build is byte-for-byte unchanged.
  *
  * Firmware default event map (device-minion-runtime MachineMinion/main.c,
- * mm_setup_default_pmcs) — the counters are free-running, U-mode readable:
+ * mm_setup_default_pmcs) - the counters are free-running, U-mode readable.
+ * Authoritative copy is docs/perf_counters.md; keep this mirror in sync:
  *   hpm3 = minion cycles          (only enabled on minion 0 of a neighborhood)
  *   hpm4 = retired instructions, thread 0   (every hart)
  *   hpm5 = retired instructions, thread 1   (every hart)
@@ -72,7 +73,7 @@ static inline uint64_t pmc_read_hpm(uint32_t idx)
 }
 
 /* Per-hart record, padded to 128 B (two cache lines) so each hart evicts only
- * its own lines — same false-sharing discipline as the kernel's band seams. */
+ * its own lines - same false-sharing discipline as the kernel's band seams. */
 struct pmc_hart_rec {
 	uint32_t magic;
 	uint32_t hart_id;

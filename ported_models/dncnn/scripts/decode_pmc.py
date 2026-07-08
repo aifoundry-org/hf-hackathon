@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-decode_pmc.py — turn a DnCNN -DDNCNN_PMC board dump into a performance report.
+decode_pmc.py - turn a DnCNN -DDNCNN_PMC board dump into a performance report.
 
 The instrumented kernel (pmc_probe.h) writes a fixed region at 0xC0000 holding,
 per active hart, the six default minion HPM counters snapshotted at the start and
@@ -12,6 +12,7 @@ Usage:
   decode_pmc.py <dump.bin> [--wall-seconds S] [--base 0xC0000] [--macs N]
 
 Counter map (firmware defaults, device-minion-runtime mm_setup_default_pmcs):
+  (authoritative copy: docs/perf_counters.md - keep this and HPM_LABEL in sync)
   hpm3 minion cycles (minion-0 of a neigh only) | hpm4 retired inst t0 (all harts)
   hpm5 retired inst t1 (all harts)              | hpm6 L2 miss requests (all harts)
   hpm7 minion icache req (neigh-lead only)      | hpm8 icache etlink req (neigh-lead)
@@ -31,11 +32,15 @@ PMC_PER     = 3          # cycle, p0, p1
 HART_REC    = 128        # bytes per hart record
 HDR_BYTES   = 128
 AGG_OFF     = HDR_BYTES + MAX_HARTS * HART_REC   # 4224
+# aggregate SC/MS record: 16B header (magic,shire,sc_ok,ms_ok) + start/end blocks
+# for each SC bank and MS shire, PMC_PER u64 each.
+AGG_BYTES   = 16 + 2 * (SC_BANKS + MS_COUNT) * PMC_PER * 8   # 592
 ERR         = (1 << 64) - 1                      # -1 sentinel
 
 # ~29.5 MMAC for the 64x64x16 5-layer net (one pass): conv_first + 3 hidden + conv_final
 DEFAULT_MACS = 64 * 64 * (16 * 9 + 3 * 16 * 16 * 9 + 16 * 9)
 
+# mirror of the hpm3..hpm8 map above / docs/perf_counters.md - keep in sync.
 HPM_LABEL = ["cycles(hpm3)", "ret_t0(hpm4)", "ret_t1(hpm5)",
              "L2miss(hpm6)", "icache(hpm7)", "ietlink(hpm8)"]
 
@@ -98,8 +103,8 @@ def main():
 
     with open(path, "rb") as f:
         b = f.read()
-    if len(b) < base + AGG_OFF + 600:
-        print(f"ERROR: dump is {len(b)} bytes; need >= {base + AGG_OFF + 600}. "
+    if len(b) < base + AGG_OFF + AGG_BYTES:
+        print(f"ERROR: dump is {len(b)} bytes; need >= {base + AGG_OFF + AGG_BYTES}. "
               f"Re-run the board with a larger --dump_size (>= 0x{base + 0x2000:X}).")
         sys.exit(2)
 
@@ -177,7 +182,7 @@ def main():
 
     print(f"  -- shire {shire} L2 cache (P0=reads P1=writes, per neigh bank) --")
     if not sc_ok:
-        print("  SC counters UNAVAILABLE — the launcher firmware did not service "
+        print("  SC counters UNAVAILABLE - the launcher firmware did not service "
               "SYSCALL_PMC_SC_SAMPLE (returned -1).")
     else:
         tr = tw = 0
@@ -197,7 +202,7 @@ def main():
 
     print(f"  -- memshire DDR (P0=mesh reads P1=mesh writes, per shire) --")
     if not ms_ok:
-        print("  MS counters UNAVAILABLE — the launcher firmware did not service "
+        print("  MS counters UNAVAILABLE - the launcher firmware did not service "
               "SYSCALL_PMC_MS_SAMPLE (returned -1).")
     else:
         tr = tw = 0

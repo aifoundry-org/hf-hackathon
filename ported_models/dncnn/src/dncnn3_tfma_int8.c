@@ -1,5 +1,5 @@
 /*
- * DnCNN int8 TFMA kernel — full 5-layer mixed-precision network.
+ * DnCNN int8 TFMA kernel - full 5-layer mixed-precision network.
  *
  *   conv_first+quantize (FP32) -> hidden1/2/3 (int8 TFMA) -> dequantize+conv_final (FP32)
  *
@@ -46,11 +46,10 @@ extern char heap0_end[];
 #define LAYERS  5u                 /* conv_first + 3 hidden + conv_final  */
 #define HIDDEN  (LAYERS - 2u)      /* 3 int8 hidden layers                */
 #define NTX     (IMG_W / P)        /* tiles per row                       */
-/* Padded row STRIDE in pixels: the halo-padded width (IMG_W+2 = 66) rounded up to 68
- * so a row spans a whole number of 64B cache lines (68*16 = 1088 = 17 lines). This
- * keeps every hart's row band on cache-line boundaries: each band, and the halo, own
- * their lines outright, so no line is shared between two harts writing it back. Cols
- * 66,67 are stride padding — never addressed (PAD_AT only reaches col 65). */
+/* Padded row stride: halo width IMG_W+2=66 rounded up to 68 so a row is a whole number
+ * of 64B lines (68*16=1088=17 lines). That keeps each hart's band on line boundaries, so
+ * no line is shared between two harts on write-back. Cols 66,67 are stride padding, never
+ * addressed (PAD_AT stops at col 65). */
 #define PADW    68u
 #define PADH    (IMG_H + 2u)
 _Static_assert((PADW * CH) % 64u == 0u,
@@ -115,7 +114,7 @@ _Static_assert(ACTIVE_HARTS <= IMG_H, "ACTIVE_HARTS must not exceed image rows (
 #define INPUT_OFFSET   0x2000u     /* harness: uint8[64][64] image             */
 #define WEIGHTS_OFFSET 0x4000u     /* harness: int8 blob W0|WH|WF              */
 #define OUTPUT_OFFSET  0x10000u    /* harness: uint8[64][64] result            */
-#define QPADA_OFFSET   0x60000u    /* hidden ping-pong A (padded uint8) — 0x11000..0x60000 unused */
+#define QPADA_OFFSET   0x60000u    /* hidden ping-pong A (padded uint8) - 0x11000..0x60000 unused */
 #define QPADB_OFFSET   0x72000u    /* hidden ping-pong B (padded uint8)        */
 #define AW_TAP_OFFSET  0x84000u    /* hidden weights, re-arranged per layer    */
 #define MVEC_OFFSET    0x87000u    /* per-OC requant scale line                */
@@ -125,7 +124,7 @@ _Static_assert(ACTIVE_HARTS <= IMG_H, "ACTIVE_HARTS must not exceed image rows (
 #define QDUMP_OFFSET   0xD0000u    /* 4x copies of q0..q3 interiors (debug)    */
 #define DUMP_END       (QDUMP_OFFSET + 4u * ACT_BYTES)
 #ifdef DNCNN_PMC
-#define PMC_OFFSET     0xC0000u    /* perf-counter dump region (in 0x8A000..0xD0000 gap) */
+#define PMC_OFFSET     0xC0000u    /* perf-counter dump region (in TEMP_END..QDUMP gap, 0x8D000..0xD0000) */
 _Static_assert(PMC_OFFSET >= TEMP_END, "PMC region collides with per-hart temp");
 _Static_assert(PMC_OFFSET + sizeof(struct pmc_region) <= QDUMP_OFFSET, "PMC region overruns into QDUMP");
 #endif
@@ -150,7 +149,7 @@ _Static_assert(ACTIVE_HARTS * SLOT_BYTES <= SUMMARY_OFFSET, "attestation slots o
 #define PAD_AT(pad, y, x) ((pad) + ((uint32_t)((y) + 1) * PADW + ((x) + 1)) * CH)
 
 /* tensor_fma(tenc_loc=1) overwrites f0..f31, but GCC can't see it through the CSR
- * asm, so it may keep live FP values there — force a clobber to spill them first. */
+ * asm, so it may keep live FP values there - force a clobber to spill them first. */
 #define FREG_CLOBBER_BARRIER() __asm__ __volatile__("" ::: "memory", \
 	"f0","f1","f2","f3","f4","f5","f6","f7","f8","f9","f10","f11","f12","f13","f14","f15", \
 	"f16","f17","f18","f19","f20","f21","f22","f23","f24","f25","f26","f27","f28","f29","f30","f31")
@@ -274,14 +273,14 @@ static inline void bench_barrier(void)
 
 /* ================= tile helpers (each tensor CSR encoding lives here once) ========= */
 
-/* A whole IC-quartet (4 int8) is 4 contiguous bytes in both pad (channels are *CH=*16 apart, so
- * quartet q at +q*4 is 4-aligned) and the packed B line; move it as one 4-byte word instead of 4
- * byte ops. may_alias keeps this strict-aliasing-safe over the int8/uint8 buffers. */
+/* An IC-quartet (4 int8) is 4 contiguous, 4-aligned bytes in both pad and the packed B
+ * line, so copy it as one word instead of 4 byte ops. may_alias keeps that strict-aliasing
+ * safe across the int8/uint8 buffers. */
 typedef uint32_t quartet_word __attribute__((__may_alias__));
 
-/* Gather one folded group's activation windows (kernel row dy, taps dx=-1,0,1) into the
- * quartet-interleaved B layout: GTAPS*(CH/QUARTET) lines, ordered [tap ti][IC-quartet q] on
- * line ti*(CH/QUARTET)+q, matching the group's A byte order (tap ti occupies A bytes ti*CH..). */
+/* Gather one group's activation windows (kernel row dy, taps dx=-1,0,1) into the
+ * quartet-interleaved B layout: line ti*(CH/QUARTET)+q holds [tap ti][quartet q],
+ * matching the group's A byte order (tap ti sits at A bytes ti*CH..). */
 static inline void pack_b_group(int8_t *restrict bpk, const uint8_t *restrict pad,
 				uint32_t y, uint32_t x0, int dy)
 {
@@ -298,9 +297,9 @@ static inline void pack_b_group(int8_t *restrict bpk, const uint8_t *restrict pa
 	}
 }
 
-/* One folded-group int8 MAC (16 OC x GTAPS*16 IC x 16 spatial) — GTAPS taps contracted in a
- * single dispatch. A is signed / B unsigned — note the tensors.h operand-name swap. first:
- * reset the TENC accumulator; last: copy TENC into the float registers for the store. */
+/* One group's int8 MAC (16 OC x GTAPS*16 IC x 16 spatial) in a single dispatch. A is
+ * signed, B unsigned - mind the tensors.h operand-name swap. first resets the TENC
+ * accumulator; last copies TENC into the float registers for the store. */
 static inline void fma_group(int first, int last)
 {
 	tensor_fma(false, (P / QUARTET) - 1u, CH - 1u, GTAPS * (CH / QUARTET) - 1u, 0,
@@ -330,8 +329,8 @@ static void conv_tile(const uint8_t *restrict pad, const int8_t *restrict aw,
 		      uint8_t *restrict temp, uint8_t *restrict padout,
 		      uint32_t y, uint32_t x0)
 {
-	/* B1: pack ALL groups' B up front, then ONE FENCE+evict+WAIT for the whole tile
-	 * (was one per group). Same bytes, but the per-tile blocking WAIT_CACHEOPS go NGRP->1. */
+	/* B1: pack every group's B first, then one FENCE+evict+WAIT for the whole tile
+	 * (was one per group) - same bytes, but the blocking WAIT_CACHEOPS collapse NGRP->1. */
 	for (uint32_t g = 0; g < NGRP; g++)
 		pack_b_group(bpk + g * GROUP_B_BYTES, pad, y, x0, (int)g - 1);  /* kernel row dy = g-1 */
 	FENCE; evict(bpk, NGRP * GROUP_B_BYTES); WAIT_CACHEOPS;
@@ -362,9 +361,9 @@ static void conv_tile(const uint8_t *restrict pad, const int8_t *restrict aw,
 			PAD_AT(padout, y, x0 + j)[oc] = temp[oc * P + j];
 }
 
-/* Replicate-fill the 1-pixel halo around rows [row0,row1): left/right columns for every
- * row, the top halo row when row0==0, the bottom halo row when row1==IMG_H. layer_publish
- * calls it once over the whole image (0,IMG_H) on hart 0, which owns the shared halo. */
+/* Replicate-fill the 1-pixel halo around rows [row0,row1): left/right columns every row,
+ * the top row when row0==0, the bottom when row1==IMG_H. layer_publish calls it once over
+ * the whole image on hart 0, which owns the shared halo. */
 static void fill_halo_band(uint8_t *pad, uint32_t row0, uint32_t row1)
 {
 	for (uint32_t y = row0; y < row1; y++)              /* left/right columns of my rows */
@@ -382,13 +381,12 @@ static void fill_halo_band(uint8_t *pad, uint32_t row0, uint32_t row1)
 				PAD_AT(pad, (int)IMG_H, x)[ic] = PAD_AT(pad, (int)IMG_H - 1, x)[ic];
 }
 
-/* Publish this hart's just-written band so all bands + the halo are globally visible
- * before the next layer reads across band boundaries:
- *   evict my band -> barrier -> hart 0 fills the whole halo + evicts whole buffer -> barrier.
- * Barrier 1 puts every band in DRAM before hart 0 reads them to build the halo;
- * barrier 2 puts the halo in DRAM before anyone reads it. The read-side invalidate is
- * a separate step (invalidate_read) issued right before each read, so a neighbour that
- * has already published cannot leave a stale copy cached in this hart's L1. */
+/* Make this hart's band (and the halo) globally visible before the next layer reads across
+ * band boundaries:
+ *   evict my band -> barrier -> hart 0 fills + evicts the whole halo -> barrier.
+ * Barrier 1 lands every band in DRAM before hart 0 builds the halo; barrier 2 lands the
+ * halo before anyone reads it. Dropping stale neighbours is a separate step
+ * (invalidate_read), run right before each read. */
 static void layer_publish(uint8_t *pad, uint32_t hart_id, uint32_t row0, uint32_t row1)
 {
 	FENCE;
@@ -440,9 +438,9 @@ static inline int32_t round_half_up(float v)
 }
 
 /* conv_first with the quantize folded in: uint8 image (1ch) -> uint8 padded activation,
- * written straight into qpad's interior (no intermediate FP32 buffer). Per output:
- * x=img-128, 3x3, xFIRST_SCALE, ReLU, then xQUANT0, round-nearest-even, clamp[0,255].
- * Accumulates in FP32 in the reference's tap order so the result matches numpy exactly. */
+ * straight into qpad's interior (no FP32 scratch). Per output: x=img-128, 3x3,
+ * xFIRST_SCALE, ReLU, xQUANT0, round-nearest-even, clamp[0,255]. Accumulates in FP32 in
+ * the reference's tap order to match numpy exactly. */
 static void conv_first_quant(const uint8_t *restrict img, const int8_t *restrict w0,
 			     uint8_t *restrict qpad, float qscale, uint32_t row0, uint32_t row1)
 {
@@ -469,10 +467,10 @@ static void conv_first_quant(const uint8_t *restrict img, const int8_t *restrict
 	}
 }
 
-/* conv_final with the dequant folded in: reads the halo-filled padded uint8 activation
- * directly and produces the uint8 image. Per output: dequantize each input (xDEQUANT3),
- * 3x3, xFINAL_SCALE, +128, round-half-up, clamp[0,255]. Neighbours come from the halo,
- * so no coordinate clamping is needed. Accumulates in FP32 to match numpy exactly. */
+/* conv_final with the dequant folded in: reads the halo-filled padded uint8 activation and
+ * writes the uint8 image. Per output: dequantize each input (xDEQUANT3), 3x3, xFINAL_SCALE,
+ * +128, round-half-up, clamp[0,255]. Neighbours come from the halo, so no coordinate
+ * clamping. Accumulates in FP32 to match numpy exactly. */
 static void conv_final_dequant(const uint8_t *restrict cur, float dequant,
 			       const int8_t *restrict wf, uint8_t *restrict out,
 			       uint32_t row0, uint32_t row1)
@@ -507,10 +505,10 @@ static uint32_t stripe_checksum(const uint8_t *out, uint32_t row0, uint32_t row1
 	return sum;
 }
 
-/* re-arrange one hidden layer's weights from the blob's WH[l][oc][ic][k] into the FMA's
- * folded group-major A layout aw_tap[g][oc]: one 64B line per (group g, OC), holding GTAPS taps
- * back-to-back — bytes ti*CH+ic = W[oc][ic][tap g*GTAPS+ti] — so a group's GTAPS*CH contraction
- * is one contiguous A line (quartet k -> byte 4k, matching pack_b_group's B-line order). */
+/* Re-arrange one hidden layer's weights from the blob's WH[l][oc][ic][k] into the FMA's
+ * group-major A layout aw_tap[g][oc]: one 64B line per (group, OC) holding GTAPS taps
+ * back-to-back (byte ti*CH+ic = W[oc][ic][g*GTAPS+ti]), so a group's GTAPS*CH contraction
+ * is one contiguous A line, matching pack_b_group's B order. */
 static void rearrange_hidden_weights(const int8_t *restrict wh, uint32_t layer,
 				     int8_t *restrict aw_tap)
 {
