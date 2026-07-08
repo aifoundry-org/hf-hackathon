@@ -182,6 +182,8 @@ Token embedding quantization sweep:
 
 The per-dimension token embedding result is important: it gives most of the FP32-token benefit without blowing up resident memory.
 
+**Implementation Status (July 2026):** Per-dimension token embedding scales have been implemented in both the weight packing script and the decoder kernel (`src/whisper_resident_decoder_token_argbuf.c`). The decoder kernel now reads per-dimension scales from the weight region and applies them during token embedding lookup.
+
 ## Encoder Quantization Findings
 
 With decoder stabilized by per-dimension token embedding, Hawking still had wording errors. The main visible one was:
@@ -206,29 +208,28 @@ The conv finding is counterintuitive: convs are not the biggest runtime bottlene
 
 ## What Looks Worth Porting Next
 
-Priority 1: per-dimension token embedding scales.
+Priority 1: per-dimension token embedding scales. **(IMPLEMENTED July 2026)**
 
 - Keeps `token_embedding.weight` as INT8.
 - Adds 384 FP32 scales.
 - Fixes the EOS collapse on Hawking in host ONNX.
-- Should be straightforward to port in the decoder embed step:
-  `token_embedding[token, i] * token_embedding_dim_scale[i]`.
+- **Status:** Implemented in `src/whisper_resident_decoder_token_argbuf.c`. The weight packer generates per-dimension scales, and the decoder kernel reads and applies them during token embedding lookup.
 
-Priority 2: better encoder conv handling.
+Priority 2: better encoder conv handling. **(IMPLEMENTED July 2026)**
 
 Options:
 
-- Keep conv weights/biases FP32 in the resident region.
+- Keep conv weights/biases FP32 in the resident region. ✓ **Implemented**
 - Use a better calibrated conv quantization scheme.
 - Try per-input-channel or mixed per-output/per-input scaling if we want to keep convs INT8.
 
-Keeping convs FP32 is probably the fastest path to a more honest demo. The memory cost is much smaller than keeping token embedding FP32.
+**Status:** Implemented via `ENCODER_CONV_FP32` compile-time flag in `src/whisper_resident_encoder_argbuf.c`. When enabled, conv weights are loaded as FP32 from the weight region, avoiding quantization error in the sensitive frontend convolutions.
 
 Priority 3: do not quantize small sensitive non-MatMul tensors blindly.
 
 The raw-all approach was bad because it quantized everything. Dynamic-INT8 avoids this by mostly targeting MatMul weights. A resident model should have explicit per-tensor policy:
 
-- Token embedding: INT8 with per-dimension scales.
+- Token embedding: INT8 with per-dimension scales. ✓ **Implemented**
 - Positional embedding: current raw path seems tolerable, but keeping FP32 is cheap enough to consider.
 - Mask/constants: keep exact.
 - LayerNorm weight/bias: raw path was not the collapse trigger, but keeping FP32 is cheap.

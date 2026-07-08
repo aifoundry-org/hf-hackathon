@@ -43,6 +43,9 @@ extern char heap0_end[];
 #ifndef ENCODER_CONV1_TIME_MAJOR
 #define ENCODER_CONV1_TIME_MAJOR 0
 #endif
+#ifndef ENCODER_CONV_FP32
+#define ENCODER_CONV_FP32 0
+#endif
 #ifndef CROSS_K_POS_MAJOR
 #define CROSS_K_POS_MAJOR 1
 #endif
@@ -1557,7 +1560,11 @@ static inline uint32_t cross_v_index(uint32_t layer, uint32_t head,
 static void conv1_stage(uint8_t *base, uint32_t hart_id, float *audio,
 			float *conv1)
 {
+#if ENCODER_CONV_FP32
+	const float *const wt = fptr(base, enc_conv1_weight_f32_offset);
+#else
 	const int8_t *const wt = wptr(base, enc_conv1_weight.offset);
+#endif
 	const float *const b = fptr(base, enc_conv1_bias_f32_offset);
 	const uint32_t total = DIM * AUDIO_LEN;
 	const uint32_t i0 = part0(total, hart_id);
@@ -1572,7 +1579,9 @@ static void conv1_stage(uint8_t *base, uint32_t hart_id, float *audio,
 		const uint32_t t = idx - oc * AUDIO_LEN;
 #endif
 		float acc = b[oc];
-#if ENCODER_FAST_CONV_SCALE
+#if ENCODER_CONV_FP32
+		/* FP32 conv path - no quantization scaling needed */
+#elif ENCODER_FAST_CONV_SCALE
 		float raw = 0.0f;
 #endif
 
@@ -1583,7 +1592,10 @@ static void conv1_stage(uint8_t *base, uint32_t hart_id, float *audio,
 				if (src_t >= 0 && src_t < (int32_t)AUDIO_LEN) {
 					const uint32_t widx =
 						((oc * MEL_BINS + ic) * 3u) + k;
-#if ENCODER_FAST_CONV_SCALE
+#if ENCODER_CONV_FP32
+					acc += audio[ic * AUDIO_LEN + (uint32_t)src_t] *
+					       wt[widx];
+#elif ENCODER_FAST_CONV_SCALE
 					raw += audio[ic * AUDIO_LEN + (uint32_t)src_t] *
 					       (float)wt[widx];
 #else
@@ -1593,7 +1605,9 @@ static void conv1_stage(uint8_t *base, uint32_t hart_id, float *audio,
 				}
 			}
 		}
-#if ENCODER_FAST_CONV_SCALE
+#if ENCODER_CONV_FP32
+		/* No scaling needed for FP32 */
+#elif ENCODER_FAST_CONV_SCALE
 		acc += raw * enc_conv1_weight.scale;
 #endif
 #if ENCODER_CONV1_TIME_MAJOR
@@ -1607,7 +1621,11 @@ static void conv1_stage(uint8_t *base, uint32_t hart_id, float *audio,
 static void conv2_stage(uint8_t *base, uint32_t hart_id, float *conv1,
 			float *hidden)
 {
+#if ENCODER_CONV_FP32
+	const float *const wt = fptr(base, enc_conv2_weight_f32_offset);
+#else
 	const int8_t *const wt = wptr(base, enc_conv2_weight.offset);
+#endif
 	const float *const b = fptr(base, enc_conv2_bias_f32_offset);
 	const uint32_t total = SRC_LEN * DIM;
 	const uint32_t i0 = part0(total, hart_id);
@@ -1617,7 +1635,9 @@ static void conv2_stage(uint8_t *base, uint32_t hart_id, float *conv1,
 		const uint32_t t = idx / DIM;
 		const uint32_t oc = idx - t * DIM;
 		float acc = b[oc];
-#if ENCODER_FAST_CONV_SCALE
+#if ENCODER_CONV_FP32
+		/* FP32 conv path - no quantization scaling needed */
+#elif ENCODER_FAST_CONV_SCALE
 		float raw = 0.0f;
 #endif
 
@@ -1629,7 +1649,15 @@ static void conv2_stage(uint8_t *base, uint32_t hart_id, float *conv1,
 				if (src_t >= 0 && src_t < (int32_t)AUDIO_LEN) {
 					const uint32_t widx =
 						((oc * DIM + ic) * 3u) + k;
-#if ENCODER_FAST_CONV_SCALE
+#if ENCODER_CONV_FP32
+					acc +=
+#if ENCODER_CONV1_TIME_MAJOR
+					       conv1[(uint32_t)src_t * DIM + ic] *
+#else
+					       conv1[ic * AUDIO_LEN + (uint32_t)src_t] *
+#endif
+					       wt[widx];
+#elif ENCODER_FAST_CONV_SCALE
 					raw +=
 #if ENCODER_CONV1_TIME_MAJOR
 					       conv1[(uint32_t)src_t * DIM + ic] *
@@ -1649,7 +1677,9 @@ static void conv2_stage(uint8_t *base, uint32_t hart_id, float *conv1,
 				}
 			}
 		}
-#if ENCODER_FAST_CONV_SCALE
+#if ENCODER_CONV_FP32
+		/* No scaling needed for FP32 */
+#elif ENCODER_FAST_CONV_SCALE
 		acc += raw * enc_conv2_weight.scale;
 #endif
 		hidden[t * DIM + oc] = gelu(acc) +
