@@ -20,10 +20,11 @@
 
 Mirrors existing Qwen3 rows (`qwen3_4b`) and the 8B Llama row (`llama31_8b`):
 `device=ET`, `gpu_layers=99`, completion API, longer timeouts for the ~8.7 GiB
-weight file.
+weight file. Batch sizes use the standard `batch_size=256`, `ubatch_size=128`.
 
-Batch tuning (Modal Q8-F, 7-trial matrix): `batch_size=512`, `ubatch_size=256`
-(+47% Modal decode proxy vs baseline; board CI re-run pending).
+Modal Q8-F batch tuning (`batch_size=512`, `ubatch_size=256`) showed +47% proxy
+decode on Modal but no gain on real ET-SoC1 silicon (3.30 tok/s for both); the
+config was reverted to the standard baseline after the merge of PR #11.
 
 ## Verification
 
