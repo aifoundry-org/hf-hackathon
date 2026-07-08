@@ -1,0 +1,17 @@
+{
+  "runner": "ggonnx",
+  "board": true,
+  "framework": {
+    "name": "ggonnx",
+    "runner": "ggonnx",
+    "source_artifact": "ggonnx_source"
+  },
+  "artifacts_file": "../artifacts.json",
+  "canonical_variant": "tiny_yolov3",
+  "score": {
+    "metric": "elapsed_s",
+    "label": "Elapsed s",
+    "higher_is_better": false
+  },
+  "note": "GGONNX runner smoke test"
+}

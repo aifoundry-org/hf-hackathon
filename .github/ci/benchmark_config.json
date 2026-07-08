@@ -180,6 +180,9 @@
     "smollm2_17b": {
       "config": "ported_models/llama_cpp_et/benchmarks/smollm2_17b.json"
     },
+    "tiny_yolov3": {
+      "config": "ported_models/ggonnx/benchmarks/tiny_yolov3.json"
+    },
     "llama32_3b": {
       "config": "ported_models/llama_cpp_et/benchmarks/llama32_3b.json"
     },

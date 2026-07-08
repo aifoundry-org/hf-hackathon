@@ -20,8 +20,9 @@ set(GGML_INCLUDE_DIR "${LLAMA_CPP_ROOT}/ggml/include")
 set(GGML_LIBRARY "${LLAMA_CPP_BUILD_DIR}/bin/libggml.so")
 set(GGML_BASE_LIBRARY "${LLAMA_CPP_BUILD_DIR}/bin/libggml-base.so")
 set(GGML_CPU_LIBRARY "${LLAMA_CPP_BUILD_DIR}/bin/libggml-cpu.so")
+set(GGML_ET_LIBRARY "${LLAMA_CPP_BUILD_DIR}/bin/libggml-et.so")
 
-foreach(path_var GGML_INCLUDE_DIR GGML_LIBRARY GGML_BASE_LIBRARY GGML_CPU_LIBRARY)
+foreach(path_var GGML_INCLUDE_DIR GGML_LIBRARY GGML_BASE_LIBRARY GGML_CPU_LIBRARY GGML_ET_LIBRARY)
   if(NOT EXISTS "${${path_var}}")
     message(FATAL_ERROR "${path_var} points to a missing path: ${${path_var}}")
   endif()
@@ -46,6 +47,7 @@ target_link_libraries(ggonnx_ep
     ${GGML_LIBRARY}
     ${GGML_BASE_LIBRARY}
     ${GGML_CPU_LIBRARY}
+    ${GGML_ET_LIBRARY}
 )
 
 target_compile_definitions(ggonnx_ep PRIVATE ORT_API_MANUAL_INIT)

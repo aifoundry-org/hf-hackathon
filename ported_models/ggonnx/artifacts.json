@@ -200,6 +200,79 @@
       "filename": "mosaic-9.onnx",
       "source_url": "https://github.com/onnx/models/raw/c32b9776d06d2ebc7888d705e3a558f62b20e7a8/validated/vision/style_transfer/fast_neural_style/model/mosaic-9.onnx",
       "validation": "compare_outputs_to_onnxruntime_cpu"
+    },
+    "ggonnx_build": {
+      "kind": "framework_workdir",
+      "framework": "ggonnx",
+      "env": "GGONNX_WORKDIR",
+      "local_cache": "local-artifacts/frameworks/ggonnx/build",
+      "build": {
+        "cmake": "cmake",
+        "configure_args": [
+          "-DGGONNX_BUILD_TOOLS=ON",
+          "-DCMAKE_BUILD_TYPE=Release"
+        ],
+        "build_args": [
+          "--config",
+          "Release"
+        ]
+      }
+    },
+    "ggonnx_runner": {
+      "kind": "framework_binary",
+      "framework": "ggonnx",
+      "env": "GGONNX_RUNNER",
+      "relative_to": "ggonnx_build",
+      "relative_path": "ggonnx_runner"
+    },
+    "llama_cpp_source": {
+      "kind": "framework_source",
+      "framework": "llama.cpp-et",
+      "submodule_path": "ported_models/llama_cpp_et/src/llama.cpp-et",
+      "license": "MIT",
+      "license_file": "LICENSE",
+      "upstream": {
+        "type": "git",
+        "url": "https://github.com/aifoundry-org/llama.cpp.git",
+        "branch": "et",
+        "revision": "13da97147c0c8c04f0df410e77c8d202cebee3fb",
+        "upstream_pr": "https://github.com/aifoundry-org/llama.cpp/pull/7",
+        "upstream_author": "marty1885",
+        "note": "Informational only: this records where the committed submodule mirrors from. CI builds from the committed submodule_path; it does not clone from this URL. To change the framework version, bump the submodule pin in a PR (see ported_models/llama_cpp_et/src/README.md)."
+      },
+      "note": "Framework source comes from the committed submodule. Submitters who want a different framework version must repin the submodule as part of their PR."
+    },
+    "llama_cpp_build": {
+      "kind": "framework_workdir",
+      "framework": "llama.cpp-et",
+      "env": "LLAMA_CPP_ET_WORKDIR",
+      "env_aliases": [
+        "LFM25_LLAMA_WORKDIR"
+      ],
+      "local_cache": "local-artifacts/frameworks/llama.cpp-et/build-et",
+      "build": {
+        "cmake": "cmake",
+        "configure_args": [
+          "-DGGML_ET=ON",
+          "-DCMAKE_BUILD_TYPE=Release",
+          "-DCMAKE_CXX_STANDARD_LIBRARIES=-lglog"
+        ],
+        "build_args": [
+          "--config",
+          "Release"
+        ]
+      },
+      "note": "Out-of-tree CMake build of the committed llama_cpp_source submodule. Decoupled from the source path so the submodule working tree stays clean."
+    },
+    "llama_server": {
+      "kind": "framework_binary",
+      "framework": "llama.cpp-et",
+      "env": "LLAMA_CPP_ET_SERVER",
+      "env_aliases": [
+        "LFM25_LLAMA_SERVER"
+      ],
+      "relative_to": "llama_cpp_build",
+      "relative_path": "bin/llama-server"
     }
   }
 }

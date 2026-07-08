@@ -72,6 +72,21 @@ if [[ "$runner" == "llama_server" ]]; then
   exit 0
 fi
 
+if [[ "$runner" == "ggonnx" ]]; then
+  if [[ "$BENCHMARK_DEVICE" != "soc1sim" ]]; then
+    write_score skipped "${model} framework benchmark requires the ET-SoC1 board runner."
+    exit 0
+  fi
+
+  run_dir="${BENCHMARK_OUTPUT}/ggonnx-${model}"
+  score_out="${BENCHMARK_OUTPUT}/score-${model}.json"
+  python3 "${REPO_ROOT}/.github/ci/scripts/run_ggonnx_benchmark.py" \
+    --model "$model" \
+    --results-dir "$run_dir" \
+    --output "$score_out"
+  exit 0
+fi
+
 if [[ "$runner" != "elf" ]]; then
   write_score fail "unknown benchmark runner '${runner}' for ${model}"
   exit 0
