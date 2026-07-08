@@ -107,12 +107,16 @@
         },
         {
           "address": "0x02000000",
-          "paths": ["yolo/weights_region.bin"],
+          "paths": [
+            "yolo/weights_region.bin"
+          ],
           "required": true
         },
         {
           "address": "0x04A00000",
-          "paths": ["yolo/coco_room_000139_raw_480x640x3_uint8_rgb.bin"],
+          "paths": [
+            "yolo/coco_room_000139_raw_480x640x3_uint8_rgb.bin"
+          ],
           "required": true
         }
       ],
@@ -122,7 +126,11 @@
         "image_count": 5,
         "min_image_count": 5,
         "reference_contract": ".github/ci/reference/yolo.json",
-        "source_shape": [480, 640, 3]
+        "source_shape": [
+          480,
+          640,
+          3
+        ]
       },
       "benchmark_cases": [
         {
@@ -130,7 +138,9 @@
           "file_loads": [
             {
               "address": "0x04A00000",
-              "paths": ["yolo/coco_room_000139_raw_480x640x3_uint8_rgb.bin"],
+              "paths": [
+                "yolo/coco_room_000139_raw_480x640x3_uint8_rgb.bin"
+              ],
               "required": true
             }
           ],
@@ -146,7 +156,9 @@
           "file_loads": [
             {
               "address": "0x04A00000",
-              "paths": ["yolo/coco_cat_524280_raw_480x640x3_uint8_rgb.bin"],
+              "paths": [
+                "yolo/coco_cat_524280_raw_480x640x3_uint8_rgb.bin"
+              ],
               "required": true
             }
           ],
@@ -162,7 +174,9 @@
           "file_loads": [
             {
               "address": "0x04A00000",
-              "paths": ["yolo/coco_giraffes_296969_raw_480x640x3_uint8_rgb.bin"],
+              "paths": [
+                "yolo/coco_giraffes_296969_raw_480x640x3_uint8_rgb.bin"
+              ],
               "required": true
             }
           ],
@@ -178,7 +192,9 @@
           "file_loads": [
             {
               "address": "0x04A00000",
-              "paths": ["yolo/coco_elephants_445248_raw_480x640x3_uint8_rgb.bin"],
+              "paths": [
+                "yolo/coco_elephants_445248_raw_480x640x3_uint8_rgb.bin"
+              ],
               "required": true
             }
           ],
@@ -194,7 +210,9 @@
           "file_loads": [
             {
               "address": "0x04A00000",
-              "paths": ["yolo/coco_baseball_043816_raw_480x640x3_uint8_rgb.bin"],
+              "paths": [
+                "yolo/coco_baseball_043816_raw_480x640x3_uint8_rgb.bin"
+              ],
               "required": true
             }
           ],
@@ -315,6 +333,9 @@
     },
     "smolvlm_500m": {
       "config": "ported_models/llama_cpp_et/benchmarks/smolvlm_500m.json"
+    },
+    "smolvlm2_22b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/smolvlm2_22b.json"
     }
   }
 }
