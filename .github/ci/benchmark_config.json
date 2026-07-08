@@ -20,8 +20,7 @@
         "defines": [
           "-DYOLO_PASSES=1",
           "-DNUM_HARTS=16",
-          "-DACTIVE_HARTS=8",
-          "-DBENCH_THREAD0_ONLY=1"
+          "-DACTIVE_HARTS=16"
         ]
       },
       "whisper": {

@@ -23,6 +23,7 @@ extern char heap0_end[];
 #define YOLO_PASSES 1u
 #endif
 
+#define YOLO_VPU_OC8 1
 #define YOLO_VPU_OC4 1
 
 #ifndef YOLO_BLOCKS
@@ -842,10 +843,558 @@ static float conv3_vpu(const float *input, const float *w_oc,
 	return vpu_accum3x3_dot16_f32(p, w_oc, row);
 }
 
+static inline void vpu_dot16x8_f32(const float *a,
+				   const float *w0, const float *w1, const float *w2, const float *w3,
+				   const float *w4, const float *w5, const float *w6, const float *w7,
+				   float *out0, float *out1, float *out2, float *out3,
+				   float *out4, float *out5, float *out6, float *out7)
+{
+	__attribute__((aligned(32))) float tmp0[8];
+	__attribute__((aligned(32))) float tmp1[8];
+	__attribute__((aligned(32))) float tmp2[8];
+	__attribute__((aligned(32))) float tmp3[8];
+	__attribute__((aligned(32))) float tmp4[8];
+	__attribute__((aligned(32))) float tmp5[8];
+	__attribute__((aligned(32))) float tmp6[8];
+	__attribute__((aligned(32))) float tmp7[8];
+	const uint64_t zero = 0;
+
+	__asm__ __volatile__(
+		"fbcx.ps f0, %[zero]\n"
+		"fbcx.ps f3, %[zero]\n"
+		"fbcx.ps f5, %[zero]\n"
+		"fbcx.ps f7, %[zero]\n"
+		"fbcx.ps f9, %[zero]\n"
+		"fbcx.ps f11, %[zero]\n"
+		"fbcx.ps f13, %[zero]\n"
+		"fbcx.ps f15, %[zero]\n"
+		"flq2    f1, 0(%[a0])\n"
+		"flq2    f2, 0(%[w0])\n"
+		"fmadd.ps f0, f1, f2, f0\n"
+		"flq2    f2, 0(%[w1])\n"
+		"fmadd.ps f3, f1, f2, f3\n"
+		"flq2    f2, 0(%[w2])\n"
+		"fmadd.ps f5, f1, f2, f5\n"
+		"flq2    f2, 0(%[w3])\n"
+		"fmadd.ps f7, f1, f2, f7\n"
+		"flq2    f2, 0(%[w4])\n"
+		"fmadd.ps f9, f1, f2, f9\n"
+		"flq2    f2, 0(%[w5])\n"
+		"fmadd.ps f11, f1, f2, f11\n"
+		"flq2    f2, 0(%[w6])\n"
+		"fmadd.ps f13, f1, f2, f13\n"
+		"flq2    f2, 0(%[w7])\n"
+		"fmadd.ps f15, f1, f2, f15\n"
+		"flq2    f1, 32(%[a0])\n"
+		"flq2    f2, 32(%[w0])\n"
+		"fmadd.ps f0, f1, f2, f0\n"
+		"flq2    f2, 32(%[w1])\n"
+		"fmadd.ps f3, f1, f2, f3\n"
+		"flq2    f2, 32(%[w2])\n"
+		"fmadd.ps f5, f1, f2, f5\n"
+		"flq2    f2, 32(%[w3])\n"
+		"fmadd.ps f7, f1, f2, f7\n"
+		"flq2    f2, 32(%[w4])\n"
+		"fmadd.ps f9, f1, f2, f9\n"
+		"flq2    f2, 32(%[w5])\n"
+		"fmadd.ps f11, f1, f2, f11\n"
+		"flq2    f2, 32(%[w6])\n"
+		"fmadd.ps f13, f1, f2, f13\n"
+		"flq2    f2, 32(%[w7])\n"
+		"fmadd.ps f15, f1, f2, f15\n"
+		"fsq2    f0, 0(%[tmp0])\n"
+		"fsq2    f3, 0(%[tmp1])\n"
+		"fsq2    f5, 0(%[tmp2])\n"
+		"fsq2    f7, 0(%[tmp3])\n"
+		"fsq2    f9, 0(%[tmp4])\n"
+		"fsq2    f11, 0(%[tmp5])\n"
+		"fsq2    f13, 0(%[tmp6])\n"
+		"fsq2    f15, 0(%[tmp7])\n"
+		:
+		: [zero] "r"(zero), [a0] "r"(a),
+		  [w0] "r"(w0), [w1] "r"(w1), [w2] "r"(w2), [w3] "r"(w3),
+		  [w4] "r"(w4), [w5] "r"(w5), [w6] "r"(w6), [w7] "r"(w7),
+		  [tmp0] "r"(tmp0), [tmp1] "r"(tmp1), [tmp2] "r"(tmp2), [tmp3] "r"(tmp3), [tmp4] "r"(tmp4), [tmp5] "r"(tmp5), [tmp6] "r"(tmp6), [tmp7] "r"(tmp7)
+		: "memory", "f0", "f1", "f2", "f3", "f5", "f7", "f9", "f11", "f13", "f15");
+
+	float sum0 = 0.0f;
+	float sum1 = 0.0f;
+	float sum2 = 0.0f;
+	float sum3 = 0.0f;
+	float sum4 = 0.0f;
+	float sum5 = 0.0f;
+	float sum6 = 0.0f;
+	float sum7 = 0.0f;
+
+	for (uint32_t i = 0; i < 8u; i++) {
+		sum0 += tmp0[i];
+		sum1 += tmp1[i];
+		sum2 += tmp2[i];
+		sum3 += tmp3[i];
+		sum4 += tmp4[i];
+		sum5 += tmp5[i];
+		sum6 += tmp6[i];
+		sum7 += tmp7[i];
+	}
+
+	*out0 = sum0;
+	*out1 = sum1;
+	*out2 = sum2;
+	*out3 = sum3;
+	*out4 = sum4;
+	*out5 = sum5;
+	*out6 = sum6;
+	*out7 = sum7;
+}
+
+static inline void vpu_accum3x3_dot16x8_f32(const float *p,
+					    const float *w0, const float *w1, const float *w2, const float *w3,
+					    const float *w4, const float *w5, const float *w6, const float *w7,
+					    int row,
+					    float *out0, float *out1, float *out2, float *out3,
+					    float *out4, float *out5, float *out6, float *out7)
+{
+	__attribute__((aligned(32))) float tmp0[8];
+	__attribute__((aligned(32))) float tmp1[8];
+	__attribute__((aligned(32))) float tmp2[8];
+	__attribute__((aligned(32))) float tmp3[8];
+	__attribute__((aligned(32))) float tmp4[8];
+	__attribute__((aligned(32))) float tmp5[8];
+	__attribute__((aligned(32))) float tmp6[8];
+	__attribute__((aligned(32))) float tmp7[8];
+	const uint64_t zero = 0;
+	const float *const p0 = p - row - (int)CH;
+	const float *const p1 = p - row;
+	const float *const p2 = p - row + (int)CH;
+	const float *const p3 = p - (int)CH;
+	const float *const p4 = p;
+	const float *const p5 = p + (int)CH;
+	const float *const p6 = p + row - (int)CH;
+	const float *const p7 = p + row;
+	const float *const p8 = p + row + (int)CH;
+
+	__asm__ __volatile__(
+		"fbcx.ps f0, %[zero]\n"
+		"fbcx.ps f3, %[zero]\n"
+		"fbcx.ps f5, %[zero]\n"
+		"fbcx.ps f7, %[zero]\n"
+		"fbcx.ps f9, %[zero]\n"
+		"fbcx.ps f11, %[zero]\n"
+		"fbcx.ps f13, %[zero]\n"
+		"fbcx.ps f15, %[zero]\n"
+		"flq2 f1, 0(%[p0])\n"
+		"flq2 f2, 0(%[w0])\n"
+		"fmadd.ps f0, f1, f2, f0\n"
+		"flq2 f2, 0(%[w1])\n"
+		"fmadd.ps f3, f1, f2, f3\n"
+		"flq2 f2, 0(%[w2])\n"
+		"fmadd.ps f5, f1, f2, f5\n"
+		"flq2 f2, 0(%[w3])\n"
+		"fmadd.ps f7, f1, f2, f7\n"
+		"flq2 f2, 0(%[w4])\n"
+		"fmadd.ps f9, f1, f2, f9\n"
+		"flq2 f2, 0(%[w5])\n"
+		"fmadd.ps f11, f1, f2, f11\n"
+		"flq2 f2, 0(%[w6])\n"
+		"fmadd.ps f13, f1, f2, f13\n"
+		"flq2 f2, 0(%[w7])\n"
+		"fmadd.ps f15, f1, f2, f15\n"
+		"flq2 f1, 32(%[p0])\n"
+		"flq2 f2, 32(%[w0])\n"
+		"fmadd.ps f0, f1, f2, f0\n"
+		"flq2 f2, 32(%[w1])\n"
+		"fmadd.ps f3, f1, f2, f3\n"
+		"flq2 f2, 32(%[w2])\n"
+		"fmadd.ps f5, f1, f2, f5\n"
+		"flq2 f2, 32(%[w3])\n"
+		"fmadd.ps f7, f1, f2, f7\n"
+		"flq2 f2, 32(%[w4])\n"
+		"fmadd.ps f9, f1, f2, f9\n"
+		"flq2 f2, 32(%[w5])\n"
+		"fmadd.ps f11, f1, f2, f11\n"
+		"flq2 f2, 32(%[w6])\n"
+		"fmadd.ps f13, f1, f2, f13\n"
+		"flq2 f2, 32(%[w7])\n"
+		"fmadd.ps f15, f1, f2, f15\n"
+		"flq2 f1, 0(%[p1])\n"
+		"flq2 f2, 64(%[w0])\n"
+		"fmadd.ps f0, f1, f2, f0\n"
+		"flq2 f2, 64(%[w1])\n"
+		"fmadd.ps f3, f1, f2, f3\n"
+		"flq2 f2, 64(%[w2])\n"
+		"fmadd.ps f5, f1, f2, f5\n"
+		"flq2 f2, 64(%[w3])\n"
+		"fmadd.ps f7, f1, f2, f7\n"
+		"flq2 f2, 64(%[w4])\n"
+		"fmadd.ps f9, f1, f2, f9\n"
+		"flq2 f2, 64(%[w5])\n"
+		"fmadd.ps f11, f1, f2, f11\n"
+		"flq2 f2, 64(%[w6])\n"
+		"fmadd.ps f13, f1, f2, f13\n"
+		"flq2 f2, 64(%[w7])\n"
+		"fmadd.ps f15, f1, f2, f15\n"
+		"flq2 f1, 32(%[p1])\n"
+		"flq2 f2, 96(%[w0])\n"
+		"fmadd.ps f0, f1, f2, f0\n"
+		"flq2 f2, 96(%[w1])\n"
+		"fmadd.ps f3, f1, f2, f3\n"
+		"flq2 f2, 96(%[w2])\n"
+		"fmadd.ps f5, f1, f2, f5\n"
+		"flq2 f2, 96(%[w3])\n"
+		"fmadd.ps f7, f1, f2, f7\n"
+		"flq2 f2, 96(%[w4])\n"
+		"fmadd.ps f9, f1, f2, f9\n"
+		"flq2 f2, 96(%[w5])\n"
+		"fmadd.ps f11, f1, f2, f11\n"
+		"flq2 f2, 96(%[w6])\n"
+		"fmadd.ps f13, f1, f2, f13\n"
+		"flq2 f2, 96(%[w7])\n"
+		"fmadd.ps f15, f1, f2, f15\n"
+		"flq2 f1, 0(%[p2])\n"
+		"flq2 f2, 128(%[w0])\n"
+		"fmadd.ps f0, f1, f2, f0\n"
+		"flq2 f2, 128(%[w1])\n"
+		"fmadd.ps f3, f1, f2, f3\n"
+		"flq2 f2, 128(%[w2])\n"
+		"fmadd.ps f5, f1, f2, f5\n"
+		"flq2 f2, 128(%[w3])\n"
+		"fmadd.ps f7, f1, f2, f7\n"
+		"flq2 f2, 128(%[w4])\n"
+		"fmadd.ps f9, f1, f2, f9\n"
+		"flq2 f2, 128(%[w5])\n"
+		"fmadd.ps f11, f1, f2, f11\n"
+		"flq2 f2, 128(%[w6])\n"
+		"fmadd.ps f13, f1, f2, f13\n"
+		"flq2 f2, 128(%[w7])\n"
+		"fmadd.ps f15, f1, f2, f15\n"
+		"flq2 f1, 32(%[p2])\n"
+		"flq2 f2, 160(%[w0])\n"
+		"fmadd.ps f0, f1, f2, f0\n"
+		"flq2 f2, 160(%[w1])\n"
+		"fmadd.ps f3, f1, f2, f3\n"
+		"flq2 f2, 160(%[w2])\n"
+		"fmadd.ps f5, f1, f2, f5\n"
+		"flq2 f2, 160(%[w3])\n"
+		"fmadd.ps f7, f1, f2, f7\n"
+		"flq2 f2, 160(%[w4])\n"
+		"fmadd.ps f9, f1, f2, f9\n"
+		"flq2 f2, 160(%[w5])\n"
+		"fmadd.ps f11, f1, f2, f11\n"
+		"flq2 f2, 160(%[w6])\n"
+		"fmadd.ps f13, f1, f2, f13\n"
+		"flq2 f2, 160(%[w7])\n"
+		"fmadd.ps f15, f1, f2, f15\n"
+		"flq2 f1, 0(%[p3])\n"
+		"flq2 f2, 192(%[w0])\n"
+		"fmadd.ps f0, f1, f2, f0\n"
+		"flq2 f2, 192(%[w1])\n"
+		"fmadd.ps f3, f1, f2, f3\n"
+		"flq2 f2, 192(%[w2])\n"
+		"fmadd.ps f5, f1, f2, f5\n"
+		"flq2 f2, 192(%[w3])\n"
+		"fmadd.ps f7, f1, f2, f7\n"
+		"flq2 f2, 192(%[w4])\n"
+		"fmadd.ps f9, f1, f2, f9\n"
+		"flq2 f2, 192(%[w5])\n"
+		"fmadd.ps f11, f1, f2, f11\n"
+		"flq2 f2, 192(%[w6])\n"
+		"fmadd.ps f13, f1, f2, f13\n"
+		"flq2 f2, 192(%[w7])\n"
+		"fmadd.ps f15, f1, f2, f15\n"
+		"flq2 f1, 32(%[p3])\n"
+		"flq2 f2, 224(%[w0])\n"
+		"fmadd.ps f0, f1, f2, f0\n"
+		"flq2 f2, 224(%[w1])\n"
+		"fmadd.ps f3, f1, f2, f3\n"
+		"flq2 f2, 224(%[w2])\n"
+		"fmadd.ps f5, f1, f2, f5\n"
+		"flq2 f2, 224(%[w3])\n"
+		"fmadd.ps f7, f1, f2, f7\n"
+		"flq2 f2, 224(%[w4])\n"
+		"fmadd.ps f9, f1, f2, f9\n"
+		"flq2 f2, 224(%[w5])\n"
+		"fmadd.ps f11, f1, f2, f11\n"
+		"flq2 f2, 224(%[w6])\n"
+		"fmadd.ps f13, f1, f2, f13\n"
+		"flq2 f2, 224(%[w7])\n"
+		"fmadd.ps f15, f1, f2, f15\n"
+		"flq2 f1, 0(%[p4])\n"
+		"flq2 f2, 256(%[w0])\n"
+		"fmadd.ps f0, f1, f2, f0\n"
+		"flq2 f2, 256(%[w1])\n"
+		"fmadd.ps f3, f1, f2, f3\n"
+		"flq2 f2, 256(%[w2])\n"
+		"fmadd.ps f5, f1, f2, f5\n"
+		"flq2 f2, 256(%[w3])\n"
+		"fmadd.ps f7, f1, f2, f7\n"
+		"flq2 f2, 256(%[w4])\n"
+		"fmadd.ps f9, f1, f2, f9\n"
+		"flq2 f2, 256(%[w5])\n"
+		"fmadd.ps f11, f1, f2, f11\n"
+		"flq2 f2, 256(%[w6])\n"
+		"fmadd.ps f13, f1, f2, f13\n"
+		"flq2 f2, 256(%[w7])\n"
+		"fmadd.ps f15, f1, f2, f15\n"
+		"flq2 f1, 32(%[p4])\n"
+		"flq2 f2, 288(%[w0])\n"
+		"fmadd.ps f0, f1, f2, f0\n"
+		"flq2 f2, 288(%[w1])\n"
+		"fmadd.ps f3, f1, f2, f3\n"
+		"flq2 f2, 288(%[w2])\n"
+		"fmadd.ps f5, f1, f2, f5\n"
+		"flq2 f2, 288(%[w3])\n"
+		"fmadd.ps f7, f1, f2, f7\n"
+		"flq2 f2, 288(%[w4])\n"
+		"fmadd.ps f9, f1, f2, f9\n"
+		"flq2 f2, 288(%[w5])\n"
+		"fmadd.ps f11, f1, f2, f11\n"
+		"flq2 f2, 288(%[w6])\n"
+		"fmadd.ps f13, f1, f2, f13\n"
+		"flq2 f2, 288(%[w7])\n"
+		"fmadd.ps f15, f1, f2, f15\n"
+		"flq2 f1, 0(%[p5])\n"
+		"flq2 f2, 320(%[w0])\n"
+		"fmadd.ps f0, f1, f2, f0\n"
+		"flq2 f2, 320(%[w1])\n"
+		"fmadd.ps f3, f1, f2, f3\n"
+		"flq2 f2, 320(%[w2])\n"
+		"fmadd.ps f5, f1, f2, f5\n"
+		"flq2 f2, 320(%[w3])\n"
+		"fmadd.ps f7, f1, f2, f7\n"
+		"flq2 f2, 320(%[w4])\n"
+		"fmadd.ps f9, f1, f2, f9\n"
+		"flq2 f2, 320(%[w5])\n"
+		"fmadd.ps f11, f1, f2, f11\n"
+		"flq2 f2, 320(%[w6])\n"
+		"fmadd.ps f13, f1, f2, f13\n"
+		"flq2 f2, 320(%[w7])\n"
+		"fmadd.ps f15, f1, f2, f15\n"
+		"flq2 f1, 32(%[p5])\n"
+		"flq2 f2, 352(%[w0])\n"
+		"fmadd.ps f0, f1, f2, f0\n"
+		"flq2 f2, 352(%[w1])\n"
+		"fmadd.ps f3, f1, f2, f3\n"
+		"flq2 f2, 352(%[w2])\n"
+		"fmadd.ps f5, f1, f2, f5\n"
+		"flq2 f2, 352(%[w3])\n"
+		"fmadd.ps f7, f1, f2, f7\n"
+		"flq2 f2, 352(%[w4])\n"
+		"fmadd.ps f9, f1, f2, f9\n"
+		"flq2 f2, 352(%[w5])\n"
+		"fmadd.ps f11, f1, f2, f11\n"
+		"flq2 f2, 352(%[w6])\n"
+		"fmadd.ps f13, f1, f2, f13\n"
+		"flq2 f2, 352(%[w7])\n"
+		"fmadd.ps f15, f1, f2, f15\n"
+		"flq2 f1, 0(%[p6])\n"
+		"flq2 f2, 384(%[w0])\n"
+		"fmadd.ps f0, f1, f2, f0\n"
+		"flq2 f2, 384(%[w1])\n"
+		"fmadd.ps f3, f1, f2, f3\n"
+		"flq2 f2, 384(%[w2])\n"
+		"fmadd.ps f5, f1, f2, f5\n"
+		"flq2 f2, 384(%[w3])\n"
+		"fmadd.ps f7, f1, f2, f7\n"
+		"flq2 f2, 384(%[w4])\n"
+		"fmadd.ps f9, f1, f2, f9\n"
+		"flq2 f2, 384(%[w5])\n"
+		"fmadd.ps f11, f1, f2, f11\n"
+		"flq2 f2, 384(%[w6])\n"
+		"fmadd.ps f13, f1, f2, f13\n"
+		"flq2 f2, 384(%[w7])\n"
+		"fmadd.ps f15, f1, f2, f15\n"
+		"flq2 f1, 32(%[p6])\n"
+		"flq2 f2, 416(%[w0])\n"
+		"fmadd.ps f0, f1, f2, f0\n"
+		"flq2 f2, 416(%[w1])\n"
+		"fmadd.ps f3, f1, f2, f3\n"
+		"flq2 f2, 416(%[w2])\n"
+		"fmadd.ps f5, f1, f2, f5\n"
+		"flq2 f2, 416(%[w3])\n"
+		"fmadd.ps f7, f1, f2, f7\n"
+		"flq2 f2, 416(%[w4])\n"
+		"fmadd.ps f9, f1, f2, f9\n"
+		"flq2 f2, 416(%[w5])\n"
+		"fmadd.ps f11, f1, f2, f11\n"
+		"flq2 f2, 416(%[w6])\n"
+		"fmadd.ps f13, f1, f2, f13\n"
+		"flq2 f2, 416(%[w7])\n"
+		"fmadd.ps f15, f1, f2, f15\n"
+		"flq2 f1, 0(%[p7])\n"
+		"flq2 f2, 448(%[w0])\n"
+		"fmadd.ps f0, f1, f2, f0\n"
+		"flq2 f2, 448(%[w1])\n"
+		"fmadd.ps f3, f1, f2, f3\n"
+		"flq2 f2, 448(%[w2])\n"
+		"fmadd.ps f5, f1, f2, f5\n"
+		"flq2 f2, 448(%[w3])\n"
+		"fmadd.ps f7, f1, f2, f7\n"
+		"flq2 f2, 448(%[w4])\n"
+		"fmadd.ps f9, f1, f2, f9\n"
+		"flq2 f2, 448(%[w5])\n"
+		"fmadd.ps f11, f1, f2, f11\n"
+		"flq2 f2, 448(%[w6])\n"
+		"fmadd.ps f13, f1, f2, f13\n"
+		"flq2 f2, 448(%[w7])\n"
+		"fmadd.ps f15, f1, f2, f15\n"
+		"flq2 f1, 32(%[p7])\n"
+		"flq2 f2, 480(%[w0])\n"
+		"fmadd.ps f0, f1, f2, f0\n"
+		"flq2 f2, 480(%[w1])\n"
+		"fmadd.ps f3, f1, f2, f3\n"
+		"flq2 f2, 480(%[w2])\n"
+		"fmadd.ps f5, f1, f2, f5\n"
+		"flq2 f2, 480(%[w3])\n"
+		"fmadd.ps f7, f1, f2, f7\n"
+		"flq2 f2, 480(%[w4])\n"
+		"fmadd.ps f9, f1, f2, f9\n"
+		"flq2 f2, 480(%[w5])\n"
+		"fmadd.ps f11, f1, f2, f11\n"
+		"flq2 f2, 480(%[w6])\n"
+		"fmadd.ps f13, f1, f2, f13\n"
+		"flq2 f2, 480(%[w7])\n"
+		"fmadd.ps f15, f1, f2, f15\n"
+		"flq2 f1, 0(%[p8])\n"
+		"flq2 f2, 512(%[w0])\n"
+		"fmadd.ps f0, f1, f2, f0\n"
+		"flq2 f2, 512(%[w1])\n"
+		"fmadd.ps f3, f1, f2, f3\n"
+		"flq2 f2, 512(%[w2])\n"
+		"fmadd.ps f5, f1, f2, f5\n"
+		"flq2 f2, 512(%[w3])\n"
+		"fmadd.ps f7, f1, f2, f7\n"
+		"flq2 f2, 512(%[w4])\n"
+		"fmadd.ps f9, f1, f2, f9\n"
+		"flq2 f2, 512(%[w5])\n"
+		"fmadd.ps f11, f1, f2, f11\n"
+		"flq2 f2, 512(%[w6])\n"
+		"fmadd.ps f13, f1, f2, f13\n"
+		"flq2 f2, 512(%[w7])\n"
+		"fmadd.ps f15, f1, f2, f15\n"
+		"flq2 f1, 32(%[p8])\n"
+		"flq2 f2, 544(%[w0])\n"
+		"fmadd.ps f0, f1, f2, f0\n"
+		"flq2 f2, 544(%[w1])\n"
+		"fmadd.ps f3, f1, f2, f3\n"
+		"flq2 f2, 544(%[w2])\n"
+		"fmadd.ps f5, f1, f2, f5\n"
+		"flq2 f2, 544(%[w3])\n"
+		"fmadd.ps f7, f1, f2, f7\n"
+		"flq2 f2, 544(%[w4])\n"
+		"fmadd.ps f9, f1, f2, f9\n"
+		"flq2 f2, 544(%[w5])\n"
+		"fmadd.ps f11, f1, f2, f11\n"
+		"flq2 f2, 544(%[w6])\n"
+		"fmadd.ps f13, f1, f2, f13\n"
+		"flq2 f2, 544(%[w7])\n"
+		"fmadd.ps f15, f1, f2, f15\n"
+		"fsq2 f0, 0(%[tmp0])\n"
+		"fsq2 f3, 0(%[tmp1])\n"
+		"fsq2 f5, 0(%[tmp2])\n"
+		"fsq2 f7, 0(%[tmp3])\n"
+		"fsq2 f9, 0(%[tmp4])\n"
+		"fsq2 f11, 0(%[tmp5])\n"
+		"fsq2 f13, 0(%[tmp6])\n"
+		"fsq2 f15, 0(%[tmp7])\n"
+		:
+		: [zero] "r"(zero),
+		  [p0] "r"(p0), [p1] "r"(p1), [p2] "r"(p2), [p3] "r"(p3), [p4] "r"(p4), [p5] "r"(p5), [p6] "r"(p6), [p7] "r"(p7), [p8] "r"(p8),
+		  [w0] "r"(w0), [w1] "r"(w1), [w2] "r"(w2), [w3] "r"(w3),
+		  [w4] "r"(w4), [w5] "r"(w5), [w6] "r"(w6), [w7] "r"(w7),
+		  [tmp0] "r"(tmp0), [tmp1] "r"(tmp1), [tmp2] "r"(tmp2), [tmp3] "r"(tmp3), [tmp4] "r"(tmp4), [tmp5] "r"(tmp5), [tmp6] "r"(tmp6), [tmp7] "r"(tmp7)
+		: "memory", "f0", "f1", "f2", "f3", "f5", "f7", "f9", "f11", "f13", "f15");
+
+	float sum0 = 0.0f;
+	float sum1 = 0.0f;
+	float sum2 = 0.0f;
+	float sum3 = 0.0f;
+	float sum4 = 0.0f;
+	float sum5 = 0.0f;
+	float sum6 = 0.0f;
+	float sum7 = 0.0f;
+
+	for (uint32_t i = 0; i < 8u; i++) {
+		sum0 += tmp0[i];
+		sum1 += tmp1[i];
+		sum2 += tmp2[i];
+		sum3 += tmp3[i];
+		sum4 += tmp4[i];
+		sum5 += tmp5[i];
+		sum6 += tmp6[i];
+		sum7 += tmp7[i];
+	}
+
+	*out0 = sum0;
+	*out1 = sum1;
+	*out2 = sum2;
+	*out3 = sum3;
+	*out4 = sum4;
+	*out5 = sum5;
+	*out6 = sum6;
+	*out7 = sum7;
+}
+
+
+
 static void conv3x3_fp(const float *input, const float *weights,
 		       float *output, uint32_t row0, uint32_t row1)
 {
-#ifdef YOLO_VPU_OC4
+#ifdef YOLO_VPU_OC8
+	for (uint32_t oc = 0; oc < CH; oc += 8u) {
+		const float *const w0 = weights + oc * K * K * CH;
+		const float *const w1 = w0 + K * K * CH;
+		const float *const w2 = w1 + K * K * CH;
+		const float *const w3 = w2 + K * K * CH;
+		const float *const w4 = w3 + K * K * CH;
+		const float *const w5 = w4 + K * K * CH;
+		const float *const w6 = w5 + K * K * CH;
+		const float *const w7 = w6 + K * K * CH;
+
+		for (uint32_t y = row0; y < row1; y++) {
+			const int interior_y = y > 0u && y < (IMG_H - 1u);
+
+			for (uint32_t x = 0; x < IMG_W; x++) {
+				const int interior = interior_y &&
+					x > 0u && x < (IMG_W - 1u);
+				float acc0, acc1, acc2, acc3, acc4, acc5, acc6, acc7;
+
+				if (interior) {
+					const float *const p =
+						input + (y * IMG_W + x) * CH;
+					vpu_accum3x3_dot16x8_f32(p, w0, w1, w2, w3, w4, w5, w6, w7,
+								  IMG_W * CH,
+								  &acc0, &acc1, &acc2, &acc3, &acc4, &acc5, &acc6, &acc7);
+				} else {
+					acc0 = conv3_scalar(input, w0, y, x);
+					acc1 = conv3_scalar(input, w1, y, x);
+					acc2 = conv3_scalar(input, w2, y, x);
+					acc3 = conv3_scalar(input, w3, y, x);
+					acc4 = conv3_scalar(input, w4, y, x);
+					acc5 = conv3_scalar(input, w5, y, x);
+					acc6 = conv3_scalar(input, w6, y, x);
+					acc7 = conv3_scalar(input, w7, y, x);
+				}
+
+				output[(y * IMG_W + x) * CH + oc] =
+					relu6_f32(acc0 * CONV3_SCALE);
+				output[(y * IMG_W + x) * CH + oc + 1u] =
+					relu6_f32(acc1 * CONV3_SCALE);
+				output[(y * IMG_W + x) * CH + oc + 2u] =
+					relu6_f32(acc2 * CONV3_SCALE);
+				output[(y * IMG_W + x) * CH + oc + 3u] =
+					relu6_f32(acc3 * CONV3_SCALE);
+				output[(y * IMG_W + x) * CH + oc + 4u] =
+					relu6_f32(acc4 * CONV3_SCALE);
+				output[(y * IMG_W + x) * CH + oc + 5u] =
+					relu6_f32(acc5 * CONV3_SCALE);
+				output[(y * IMG_W + x) * CH + oc + 6u] =
+					relu6_f32(acc6 * CONV3_SCALE);
+				output[(y * IMG_W + x) * CH + oc + 7u] =
+					relu6_f32(acc7 * CONV3_SCALE);
+			}
+		}
+	}
+#elif defined(YOLO_VPU_OC4)
 	for (uint32_t oc = 0; oc < CH; oc += 4u) {
 		const float *const w0 = weights + oc * K * K * CH;
 		const float *const w1 = w0 + K * K * CH;
@@ -941,7 +1490,43 @@ static void conv3x3_fp(const float *input, const float *weights,
 static void conv1x1_fp(const float *input, const float *weights,
 		       float *output, uint32_t row0, uint32_t row1)
 {
-#ifdef YOLO_VPU_OC4
+#ifdef YOLO_VPU_OC8
+	for (uint32_t oc = 0; oc < CH; oc += 8u) {
+		const float *const w0 = weights + oc * CH;
+		const float *const w1 = w0 + CH;
+		const float *const w2 = w1 + CH;
+		const float *const w3 = w2 + CH;
+		const float *const w4 = w3 + CH;
+		const float *const w5 = w4 + CH;
+		const float *const w6 = w5 + CH;
+		const float *const w7 = w6 + CH;
+
+		for (uint32_t y = row0; y < row1; y++) {
+			for (uint32_t x = 0; x < IMG_W; x++) {
+				const float *pix = input + (y * IMG_W + x) * CH;
+				float acc0, acc1, acc2, acc3, acc4, acc5, acc6, acc7;
+
+				vpu_dot16x8_f32(pix, w0, w1, w2, w3, w4, w5, w6, w7, &acc0, &acc1, &acc2, &acc3, &acc4, &acc5, &acc6, &acc7);
+				output[(y * IMG_W + x) * CH + oc] =
+					relu6_f32(acc0 * CONV1_SCALE);
+				output[(y * IMG_W + x) * CH + oc + 1u] =
+					relu6_f32(acc1 * CONV1_SCALE);
+				output[(y * IMG_W + x) * CH + oc + 2u] =
+					relu6_f32(acc2 * CONV1_SCALE);
+				output[(y * IMG_W + x) * CH + oc + 3u] =
+					relu6_f32(acc3 * CONV1_SCALE);
+				output[(y * IMG_W + x) * CH + oc + 4u] =
+					relu6_f32(acc4 * CONV1_SCALE);
+				output[(y * IMG_W + x) * CH + oc + 5u] =
+					relu6_f32(acc5 * CONV1_SCALE);
+				output[(y * IMG_W + x) * CH + oc + 6u] =
+					relu6_f32(acc6 * CONV1_SCALE);
+				output[(y * IMG_W + x) * CH + oc + 7u] =
+					relu6_f32(acc7 * CONV1_SCALE);
+			}
+		}
+	}
+#elif defined(YOLO_VPU_OC4)
 	for (uint32_t oc = 0; oc < CH; oc += 4u) {
 		const float *const w0 = weights + oc * CH;
 		const float *const w1 = w0 + CH;
