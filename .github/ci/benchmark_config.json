@@ -22,7 +22,8 @@
           "-fno-tree-loop-distribute-patterns",
           "-DNUM_HARTS=16",
           "-DACTIVE_HARTS=8u",
-          "-DBENCH_THREAD0_ONLY=1"
+          "-DBENCH_THREAD0_ONLY=1",
+          "-DYOLO_SKIP_FINAL_EVICT=1"
         ]
       }
     }
@@ -45,7 +46,8 @@
           "-fno-tree-loop-distribute-patterns",
           "-DNUM_HARTS=16",
           "-DACTIVE_HARTS=8u",
-          "-DBENCH_THREAD0_ONLY=1"
+          "-DBENCH_THREAD0_ONLY=1",
+          "-DYOLO_SKIP_FINAL_EVICT=1"
         ]
       }
     }
@@ -101,7 +103,7 @@
       "requires_dncnn_inputs": true
     },
     "yolo": {
-      "canonical_variant": "yolo_m30",
+      "canonical_variant": "yolo_m30_nofinalevict",
       "source": "ported_models/yolo/src/yolo_m30_argbuf.c",
       "bench_dir": "yolo-bench",
       "manifest": "yolo_variants.txt",
@@ -118,7 +120,8 @@
           "-fno-tree-loop-distribute-patterns",
           "-DNUM_HARTS=16",
           "-DACTIVE_HARTS=8u",
-          "-DBENCH_THREAD0_ONLY=1"
+          "-DBENCH_THREAD0_ONLY=1",
+          "-DYOLO_SKIP_FINAL_EVICT=1"
         ]
       },
       "mem_size": "0x05000000",
