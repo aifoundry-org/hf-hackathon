@@ -224,10 +224,10 @@ int main(uintptr_t arg_area)
 
     /* conv0 */
     CONV_3x3_S2_P1_VPU(img, c0, WP(WR_model_0_conv_Conv_W), WP(WR_model_0_conv_Conv_B),
-                3u, 288u, 512u, 16u, 144u, 256u, 1u);
+                3u, 288u, 512u, 16u, 144u, 256u, 3u,3u, 2u,2u, 1u,1u, 1u);
     /* conv1 */
     CONV_3x3_S2_P1_VPU(c0, c1, WP(WR_model_1_conv_Conv_W), WP(WR_model_1_conv_Conv_B),
-                16u, 144u, 256u, 32u, 72u, 128u, 1u);
+                16u, 144u, 256u, 32u, 72u, 128u, 3u,3u, 2u,2u, 1u,1u, 1u);
 
     /* C2f model.2 (1 bottleneck) */
     {
@@ -245,7 +245,7 @@ int main(uintptr_t arg_area)
 
     /* conv3: 32 -> 64, 3x3 s=2 */
     CONV_3x3_S2_P1_VPU(c2f_m2, c3, WP(WR_model_3_conv_Conv_W), WP(WR_model_3_conv_Conv_B),
-                32u,72u,128u, 64u,36u,64u, 1u);
+                32u,72u,128u, 64u,36u,64u, 3u,3u, 2u,2u, 1u,1u, 1u);
 
     /* C2f model.4 (2 bottlenecks) */
     {
