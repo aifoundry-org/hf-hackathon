@@ -384,5 +384,37 @@ int main(int argc, char** argv) {
   runtime->unloadCode(loadResult.kernel_);
   runtime->freeDevice(device, deviceBuf);
   runtime->destroyStream(stream);
+  runtime.reset();  // triggers DeviceLayer destructor which flushes sysemu.log
+
+  // For sys_emu: save emulated cycles to a separate file.
+  if (opts.device == Device::sys_emu) {
+    std::string run_dir = std::filesystem::current_path().string() + "/";
+    std::string sysemu_log_path = run_dir + "sysemu.log";
+    if (std::filesystem::exists(sysemu_log_path)) {
+      std::ifstream lf(sysemu_log_path);
+      std::string line;
+      uint64_t final_cycles = 0;
+      while (std::getline(lf, line)) {
+        auto pos = line.find("Emulation performance:");
+        if (pos != std::string::npos) {
+          auto cpos = line.rfind('(');
+          if (cpos != std::string::npos) {
+            auto c2 = line.find(" cycles", cpos);
+            if (c2 != std::string::npos) {
+              try {
+                final_cycles = std::stoull(line.substr(cpos + 1, c2 - cpos - 1));
+              } catch (...) {}
+            }
+          }
+        }
+      }
+      if (final_cycles > 0) {
+        std::ofstream out(run_dir + "emu_cycle.txt");
+        out << final_cycles << "\n";
+        std::cout << "DBG emu_cycle=" << final_cycles << "\n";
+      }
+    }
+  }
+
   return 0;
 }
