@@ -1,1 +1,2 @@
 yolo_m30
+yolo_m30_vpus2
