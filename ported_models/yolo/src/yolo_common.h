@@ -65,7 +65,7 @@ static inline uintptr_t buffer_base_from_args(uintptr_t arg_area)
  *   ACT=0  none
  *   ACT=1  SiLU
  */
-static void conv2d_fp32(const float *in, float *out,
+static void __attribute__((noinline)) conv2d_fp32(const float *in, float *out,
                         const float *W, const float *B,
                         uint32_t IC, uint32_t IH, uint32_t IW,
                         uint32_t OC, uint32_t OH, uint32_t OW,
@@ -108,7 +108,7 @@ static void conv2d_fp32(const float *in, float *out,
 }
 
 /* Depthwise conv: groups == IC == OC, filter shape [OC, 1, KH, KW]. */
-static void conv2d_dw_fp32(const float *in, float *out,
+static void __attribute__((noinline)) conv2d_dw_fp32(const float *in, float *out,
                            const float *W, const float *B,
                            uint32_t C, uint32_t IH, uint32_t IW,
                            uint32_t OH, uint32_t OW,
@@ -333,7 +333,7 @@ static inline void yolo_range(uint32_t N, uint32_t idx,
     *hi = (N * (idx + 1u)) / YOLO_NHART;
 }
 
-static void conv2d_fp32_mh(uint32_t hid,
+static void __attribute__((noinline)) conv2d_fp32_mh(uint32_t hid,
                            const float *in, float *out,
                            const float *W, const float *B,
                            uint32_t IC, uint32_t IH, uint32_t IW,
@@ -395,7 +395,7 @@ static void conv2d_fp32_mh(uint32_t hid,
  * Caller must guarantee KH=KW=1, stride=1, pad=0, OW % 8 == 0 (true for
  * all our YOLO 1x1 convs since OW in {16, 32, 64, 128, 256}).
  */
-static void conv2d_1x1_fp32_mh_vpu(uint32_t hid,
+static void __attribute__((noinline)) conv2d_1x1_fp32_mh_vpu(uint32_t hid,
                                    const float *in, float *out,
                                    const float *W, const float *B,
                                    uint32_t IC, uint32_t H, uint32_t W_,
@@ -456,7 +456,7 @@ static void conv2d_1x1_fp32_mh_vpu(uint32_t hid,
  * 8 oc lanes - 8x less memory bandwidth than the per-OC version above.
  *
  * Constraints: OC % 8 == 0, OW % 8 == 0. */
-static void conv2d_1x1_fp32_mh_vpu_oc8(uint32_t hid,
+static void __attribute__((noinline)) conv2d_1x1_fp32_mh_vpu_oc8(uint32_t hid,
                                        const float *in, float *out,
                                        const float *W, const float *B,
                                        uint32_t IC, uint32_t H, uint32_t W_,
@@ -553,7 +553,7 @@ static void conv2d_1x1_fp32_mh_vpu_oc8(uint32_t hid,
 
 /* OC16-blocked 1x1: 16 accumulators in f0..f15.  Needs OC % 16 == 0
  * AND OC large enough for all 8 T0 harts to get at least one tile (OC>=128). */
-static void conv2d_1x1_fp32_mh_vpu_oc16(uint32_t hid,
+static void __attribute__((noinline)) conv2d_1x1_fp32_mh_vpu_oc16(uint32_t hid,
                                         const float *in, float *out,
                                         const float *W, const float *B,
                                         uint32_t IC, uint32_t H, uint32_t W_,
@@ -695,7 +695,7 @@ static inline void conv2d_1x1_disp(uint32_t hid,
 /* VPU-vectorized 3x3 Conv2d (stride=1, pad=1, OW % 8 == 0).
  * Adapted from depth-anything M10 conv3x3_pad1_fp32_vpu, multi-hart by OC.
  */
-static void conv2d_3x3_p1_fp32_mh_vpu(uint32_t hid,
+static void __attribute__((noinline)) conv2d_3x3_p1_fp32_mh_vpu(uint32_t hid,
                                       const float *in, float *out,
                                       const float *W, const float *B,
                                       uint32_t IC, uint32_t H, uint32_t W_,
@@ -795,7 +795,7 @@ static void conv2d_3x3_p1_fp32_mh_vpu(uint32_t hid,
 /* OC-blocked VPU 3x3 stride=1 pad=1.  8 OC accumulated simultaneously per
  * (oh, ow8) tile - input v_pkg is loaded once per (ic, ky, kx, ow8) and
  * reused across all 8 oc lanes. */
-static void conv2d_3x3_p1_fp32_mh_vpu_oc8(uint32_t hid,
+static void __attribute__((noinline)) conv2d_3x3_p1_fp32_mh_vpu_oc8(uint32_t hid,
                                           const float *in, float *out,
                                           const float *W, const float *B,
                                           uint32_t IC, uint32_t H, uint32_t W_,
@@ -815,8 +815,8 @@ static void conv2d_3x3_p1_fp32_mh_vpu_oc8(uint32_t hid,
         const uint32_t oc0 = tile * 8u;
         for (int32_t oh = 0; oh < (int32_t)H; oh++) {
             for (int32_t ow8 = 0; ow8 < (int32_t)W_; ow8 += 8) {
-                float a0, a1, a2, a3;
-                float a4, a5, a6, a7;
+                register float a0 asm("f0"), a1 asm("f1"), a2 asm("f2"), a3 asm("f3");
+                register float a4 asm("f4"), a5 asm("f5"), a6 asm("f6"), a7 asm("f7");
 #define INIT_ACC(REG, OO) do { \
     union { float f; uint32_t u; } _bb; _bb.f = B[oc0 + OO]; \
     __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(REG) : "r"((uint64_t)_bb.u)); \
@@ -916,7 +916,7 @@ static void conv2d_3x3_p1_fp32_mh_vpu_oc8(uint32_t hid,
  * input data - lanes 1/3/5/7 compute garbage and we discard them on store.
  * Net VPU speedup: 4x (vs 8x for stride=1).  Constraint: OW % 4 == 0
  * (true for 16, 32, 64, 128, 256). */
-static void conv2d_3x3_s2_p1_fp32_mh_vpu(uint32_t hid,
+static void __attribute__((noinline)) conv2d_3x3_s2_p1_fp32_mh_vpu(uint32_t hid,
                                           const float *in, float *out,
                                           const float *W, const float *B,
                                           uint32_t IC, uint32_t IH, uint32_t IW,
@@ -1018,7 +1018,7 @@ static void conv2d_3x3_s2_p1_fp32_mh_vpu(uint32_t hid,
 
 /* OC4-blocked VPU 3x3 stride=1 pad=1.  4 OC accumulated simultaneously per
  * (oh, ow8) tile.  Lower register pressure than OC8 to avoid the M18 hang. */
-static void conv2d_3x3_p1_fp32_mh_vpu_oc4(uint32_t hid,
+static void __attribute__((noinline)) conv2d_3x3_p1_fp32_mh_vpu_oc4(uint32_t hid,
                                           const float *in, float *out,
                                           const float *W, const float *B,
                                           uint32_t IC, uint32_t H, uint32_t W_,
@@ -1038,7 +1038,7 @@ static void conv2d_3x3_p1_fp32_mh_vpu_oc4(uint32_t hid,
         const uint32_t oc0 = tile * 4u;
         for (int32_t oh = 0; oh < (int32_t)H; oh++) {
             for (int32_t ow8 = 0; ow8 < (int32_t)W_; ow8 += 8) {
-                float a0, a1, a2, a3;
+                register float a0 asm("f0"), a1 asm("f1"), a2 asm("f2"), a3 asm("f3");
 #define INIT_ACC(REG, OO) do { \
     union { float f; uint32_t u; } _bb; _bb.f = B[oc0 + OO]; \
     __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(REG) : "r"((uint64_t)_bb.u)); \
@@ -1120,7 +1120,7 @@ static inline void conv2d_3x3_p1_disp(uint32_t hid,
 #define CONV_3x3_P1(...) do { conv2d_3x3_p1_disp(hid, __VA_ARGS__); MH_BARRIER(); } while (0)
 
 /* VPU-vectorized depthwise 3x3 (stride=1 pad=1, OW % 8 == 0). */
-static void conv2d_dw3x3_s1_p1_fp32_mh_vpu(uint32_t hid,
+static void __attribute__((noinline)) conv2d_dw3x3_s1_p1_fp32_mh_vpu(uint32_t hid,
                                            const float *in, float *out,
                                            const float *W, const float *B,
                                            uint32_t C, uint32_t H, uint32_t W_,
@@ -1268,6 +1268,28 @@ static inline void mh_concat4(uint32_t hid, float *dst,
 #define MH_CONCAT3(DST, A, B, C, N)      do { mh_concat3(hid, (DST), (A), (B), (C), (N)); MH_BARRIER(); } while (0)
 #define MH_CONCAT4(DST, A, B, C, D, N)   do { mh_concat4(hid, (DST), (A), (B), (C), (D), (N)); MH_BARRIER(); } while (0)
 
+static inline void mh_concat_c_chw(uint32_t hid, const float *a, uint32_t Ca,
+                                   const float *b, uint32_t Cb,
+                                   float *out, uint32_t H, uint32_t W) {
+    if (!yolo_is_compute(hid)) return;
+    const uint32_t cidx = yolo_compute_idx(hid);
+    uint32_t a_lo, a_hi, b_lo, b_hi;
+    yolo_range(Ca, cidx, &a_lo, &a_hi);
+    yolo_range(Cb, cidx, &b_lo, &b_hi);
+    
+    const uint32_t HW = H * W;
+    for (uint32_t c = a_lo; c < a_hi; c++) {
+        for (uint32_t i = 0; i < HW; i++) out[c * HW + i] = a[c * HW + i];
+    }
+    for (uint32_t c = b_lo; c < b_hi; c++) {
+        for (uint32_t i = 0; i < HW; i++) out[(Ca + c) * HW + i] = b[c * HW + i];
+    }
+    
+    if (a_hi > a_lo) evict((const void *)(out + a_lo * HW), (a_hi - a_lo) * HW * sizeof(float));
+    if (b_hi > b_lo) evict((const void *)(out + (Ca + b_lo) * HW), (b_hi - b_lo) * HW * sizeof(float));
+}
+#define MH_CONCAT_C_CHW(A, CA, B, CB, OUT, H, W) do { mh_concat_c_chw(hid, (A), (CA), (B), (CB), (OUT), (H), (W)); MH_BARRIER(); } while (0)
+
 /* Multi-hart 5x5 maxpool stride=1 pad=2 (used in SPPF). */
 static void mh_maxpool5_s1_p2(uint32_t hid, const float *in, float *out,
                               uint32_t C, uint32_t H, uint32_t W) {
@@ -1298,7 +1320,7 @@ static void mh_maxpool5_s1_p2(uint32_t hid, const float *in, float *out,
 #define MH_MAXPOOL5(IN, OUT, C, H, W) do { mh_maxpool5_s1_p2(hid, (IN), (OUT), (C), (H), (W)); MH_BARRIER(); } while (0)
 
 /* Multi-hart depthwise Conv2d (groups=C). */
-static void conv2d_dw_fp32_mh(uint32_t hid,
+static void __attribute__((noinline)) conv2d_dw_fp32_mh(uint32_t hid,
                               const float *in, float *out,
                               const float *W, const float *B,
                               uint32_t C, uint32_t IH, uint32_t IW,
@@ -1355,6 +1377,23 @@ static inline void matmul_2d_fp32(const float *A, const float *B, float *C,
     }
 }
 
+static inline void mh_matmul_2d_fp32(uint32_t hid, const float *A, const float *B, float *C,
+                                     uint32_t M, uint32_t K, uint32_t N) {
+    if (!yolo_is_compute(hid)) return;
+    const uint32_t cidx = yolo_compute_idx(hid);
+    uint32_t m_lo, m_hi;
+    yolo_range(M, cidx, &m_lo, &m_hi);
+    for (uint32_t i = m_lo; i < m_hi; i++) {
+        for (uint32_t j = 0; j < N; j++) {
+            float acc = 0.0f;
+            for (uint32_t k = 0; k < K; k++) acc += A[i*K + k] * B[k*N + j];
+            C[i*N + j] = acc;
+        }
+    }
+    if (m_hi > m_lo) evict((const void *)(C + m_lo * N), (m_hi - m_lo) * N * sizeof(float));
+}
+#define MH_MATMUL(A, B, C, M, K, N) do { mh_matmul_2d_fp32(hid, (A), (B), (C), (M), (K), (N)); MH_BARRIER(); } while (0)
+
 /* Softmax over rows (last axis): for each row of length N, compute
  * x = exp(x - max(x)) / sum(exp(x - max(x))) */
 static inline void softmax_rows(float *x, uint32_t M, uint32_t N) {
@@ -1368,6 +1407,34 @@ static inline void softmax_rows(float *x, uint32_t M, uint32_t N) {
         for (uint32_t j = 0; j < N; j++) row[j] *= inv;
     }
 }
+
+static inline void mh_softmax_rows(uint32_t hid, float *x, uint32_t M, uint32_t N) {
+    if (!yolo_is_compute(hid)) return;
+    const uint32_t cidx = yolo_compute_idx(hid);
+    uint32_t m_lo, m_hi;
+    yolo_range(M, cidx, &m_lo, &m_hi);
+    for (uint32_t i = m_lo; i < m_hi; i++) {
+        float *row = x + i * N;
+        float m = row[0];
+        for (uint32_t j = 1; j < N; j++) if (row[j] > m) m = row[j];
+        float s = 0.0f;
+        for (uint32_t j = 0; j < N; j++) { row[j] = my_expf(row[j] - m); s += row[j]; }
+        const float inv = fast_recip(s);
+        for (uint32_t j = 0; j < N; j++) row[j] *= inv;
+    }
+    if (m_hi > m_lo) evict((const void *)(x + m_lo * N), (m_hi - m_lo) * N * sizeof(float));
+}
+#define MH_SOFTMAX(X, M, N) do { mh_softmax_rows(hid, (X), (M), (N)); MH_BARRIER(); } while (0)
+
+static inline void mh_scale_array(uint32_t hid, float *arr, float scale, uint32_t N) {
+    if (!yolo_is_compute(hid)) return;
+    const uint32_t cidx = yolo_compute_idx(hid);
+    uint32_t lo, hi;
+    yolo_range(N, cidx, &lo, &hi);
+    for (uint32_t i = lo; i < hi; i++) arr[i] *= scale;
+    if (hi > lo) evict((const void *)(arr + lo), (hi - lo) * sizeof(float));
+}
+#define MH_SCALE(ARR, S, N) do { mh_scale_array(hid, (ARR), (S), (N)); MH_BARRIER(); } while (0)
 
 /* Nearest-neighbor upsample 2x: [C, H, W] -> [C, 2H, 2W] */
 static inline void upsample_nearest_2x(const float *in, float *out,
@@ -1384,6 +1451,26 @@ static inline void upsample_nearest_2x(const float *in, float *out,
         }
     }
 }
+
+static inline void mh_upsample_nearest_2x(uint32_t hid, const float *in, float *out,
+                                          uint32_t C, uint32_t H, uint32_t W) {
+    if (!yolo_is_compute(hid)) return;
+    const uint32_t cidx = yolo_compute_idx(hid);
+    uint32_t c_lo, c_hi;
+    yolo_range(C, cidx, &c_lo, &c_hi);
+    const uint32_t OH = H * 2u, OW = W * 2u;
+    for (uint32_t c = c_lo; c < c_hi; c++) {
+        for (uint32_t oh = 0; oh < OH; oh++) {
+            const uint32_t ih = oh / 2u;
+            for (uint32_t ow = 0; ow < OW; ow++) {
+                const uint32_t iw = ow / 2u;
+                out[(c * OH + oh) * OW + ow] = in[(c * H + ih) * W + iw];
+            }
+        }
+    }
+    if (c_hi > c_lo) evict((const void *)(out + c_lo * OH * OW), (c_hi - c_lo) * OH * OW * sizeof(float));
+}
+#define MH_UPSAMPLE_2x(IN, OUT, C, H, W) do { mh_upsample_nearest_2x(hid, (IN), (OUT), (C), (H), (W)); MH_BARRIER(); } while (0)
 
 /* Transpose last two axes of a 2D tile: [M,N] -> [N,M] */
 static inline void transpose_2d(const float *in, float *out, uint32_t M, uint32_t N) {

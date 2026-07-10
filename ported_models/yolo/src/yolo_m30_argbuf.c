@@ -237,8 +237,8 @@ int main(uintptr_t arg_area)
         float *m0_cv1 = (float *)(base + SCR_M2_M0_CV1);
         float *m0_cv2 = (float *)(base + SCR_M2_M0_CV2);
         CONV_1x1(c1, concat, WP(WR_model_2_cv1_conv_Conv_W), WP(WR_model_2_cv1_conv_Conv_B), 32u, 72u, 128u, 32u, 1u);
-        CONV_3x3_P1_VPU(y1, m0_cv1, WP(WR_model_2_m_0_cv1_conv_Conv_W), WP(WR_model_2_m_0_cv1_conv_Conv_B), 16u, 72u, 128u, 16u, 1u);
-        CONV_3x3_P1_VPU(m0_cv1, m0_cv2, WP(WR_model_2_m_0_cv2_conv_Conv_W), WP(WR_model_2_m_0_cv2_conv_Conv_B), 16u, 72u, 128u, 16u, 1u);
+        CONV_3x3_P1(y1, m0_cv1, WP(WR_model_2_m_0_cv1_conv_Conv_W), WP(WR_model_2_m_0_cv1_conv_Conv_B), 16u, 72u, 128u, 16u, 1u);
+        CONV_3x3_P1(m0_cv1, m0_cv2, WP(WR_model_2_m_0_cv2_conv_Conv_W), WP(WR_model_2_m_0_cv2_conv_Conv_B), 16u, 72u, 128u, 16u, 1u);
         MH_ADD(m0_out, y1, m0_cv2, 16u * 72u * 128u);
         CONV_1x1(concat, c2f_m2, WP(WR_model_2_cv2_conv_Conv_W), WP(WR_model_2_cv2_conv_Conv_B), 48u, 72u, 128u, 32u, 1u);
     }
@@ -259,11 +259,11 @@ int main(uintptr_t arg_area)
         float *m1_cv1 = (float *)(base + SCR_M4_M1_CV1);
         float *m1_cv2 = (float *)(base + SCR_M4_M1_CV2);
         CONV_1x1(c3, concat, WP(WR_model_4_cv1_conv_Conv_W), WP(WR_model_4_cv1_conv_Conv_B), 64u, 36u, 64u, 64u, 1u);
-        CONV_3x3_P1_VPU(y1, m0_cv1, WP(WR_model_4_m_0_cv1_conv_Conv_W), WP(WR_model_4_m_0_cv1_conv_Conv_B), 32u, 36u, 64u, 32u, 1u);
-        CONV_3x3_P1_VPU(m0_cv1, m0_cv2, WP(WR_model_4_m_0_cv2_conv_Conv_W), WP(WR_model_4_m_0_cv2_conv_Conv_B), 32u, 36u, 64u, 32u, 1u);
+        CONV_3x3_P1(y1, m0_cv1, WP(WR_model_4_m_0_cv1_conv_Conv_W), WP(WR_model_4_m_0_cv1_conv_Conv_B), 32u, 36u, 64u, 32u, 1u);
+        CONV_3x3_P1(m0_cv1, m0_cv2, WP(WR_model_4_m_0_cv2_conv_Conv_W), WP(WR_model_4_m_0_cv2_conv_Conv_B), 32u, 36u, 64u, 32u, 1u);
         MH_ADD(m0_out, y1, m0_cv2, 32u * HW);
-        CONV_3x3_P1_VPU(m0_out, m1_cv1, WP(WR_model_4_m_1_cv1_conv_Conv_W), WP(WR_model_4_m_1_cv1_conv_Conv_B), 32u, 36u, 64u, 32u, 1u);
-        CONV_3x3_P1_VPU(m1_cv1, m1_cv2, WP(WR_model_4_m_1_cv2_conv_Conv_W), WP(WR_model_4_m_1_cv2_conv_Conv_B), 32u, 36u, 64u, 32u, 1u);
+        CONV_3x3_P1(m0_out, m1_cv1, WP(WR_model_4_m_1_cv1_conv_Conv_W), WP(WR_model_4_m_1_cv1_conv_Conv_B), 32u, 36u, 64u, 32u, 1u);
+        CONV_3x3_P1(m1_cv1, m1_cv2, WP(WR_model_4_m_1_cv2_conv_Conv_W), WP(WR_model_4_m_1_cv2_conv_Conv_B), 32u, 36u, 64u, 32u, 1u);
         MH_ADD(m1_out, m0_out, m1_cv2, 32u * HW);
         CONV_1x1(concat, c2f_m4, WP(WR_model_4_cv2_conv_Conv_W), WP(WR_model_4_cv2_conv_Conv_B), 128u, 36u, 64u, 64u, 1u);
     }
@@ -288,11 +288,11 @@ int main(uintptr_t arg_area)
         float *m1_cv1 = (float *)(base + SCR_M6_M1_CV1);
         float *m1_cv2 = (float *)(base + SCR_M6_M1_CV2);
         CONV_1x1(m5_cv2, concat, WP(WR_model_6_cv1_conv_Conv_W), WP(WR_model_6_cv1_conv_Conv_B), 128u, 18u, 32u, 128u, 1u);
-        CONV_3x3_P1_VPU(y1, m0_cv1, WP(WR_model_6_m_0_cv1_conv_Conv_W), WP(WR_model_6_m_0_cv1_conv_Conv_B), 64u, 18u, 32u, 64u, 1u);
-        CONV_3x3_P1_VPU(m0_cv1, m0_cv2, WP(WR_model_6_m_0_cv2_conv_Conv_W), WP(WR_model_6_m_0_cv2_conv_Conv_B), 64u, 18u, 32u, 64u, 1u);
+        CONV_3x3_P1(y1, m0_cv1, WP(WR_model_6_m_0_cv1_conv_Conv_W), WP(WR_model_6_m_0_cv1_conv_Conv_B), 64u, 18u, 32u, 64u, 1u);
+        CONV_3x3_P1(m0_cv1, m0_cv2, WP(WR_model_6_m_0_cv2_conv_Conv_W), WP(WR_model_6_m_0_cv2_conv_Conv_B), 64u, 18u, 32u, 64u, 1u);
         MH_ADD(m0_out, y1, m0_cv2, 64u * HW);
-        CONV_3x3_P1_VPU(m0_out, m1_cv1, WP(WR_model_6_m_1_cv1_conv_Conv_W), WP(WR_model_6_m_1_cv1_conv_Conv_B), 64u, 18u, 32u, 64u, 1u);
-        CONV_3x3_P1_VPU(m1_cv1, m1_cv2, WP(WR_model_6_m_1_cv2_conv_Conv_W), WP(WR_model_6_m_1_cv2_conv_Conv_B), 64u, 18u, 32u, 64u, 1u);
+        CONV_3x3_P1(m0_out, m1_cv1, WP(WR_model_6_m_1_cv1_conv_Conv_W), WP(WR_model_6_m_1_cv1_conv_Conv_B), 64u, 18u, 32u, 64u, 1u);
+        CONV_3x3_P1(m1_cv1, m1_cv2, WP(WR_model_6_m_1_cv2_conv_Conv_W), WP(WR_model_6_m_1_cv2_conv_Conv_B), 64u, 18u, 32u, 64u, 1u);
         MH_ADD(m1_out, m0_out, m1_cv2, 64u * HW);
         CONV_1x1(concat, c2f_m6, WP(WR_model_6_cv2_conv_Conv_W), WP(WR_model_6_cv2_conv_Conv_B), 256u, 18u, 32u, 128u, 1u);
     }
@@ -312,8 +312,8 @@ int main(uintptr_t arg_area)
         float *m0_cv1 = (float *)(base + SCR_M8_M0_CV1);
         float *m0_cv2 = (float *)(base + SCR_M8_M0_CV2);
         CONV_1x1(m7_cv2, concat, WP(WR_model_8_cv1_conv_Conv_W), WP(WR_model_8_cv1_conv_Conv_B), 256u, 9u, 16u, 256u, 1u);
-        CONV_3x3_P1_VPU(y1, m0_cv1, WP(WR_model_8_m_0_cv1_conv_Conv_W), WP(WR_model_8_m_0_cv1_conv_Conv_B), 128u, 9u, 16u, 128u, 1u);
-        CONV_3x3_P1_VPU(m0_cv1, m0_cv2, WP(WR_model_8_m_0_cv2_conv_Conv_W), WP(WR_model_8_m_0_cv2_conv_Conv_B), 128u, 9u, 16u, 128u, 1u);
+        CONV_3x3_P1(y1, m0_cv1, WP(WR_model_8_m_0_cv1_conv_Conv_W), WP(WR_model_8_m_0_cv1_conv_Conv_B), 128u, 9u, 16u, 128u, 1u);
+        CONV_3x3_P1(m0_cv1, m0_cv2, WP(WR_model_8_m_0_cv2_conv_Conv_W), WP(WR_model_8_m_0_cv2_conv_Conv_B), 128u, 9u, 16u, 128u, 1u);
         MH_ADD(m0_out, y1, m0_cv2, 128u * HW);
         CONV_1x1(concat, c2f_m8, WP(WR_model_8_cv2_conv_Conv_W), WP(WR_model_8_cv2_conv_Conv_B), 384u, 9u, 16u, 256u, 1u);
     }
@@ -328,9 +328,9 @@ int main(uintptr_t arg_area)
         const uint32_t HW = 9u * 16u;
 
         CONV_1x1(c2f_m8, m9_cv1, WP(WR_model_9_cv1_conv_Conv_W), WP(WR_model_9_cv1_conv_Conv_B), 256u, 9u, 16u, 128u, 1u);
-        H0_RUN(maxpool_fp32(m9_cv1,m9_mp1,128u,9u,16u,9u,16u,5u,5u,1u,1u,2u,2u), m9_mp1, (128u)*(9u)*(16u)*sizeof(float));
-        H0_RUN(maxpool_fp32(m9_mp1,m9_mp2,128u,9u,16u,9u,16u,5u,5u,1u,1u,2u,2u), m9_mp2, (128u)*(9u)*(16u)*sizeof(float));
-        H0_RUN(maxpool_fp32(m9_mp2,m9_mp3,128u,9u,16u,9u,16u,5u,5u,1u,1u,2u,2u), m9_mp3, (128u)*(9u)*(16u)*sizeof(float));
+        MH_MAXPOOL5(m9_cv1, m9_mp1, 128u, 9u, 16u);
+        MH_MAXPOOL5(m9_mp1, m9_mp2, 128u, 9u, 16u);
+        MH_MAXPOOL5(m9_mp2, m9_mp3, 128u, 9u, 16u);
 
         /* concat [m9_cv1, mp1, mp2, mp3] = 512 channels at 9x16 */
         MH_CONCAT4(concat, m9_cv1, m9_mp1, m9_mp2, m9_mp3, 128u * HW);
@@ -370,47 +370,57 @@ int main(uintptr_t arg_area)
         CONV_1x1(sppf, cv1_out, WP(WR_model_10_cv1_conv_Conv_W), WP(WR_model_10_cv1_conv_Conv_B), 256u, 9u, 16u, 256u, 1u);
 
         /* Copy y1 into mutable buffer (will receive residuals). */
-        if (is_h0) {
-            for (uint32_t i = 0; i < 128u * HW; i++) y1[i] = y1_src[i];
-            evict((const void *)y1, 128u * HW * sizeof(float));
-            WAIT_CACHEOPS; FENCE;
-        }
+        MH_COPY(y1, y1_src, 128u * HW);
         MH_BARRIER();
 
         /* qkv: 128 -> 256, 1x1 (no act).  Input = y1 (mutable copy). */
         CONV_1x1(y1, qkv, WP(WR_model_10_attn_qkv_conv_Conv_W), WP(WR_model_10_attn_qkv_conv_Conv_B), 128u, 9u, 16u, 256u, 0u);
 
-        /* Reshape qkv -> Q/K/V (single hart). */
-        if (is_h0) {
-            for (uint32_t h = 0; h < NHEAD; h++) {
-                const uint32_t base_c = h * 128u;
-                for (uint32_t c = 0; c < KEY_DIM; c++) {
-                    const float *src = qkv + (base_c + c) * HW;
-                    float *dst = Q + (h * KEY_DIM + c) * HW;
-                    for (uint32_t s = 0; s < HW; s++) dst[s] = src[s];
-                }
-                for (uint32_t c = 0; c < KEY_DIM; c++) {
-                    const float *src = qkv + (base_c + KEY_DIM + c) * HW;
-                    float *dst = K + (h * KEY_DIM + c) * HW;
-                    for (uint32_t s = 0; s < HW; s++) dst[s] = src[s];
-                }
-                for (uint32_t c = 0; c < HEAD_DIM; c++) {
-                    const float *src = qkv + (base_c + 2u*KEY_DIM + c) * HW;
-                    float *dst = V + (h * HEAD_DIM + c) * HW;
-                    for (uint32_t s = 0; s < HW; s++) dst[s] = src[s];
-                }
+        /* Reshape qkv -> Q/K/V (Multi-Hart Cache-Aligned) */
+        if (yolo_is_compute(hid)) {
+            const uint32_t cidx = yolo_compute_idx(hid);
+            uint32_t lo, hi;
+            
+            yolo_range(NHEAD * KEY_DIM, cidx, &lo, &hi);
+            for (uint32_t idx = lo; idx < hi; idx++) {
+                uint32_t h = idx / KEY_DIM;
+                uint32_t c = idx % KEY_DIM;
+                const float *src = qkv + (h * 128u + c) * HW;
+                float *dst = Q + (h * KEY_DIM + c) * HW;
+                for (uint32_t s = 0; s < HW; s++) dst[s] = src[s];
             }
-            for (uint32_t h = 0; h < NHEAD; h++) {
-                for (uint32_t c = 0; c < HEAD_DIM; c++) {
-                    const float *src = V + (h * HEAD_DIM + c) * HW;
-                    float *dst = V_resh + (h * HEAD_DIM + c) * HW;
-                    for (uint32_t s = 0; s < HW; s++) dst[s] = src[s];
-                }
+            if (hi > lo) evict((const void *)(Q + lo * HW), (hi - lo) * HW * sizeof(float));
+            
+            yolo_range(NHEAD * KEY_DIM, cidx, &lo, &hi);
+            for (uint32_t idx = lo; idx < hi; idx++) {
+                uint32_t h = idx / KEY_DIM;
+                uint32_t c = idx % KEY_DIM;
+                const float *src = qkv + (h * 128u + KEY_DIM + c) * HW;
+                float *dst = K + (h * KEY_DIM + c) * HW;
+                for (uint32_t s = 0; s < HW; s++) dst[s] = src[s];
             }
-            evict((const void *)Q,      NHEAD * KEY_DIM * HW * sizeof(float));
-            evict((const void *)K,      NHEAD * KEY_DIM * HW * sizeof(float));
-            evict((const void *)V,      NHEAD * HEAD_DIM * HW * sizeof(float));
-            evict((const void *)V_resh, 128u * HW * sizeof(float));
+            if (hi > lo) evict((const void *)(K + lo * HW), (hi - lo) * HW * sizeof(float));
+
+            yolo_range(NHEAD * HEAD_DIM, cidx, &lo, &hi);
+            for (uint32_t idx = lo; idx < hi; idx++) {
+                uint32_t h = idx / HEAD_DIM;
+                uint32_t c = idx % HEAD_DIM;
+                const float *src = qkv + (h * 128u + 2u*KEY_DIM + c) * HW;
+                float *dst = V + (h * HEAD_DIM + c) * HW;
+                for (uint32_t s = 0; s < HW; s++) dst[s] = src[s];
+            }
+            if (hi > lo) evict((const void *)(V + lo * HW), (hi - lo) * HW * sizeof(float));
+            
+            yolo_range(NHEAD * HEAD_DIM, cidx, &lo, &hi);
+            for (uint32_t idx = lo; idx < hi; idx++) {
+                uint32_t h = idx / HEAD_DIM;
+                uint32_t c = idx % HEAD_DIM;
+                const float *src = V + (h * HEAD_DIM + c) * HW;
+                float *dst = V_resh + (h * HEAD_DIM + c) * HW;
+                for (uint32_t s = 0; s < HW; s++) dst[s] = src[s];
+            }
+            if (hi > lo) evict((const void *)(V_resh + lo * HW), (hi - lo) * HW * sizeof(float));
+            
             WAIT_CACHEOPS; FENCE;
         }
         MH_BARRIER();
@@ -418,39 +428,50 @@ int main(uintptr_t arg_area)
         /* pe = depthwise Conv3x3 pad1 on V_resh (no activation). */
         CONV_DW3x3_S1_P1_VPU(V_resh, pe, WP(WR_model_10_attn_pe_conv_Conv_W), WP(WR_model_10_attn_pe_conv_Conv_B), 128u, 9u, 16u, 0u);
 
-        /* Attention scoring + softmax + value matmul + pe-add (single hart). */
-        if (is_h0) {
-            for (uint32_t h = 0; h < NHEAD; h++) {
+        /* Attention scoring + softmax + value matmul + pe-add (Multi-Hart) */
+        if (yolo_is_compute(hid)) {
+            const uint32_t cidx = yolo_compute_idx(hid);
+            uint32_t h_lo, h_hi;
+            yolo_range(NHEAD, cidx, &h_lo, &h_hi);
+            for (uint32_t h = h_lo; h < h_hi; h++) {
                 transpose_2d(Q + h * KEY_DIM * HW, QT + h * HW * KEY_DIM, KEY_DIM, HW);
             }
-            for (uint32_t h = 0; h < NHEAD; h++) {
-                matmul_2d_fp32(QT + h * HW * KEY_DIM, K + h * KEY_DIM * HW,
-                               logits + h * HW * HW, HW, KEY_DIM, HW);
-            }
-            for (uint32_t i = 0; i < NHEAD * HW * HW; i++) logits[i] *= SCALE;
-            softmax_rows(logits, NHEAD * HW, HW);
-            for (uint32_t h = 0; h < NHEAD; h++) {
-                transpose_2d(logits + h * HW * HW, sm_T + h * HW * HW, HW, HW);
-            }
-            for (uint32_t h = 0; h < NHEAD; h++) {
-                matmul_2d_fp32(V + h * HEAD_DIM * HW, sm_T + h * HW * HW,
-                               attn_o + h * HEAD_DIM * HW, HEAD_DIM, HW, HW);
-            }
-            for (uint32_t i = 0; i < 128u * HW; i++) attn_o[i] += pe[i];
-            evict((const void *)attn_o, 128u * HW * sizeof(float));
+            if (h_hi > h_lo) evict((const void *)(QT + h_lo * HW * KEY_DIM), (h_hi - h_lo) * HW * KEY_DIM * sizeof(float));
             WAIT_CACHEOPS; FENCE;
         }
+        MH_BARRIER();
+
+        for (uint32_t h = 0; h < NHEAD; h++) {
+            MH_MATMUL(QT + h * HW * KEY_DIM, K + h * KEY_DIM * HW, logits + h * HW * HW, HW, KEY_DIM, HW);
+        }
+        
+        MH_SCALE(logits, SCALE, NHEAD * HW * HW);
+        MH_SOFTMAX(logits, NHEAD * HW, HW);
+
+        if (yolo_is_compute(hid)) {
+            const uint32_t cidx = yolo_compute_idx(hid);
+            uint32_t h_lo, h_hi;
+            yolo_range(NHEAD, cidx, &h_lo, &h_hi);
+            for (uint32_t h = h_lo; h < h_hi; h++) {
+                transpose_2d(logits + h * HW * HW, sm_T + h * HW * HW, HW, HW);
+            }
+            if (h_hi > h_lo) evict((const void *)(sm_T + h_lo * HW * HW), (h_hi - h_lo) * HW * HW * sizeof(float));
+            WAIT_CACHEOPS; FENCE;
+        }
+        MH_BARRIER();
+
+        for (uint32_t h = 0; h < NHEAD; h++) {
+            MH_MATMUL(V + h * HEAD_DIM * HW, sm_T + h * HW * HW, attn_o + h * HEAD_DIM * HW, HEAD_DIM, HW, HW);
+        }
+
+        MH_IADD(attn_o, pe, 128u * HW);
         MH_BARRIER();
 
         /* proj: 128 -> 128, 1x1 (no activation). */
         CONV_1x1(attn_o, proj_o, WP(WR_model_10_attn_proj_conv_Conv_W), WP(WR_model_10_attn_proj_conv_Conv_B), 128u, 9u, 16u, 128u, 0u);
 
         /* y1 += proj_o (residual) */
-        if (is_h0) {
-            for (uint32_t i = 0; i < 128u * HW; i++) y1[i] += proj_o[i];
-            evict((const void *)y1, 128u * HW * sizeof(float));
-            WAIT_CACHEOPS; FENCE;
-        }
+        MH_IADD(y1, proj_o, 128u * HW);
         MH_BARRIER();
 
         /* ffn0: 128 -> 256, 1x1 + SiLU */
@@ -459,12 +480,8 @@ int main(uintptr_t arg_area)
         CONV_1x1(ffn0, ffn1, WP(WR_model_10_ffn_ffn_1_conv_Conv_W), WP(WR_model_10_ffn_ffn_1_conv_Conv_B), 256u, 9u, 16u, 128u, 0u);
 
         /* y1 += ffn1; Concat [y0, y1] into cv1_out. */
-        if (is_h0) {
-            for (uint32_t i = 0; i < 128u * HW; i++) y1[i] += ffn1[i];
-            for (uint32_t i = 0; i < 128u * HW; i++) y1_src[i] = y1[i];
-            evict((const void *)y1_src, 128u * HW * sizeof(float));
-            WAIT_CACHEOPS; FENCE;
-        }
+        MH_IADD(y1, ffn1, 128u * HW);
+        MH_COPY(y1_src, y1, 128u * HW);
         MH_BARRIER();
 
         /* cv2: 256 -> 256, 1x1 + SiLU.  Output: psa_out @ 0x1300000. */
@@ -480,11 +497,11 @@ int main(uintptr_t arg_area)
     /* m.11: nearest-2x upsample of psa_out [256,9,16] -> [256,18,32]. */
     {
         float *up = (float *)(base + SCR_M11_UP);
-        H0_RUN(upsample_nearest_2x(psa_out,up,256u,9u,16u), up, (256u)*(9u*2u)*(16u*2u)*sizeof(float));
+        MH_UPSAMPLE_2x(psa_out, up, 256u, 9u, 16u);
 
         /* m.12: concat [up, c2f_m6] axis=1 -> [384,18,32] */
         float *cat = (float *)(base + SCR_M12_CONCAT);
-        H0_RUN(concat_c_chw(up,256u,c2f_m6,128u,cat,18u,32u), cat, ((256u)+(128u))*(18u)*(32u)*sizeof(float));
+        MH_CONCAT_C_CHW(up, 256u, c2f_m6, 128u, cat, 18u, 32u);
 
         /* m.13: C2f without shortcut.
          *   cv1: 384 -> 128, 1x1+SiLU; split -> y0(64)+y1(64)
@@ -501,8 +518,8 @@ int main(uintptr_t arg_area)
 
         float *m0_cv1 = (float *)(base + SCR_M13_M0_CV1);
         float *m0_cv2 = (float *)(base + SCR_M13_M0_CV2);
-        CONV_3x3_P1_VPU(y1, m0_cv1, WP(WR_model_13_m_0_cv1_conv_Conv_W), WP(WR_model_13_m_0_cv1_conv_Conv_B), 64u, 18u, 32u, 64u, 1u);
-        CONV_3x3_P1_VPU(m0_cv1, m0_cv2, WP(WR_model_13_m_0_cv2_conv_Conv_W), WP(WR_model_13_m_0_cv2_conv_Conv_B), 64u, 18u, 32u, 64u, 1u);
+        CONV_3x3_P1(y1, m0_cv1, WP(WR_model_13_m_0_cv1_conv_Conv_W), WP(WR_model_13_m_0_cv1_conv_Conv_B), 64u, 18u, 32u, 64u, 1u);
+        CONV_3x3_P1(m0_cv1, m0_cv2, WP(WR_model_13_m_0_cv2_conv_Conv_W), WP(WR_model_13_m_0_cv2_conv_Conv_B), 64u, 18u, 32u, 64u, 1u);
 
         /* concat [y0, y1, m0_cv2] - 192 channels.  Use a fresh tmp buf
          * (overwrite SCR_M12_CONCAT, no longer needed). */
@@ -516,9 +533,9 @@ int main(uintptr_t arg_area)
     /* m.14: nearest-2x upsample of m13 -> [128,36,64]; m.15: concat with c2f_m4 [64,36,64] = [192,36,64]. */
     {
         float *up = (float *)(base + SCR_M14_UP);
-        H0_RUN(upsample_nearest_2x(m13_cv2_out,up,128u,18u,32u), up, (128u)*(18u*2u)*(32u*2u)*sizeof(float));
+        MH_UPSAMPLE_2x(m13_cv2_out, up, 128u, 18u, 32u);
         float *cat = (float *)(base + SCR_M15_CONCAT);
-        H0_RUN(concat_c_chw(up,128u,c2f_m4,64u,cat,36u,64u), cat, ((128u)+(64u))*(36u)*(64u)*sizeof(float));
+        MH_CONCAT_C_CHW(up, 128u, c2f_m4, 64u, cat, 36u, 64u);
 
         /* m.16: C2f without shortcut.  cv1: 192 -> 64; split into y0(32)+y1(32);
          * m.0: 32 -> 32, 32 -> 32; concat [y0,y1,m0_cv2] = 96; cv2: 96 -> 64. */
@@ -529,8 +546,8 @@ int main(uintptr_t arg_area)
 
         float *m0_cv1 = (float *)(base + SCR_M16_M0_CV1);
         float *m0_cv2 = (float *)(base + SCR_M16_M0_CV2);
-        CONV_3x3_P1_VPU(y1, m0_cv1, WP(WR_model_16_m_0_cv1_conv_Conv_W), WP(WR_model_16_m_0_cv1_conv_Conv_B), 32u, 36u, 64u, 32u, 1u);
-        CONV_3x3_P1_VPU(m0_cv1, m0_cv2, WP(WR_model_16_m_0_cv2_conv_Conv_W), WP(WR_model_16_m_0_cv2_conv_Conv_B), 32u, 36u, 64u, 32u, 1u);
+        CONV_3x3_P1(y1, m0_cv1, WP(WR_model_16_m_0_cv1_conv_Conv_W), WP(WR_model_16_m_0_cv1_conv_Conv_B), 32u, 36u, 64u, 32u, 1u);
+        CONV_3x3_P1(m0_cv1, m0_cv2, WP(WR_model_16_m_0_cv2_conv_Conv_W), WP(WR_model_16_m_0_cv2_conv_Conv_B), 32u, 36u, 64u, 32u, 1u);
 
         /* concat [y0, y1, m0_cv2] = 96 channels at 36x64.  Reuse SCR_M15_CONCAT (192 ch buffer). */
         float *cat96 = (float *)(base + SCR_M15_CONCAT);
@@ -546,7 +563,7 @@ int main(uintptr_t arg_area)
         CONV_3x3_S2_P1_VPU(p3_out, down, WP(WR_model_17_conv_Conv_W), WP(WR_model_17_conv_Conv_B),
                            64u, 36u, 64u, 64u, 18u, 32u, 1u);
         float *cat = (float *)(base + SCR_M18_CONCAT);
-        H0_RUN(concat_c_chw(down,64u,m13_cv2_out,128u,cat,18u,32u), cat, ((64u)+(128u))*(18u)*(32u)*sizeof(float));
+        MH_CONCAT_C_CHW(down, 64u, m13_cv2_out, 128u, cat, 18u, 32u);
 
         /* m.19: C2f w/o shortcut.  cv1 192->128; split 64+64; m.0 64->64, 64->64; concat 192->cv2 128. */
         float *cv1 = (float *)(base + SCR_M19_CV1);
@@ -556,8 +573,8 @@ int main(uintptr_t arg_area)
 
         float *m0_cv1 = (float *)(base + SCR_M19_M0_CV1);
         float *m0_cv2 = (float *)(base + SCR_M19_M0_CV2);
-        CONV_3x3_P1_VPU(y1, m0_cv1, WP(WR_model_19_m_0_cv1_conv_Conv_W), WP(WR_model_19_m_0_cv1_conv_Conv_B), 64u, 18u, 32u, 64u, 1u);
-        CONV_3x3_P1_VPU(m0_cv1, m0_cv2, WP(WR_model_19_m_0_cv2_conv_Conv_W), WP(WR_model_19_m_0_cv2_conv_Conv_B), 64u, 18u, 32u, 64u, 1u);
+        CONV_3x3_P1(y1, m0_cv1, WP(WR_model_19_m_0_cv1_conv_Conv_W), WP(WR_model_19_m_0_cv1_conv_Conv_B), 64u, 18u, 32u, 64u, 1u);
+        CONV_3x3_P1(m0_cv1, m0_cv2, WP(WR_model_19_m_0_cv2_conv_Conv_W), WP(WR_model_19_m_0_cv2_conv_Conv_B), 64u, 18u, 32u, 64u, 1u);
 
         const uint32_t HW = 18u*32u;
         float *cat192 = (float *)(base + SCR_M18_CONCAT);   /* 192 ch buffer */
@@ -576,7 +593,7 @@ int main(uintptr_t arg_area)
                        128u, 18u, 32u, 9u, 16u, 3u, 3u, 2u, 2u, 1u, 1u, 0u);
 
         float *cat = (float *)(base + SCR_M21_CONCAT);
-        H0_RUN(concat_c_chw(down,128u,psa_out,256u,cat,9u,16u), cat, ((128u)+(256u))*(9u)*(16u)*sizeof(float));
+        MH_CONCAT_C_CHW(down, 128u, psa_out, 256u, cat, 9u, 16u);
 
         /* m.22: C2fCIB block.
          *   cv1 384->256 (1x1+SiLU); split 128+128 (y0, y1)
@@ -605,14 +622,8 @@ int main(uintptr_t arg_area)
 
         /* Residual + concat (single hart). */
         float *cat384 = (float *)(base + SCR_M21_CONCAT);
-        if (is_h0) {
-            for (uint32_t i = 0; i < 128u*HW; i++) t4[i] = y1[i] + t4[i];
-            for (uint32_t i = 0; i < 128u*HW; i++) cat384[0*128u*HW + i] = y0[i];
-            for (uint32_t i = 0; i < 128u*HW; i++) cat384[1*128u*HW + i] = y1[i];
-            for (uint32_t i = 0; i < 128u*HW; i++) cat384[2*128u*HW + i] = t4[i];
-            evict((const void *)cat384, 384u*HW*sizeof(float));
-            WAIT_CACHEOPS; FENCE;
-        }
+        MH_IADD(t4, y1, 128u * HW);
+        MH_CONCAT3(cat384, y0, y1, t4, 128u * HW);
         MH_BARRIER();
 
         CONV_1x1(cat384, p5_out, WP(WR_model_22_cv2_conv_Conv_W), WP(WR_model_22_cv2_conv_Conv_B), 384u, 9u, 16u, 256u, 1u);
@@ -639,9 +650,9 @@ int main(uintptr_t arg_area)
 
     /* === Scale 0 (P3, 36x64, IN_C=64) === */
     /* reg.0: 3x3 64->64 + SiLU -> ta */
-    CONV_3x3_P1_VPU(p3_out, ta, WP(WR_model_23_cv2_0_cv2_0_0_conv_Conv_W), WP(WR_model_23_cv2_0_cv2_0_0_conv_Conv_B), 64u, 36u, 64u, 64u, 1u);
+    CONV_3x3_P1(p3_out, ta, WP(WR_model_23_cv2_0_cv2_0_0_conv_Conv_W), WP(WR_model_23_cv2_0_cv2_0_0_conv_Conv_B), 64u, 36u, 64u, 64u, 1u);
     /* reg.1: 3x3 64->64 + SiLU -> tb */
-    CONV_3x3_P1_VPU(ta, tb, WP(WR_model_23_cv2_0_cv2_0_1_conv_Conv_W), WP(WR_model_23_cv2_0_cv2_0_1_conv_Conv_B), 64u, 36u, 64u, 64u, 1u);
+    CONV_3x3_P1(ta, tb, WP(WR_model_23_cv2_0_cv2_0_1_conv_Conv_W), WP(WR_model_23_cv2_0_cv2_0_1_conv_Conv_B), 64u, 36u, 64u, 64u, 1u);
     /* reg.2: 1x1 64->64, no act -> reg0 */
     CONV_1x1(tb, reg0, WP(WR_model_23_cv2_0_cv2_0_2_Conv_W), WP(WR_model_23_cv2_0_cv2_0_2_Conv_B), 64u, 36u, 64u, 64u, 0u);
 
@@ -657,8 +668,8 @@ int main(uintptr_t arg_area)
     CONV_1x1(td, cls0, WP(WR_model_23_cv3_0_cv3_0_2_Conv_W), WP(WR_model_23_cv3_0_cv3_0_2_Conv_B), 80u, 36u, 64u, 80u, 0u);
 
     /* === Scale 1 (P4, 18x32, IN_C=128) === */
-    CONV_3x3_P1_VPU(p4_out, ta, WP(WR_model_23_cv2_1_cv2_1_0_conv_Conv_W), WP(WR_model_23_cv2_1_cv2_1_0_conv_Conv_B), 128u, 18u, 32u, 64u, 1u);
-    CONV_3x3_P1_VPU(ta, tb, WP(WR_model_23_cv2_1_cv2_1_1_conv_Conv_W), WP(WR_model_23_cv2_1_cv2_1_1_conv_Conv_B), 64u, 18u, 32u, 64u, 1u);
+    CONV_3x3_P1(p4_out, ta, WP(WR_model_23_cv2_1_cv2_1_0_conv_Conv_W), WP(WR_model_23_cv2_1_cv2_1_0_conv_Conv_B), 128u, 18u, 32u, 64u, 1u);
+    CONV_3x3_P1(ta, tb, WP(WR_model_23_cv2_1_cv2_1_1_conv_Conv_W), WP(WR_model_23_cv2_1_cv2_1_1_conv_Conv_B), 64u, 18u, 32u, 64u, 1u);
     CONV_1x1(tb, reg1, WP(WR_model_23_cv2_1_cv2_1_2_Conv_W), WP(WR_model_23_cv2_1_cv2_1_2_Conv_B), 64u, 18u, 32u, 64u, 0u);
 
     CONV_DW3x3_S1_P1_VPU(p4_out, ta, WP(WR_model_23_cv3_1_cv3_1_0_cv3_1_0_0_conv_Conv_W), WP(WR_model_23_cv3_1_cv3_1_0_cv3_1_0_0_conv_Conv_B), 128u, 18u, 32u, 1u);
@@ -668,8 +679,8 @@ int main(uintptr_t arg_area)
     CONV_1x1(td, cls1, WP(WR_model_23_cv3_1_cv3_1_2_Conv_W), WP(WR_model_23_cv3_1_cv3_1_2_Conv_B), 80u, 18u, 32u, 80u, 0u);
 
     /* === Scale 2 (P5, 9x16, IN_C=256) === */
-    CONV_3x3_P1_VPU(p5_out, ta, WP(WR_model_23_cv2_2_cv2_2_0_conv_Conv_W), WP(WR_model_23_cv2_2_cv2_2_0_conv_Conv_B), 256u, 9u, 16u, 64u, 1u);
-    CONV_3x3_P1_VPU(ta, tb, WP(WR_model_23_cv2_2_cv2_2_1_conv_Conv_W), WP(WR_model_23_cv2_2_cv2_2_1_conv_Conv_B), 64u, 9u, 16u, 64u, 1u);
+    CONV_3x3_P1(p5_out, ta, WP(WR_model_23_cv2_2_cv2_2_0_conv_Conv_W), WP(WR_model_23_cv2_2_cv2_2_0_conv_Conv_B), 256u, 9u, 16u, 64u, 1u);
+    CONV_3x3_P1(ta, tb, WP(WR_model_23_cv2_2_cv2_2_1_conv_Conv_W), WP(WR_model_23_cv2_2_cv2_2_1_conv_Conv_B), 64u, 9u, 16u, 64u, 1u);
     CONV_1x1(tb, reg2, WP(WR_model_23_cv2_2_cv2_2_2_Conv_W), WP(WR_model_23_cv2_2_cv2_2_2_Conv_B), 64u, 9u, 16u, 64u, 0u);
 
     CONV_DW3x3_S1_P1_VPU(p5_out, ta, WP(WR_model_23_cv3_2_cv3_2_0_cv3_2_0_0_conv_Conv_W), WP(WR_model_23_cv3_2_cv3_2_0_cv3_2_0_0_conv_Conv_B), 256u, 9u, 16u, 1u);
@@ -683,68 +694,74 @@ int main(uintptr_t arg_area)
     const uint32_t HW0 = 36u * 64u;     /* 2304 */
     const uint32_t HW1 = 18u * 32u;     /* 576  */
 
-    /* DFL + box decode + class sigmoid (single-hart hart 0).
-     * The naive parallel-by-anchor version had a non-coherent-L1D race
-     * around the scattered writes to final_out (84 disjoint regions per
-     * hart), even with whole-buffer evicts.  Decode is only ~50 ms anyway. */
-    if (is_h0) {
-        for (uint32_t k = 0; k < 3u; k++) {
+    /* DFL + box decode + class sigmoid (Multi-Hart Cache-Aligned).
+     * By partitioning 3024 anchors into 189 chunks of 16 floats,
+     * each hart writes to perfectly 64-byte aligned boundaries.
+     * This avoids any non-coherent L1D cache false sharing! */
+    if (yolo_is_compute(hid)) {
+        const uint32_t cidx = yolo_compute_idx(hid);
+        /* 3024 = 189 * 16. Distribute 189 chunks across MH_NUM_T0 */
+        uint32_t num_blocks = 189u;
+        uint32_t blocks_lo = (num_blocks * cidx) / MH_NUM_T0;
+        uint32_t blocks_hi = (num_blocks * (cidx + 1u)) / MH_NUM_T0;
+        uint32_t a_lo = blocks_lo * 16u;
+        uint32_t a_hi = blocks_hi * 16u;
+        
+        for (uint32_t a = a_lo; a < a_hi; a++) {
             const float *reg_in;
             const float *cls_in;
-            uint32_t H, W;
+            uint32_t W;
             float stride;
-            uint32_t anchor_off;
-            if (k == 0u)      { reg_in = reg0; cls_in = cls0; H = 36u; W = 64u; stride = 8.0f;  anchor_off = 0u; }
-            else if (k == 1u) { reg_in = reg1; cls_in = cls1; H = 18u; W = 32u; stride = 16.0f; anchor_off = HW0; }
-            else              { reg_in = reg2; cls_in = cls2; H =  9u; W = 16u; stride = 32.0f; anchor_off = HW0 + HW1; }
-            const uint32_t HW = H * W;
-
+            uint32_t s;
+            uint32_t HW_cur;
+            if (a < 2304u) {
+                reg_in = reg0; cls_in = cls0; W = 64u; stride = 8.0f; s = a; HW_cur = 2304u;
+            } else if (a < 2880u) {
+                reg_in = reg1; cls_in = cls1; W = 32u; stride = 16.0f; s = a - 2304u; HW_cur = 576u;
+            } else {
+                reg_in = reg2; cls_in = cls2; W = 16u; stride = 32.0f; s = a - 2880u; HW_cur = 144u;
+            }
+            
+            float coords[4];
             for (uint32_t e = 0; e < 4u; e++) {
-                for (uint32_t s = 0; s < HW; s++) {
-                    float row[16];
-                    float m = -3.4e38f;
-                    for (uint32_t b = 0; b < 16u; b++) {
-                        row[b] = reg_in[(e*16u + b) * HW + s];
-                        if (row[b] > m) m = row[b];
-                    }
-                    float sumexp = 0.0f;
-                    for (uint32_t b = 0; b < 16u; b++) { row[b] = my_expf(row[b] - m); sumexp += row[b]; }
-                    const float inv = fast_recip(sumexp);
-                    float ev = 0.0f;
-                    for (uint32_t b = 0; b < 16u; b++) ev += row[b] * inv * (float)b;
-                    tb[e * HW + s] = ev;
+                float row[16];
+                float m = -3.4e38f;
+                for (uint32_t b = 0; b < 16u; b++) {
+                    row[b] = reg_in[(e*16u + b) * HW_cur + s];
+                    if (row[b] > m) m = row[b];
                 }
+                float sumexp = 0.0f;
+                for (uint32_t b = 0; b < 16u; b++) { row[b] = my_expf(row[b] - m); sumexp += row[b]; }
+                const float inv = fast_recip(sumexp);
+                float ev = 0.0f;
+                for (uint32_t b = 0; b < 16u; b++) ev += row[b] * inv * (float)b;
+                coords[e] = ev;
             }
-
-            for (uint32_t h = 0; h < H; h++) {
-                for (uint32_t w = 0; w < W; w++) {
-                    const uint32_t s = h * W + w;
-                    const float a_cx = (float)w + 0.5f;
-                    const float a_cy = (float)h + 0.5f;
-                    const float lt_x = tb[0u*HW + s];
-                    const float lt_y = tb[1u*HW + s];
-                    const float rb_x = tb[2u*HW + s];
-                    const float rb_y = tb[3u*HW + s];
-                    const float left   = (a_cx - lt_x) * stride;
-                    const float top    = (a_cy - lt_y) * stride;
-                    const float right  = (a_cx + rb_x) * stride;
-                    const float bottom = (a_cy + rb_y) * stride;
-                    const uint32_t a = anchor_off + s;
-                    final_out[0u * 3024u + a] = (left + right) * 0.5f;
-                    final_out[1u * 3024u + a] = (top + bottom) * 0.5f;
-                    final_out[2u * 3024u + a] = right - left;
-                    final_out[3u * 3024u + a] = bottom - top;
-                }
-            }
-
+            
+            uint32_t h = s / W;
+            uint32_t w = s % W;
+            const float a_cx = (float)w + 0.5f;
+            const float a_cy = (float)h + 0.5f;
+            const float left   = (a_cx - coords[0]) * stride;
+            const float top    = (a_cy - coords[1]) * stride;
+            const float right  = (a_cx + coords[2]) * stride;
+            const float bottom = (a_cy + coords[3]) * stride;
+            
+            final_out[0u * 3024u + a] = (left + right) * 0.5f;
+            final_out[1u * 3024u + a] = (top + bottom) * 0.5f;
+            final_out[2u * 3024u + a] = right - left;
+            final_out[3u * 3024u + a] = bottom - top;
+            
             for (uint32_t c = 0; c < 80u; c++) {
-                for (uint32_t s = 0; s < HW; s++) {
-                    const float v = cls_in[c * HW + s];
-                    final_out[(4u + c) * 3024u + (anchor_off + s)] = v;
-                }
+                final_out[(4u + c) * 3024u + a] = cls_in[c * HW_cur + s];
             }
         }
-        /* Skipped eviction of final_out to save memory bandwidth */
+        if (a_hi > a_lo) {
+            for (uint32_t f = 0; f < 84u; f++) {
+                evict((const void *)(final_out + f * 3024u + a_lo), (a_hi - a_lo) * sizeof(float));
+            }
+            WAIT_CACHEOPS; FENCE;
+        }
     }
     MH_BARRIER();
 
@@ -753,42 +770,61 @@ int main(uintptr_t arg_area)
      *   uint32 count N
      *   then N x { uint32 class_id; float score; float x1,y1,x2,y2; }
      */
-    if (is_h0) {
-        const float CONF_THRESH = 0.25f;
-        const float IOU_THRESH  = 0.5f;
-        /* Step 1: scan anchors, keep those with max-class-prob >= CONF_THRESH.
-         * Build candidate list in scratch (use `tb`, plenty of space). */
-        struct __attribute__((packed)) Cand {
-            uint32_t class_id;
-            float    score;
-            float    x1, y1, x2, y2;
-            uint8_t  alive;
-            uint8_t  pad[3];
-        };
-        struct Cand *cands = (struct Cand *)tb;   /* up to 3024 candidates */
-        uint32_t n_cands = 0;
-        for (uint32_t a = 0; a < 3024u; a++) {
+    struct __attribute__((packed)) Cand {
+        uint32_t class_id; float score; float x1, y1, x2, y2; uint8_t alive; uint8_t pad[3];
+    };
+    struct Cand *all_cands = (struct Cand *)tb;
+    uint32_t *n_cands_arr = (uint32_t *)(tb + 3024u * 6u); /* offset past cand array */
+    
+    if (yolo_is_compute(hid)) {
+        const uint32_t cidx = yolo_compute_idx(hid);
+        uint32_t a_lo, a_hi;
+        yolo_range(3024u, cidx, &a_lo, &a_hi);
+        
+        struct Cand *my_cands = all_cands + cidx * 378u;
+        uint32_t my_n = 0;
+        
+        for (uint32_t a = a_lo; a < a_hi; a++) {
             float best_logit = -1e9f;
             uint32_t best_cls = 0;
             for (uint32_t c = 0; c < 80u; c++) {
                 const float p = final_out[(4u + c) * 3024u + a];
                 if (p > best_logit) { best_logit = p; best_cls = c; }
             }
-            /* CONF_THRESH = 0.25f in prob space -> logit = ln(0.25/0.75) = -1.09861228867f */
             if (best_logit < -1.09861228867f) continue;
             float best_score = fast_recip(1.0f + my_expf(-best_logit));
             const float cx = final_out[0u * 3024u + a];
             const float cy = final_out[1u * 3024u + a];
             const float bw = final_out[2u * 3024u + a];
             const float bh = final_out[3u * 3024u + a];
-            cands[n_cands].class_id = best_cls;
-            cands[n_cands].score    = best_score;
-            cands[n_cands].x1 = cx - 0.5f * bw;
-            cands[n_cands].y1 = cy - 0.5f * bh;
-            cands[n_cands].x2 = cx + 0.5f * bw;
-            cands[n_cands].y2 = cy + 0.5f * bh;
-            cands[n_cands].alive = 1u;
-            n_cands++;
+            my_cands[my_n].class_id = best_cls;
+            my_cands[my_n].score    = best_score;
+            my_cands[my_n].x1 = cx - 0.5f * bw;
+            my_cands[my_n].y1 = cy - 0.5f * bh;
+            my_cands[my_n].x2 = cx + 0.5f * bw;
+            my_cands[my_n].y2 = cy + 0.5f * bh;
+            my_cands[my_n].alive = 1u;
+            my_n++;
+        }
+        n_cands_arr[cidx * 16] = my_n; /* 16 uints = 64 bytes cache-aligned padding */
+        evict((const void *)my_cands, my_n * sizeof(struct Cand));
+        evict((const void *)&n_cands_arr[cidx * 16], sizeof(uint32_t));
+        WAIT_CACHEOPS; FENCE;
+    }
+    MH_BARRIER();
+
+    if (is_h0) {
+        const float IOU_THRESH  = 0.5f;
+        struct Cand *cands = all_cands;
+        uint32_t n_cands = n_cands_arr[0];
+        for (uint32_t h = 1; h < 8u; h++) {
+            uint32_t count = n_cands_arr[h * 16];
+            struct Cand *src = all_cands + h * 378u;
+            for (uint32_t i = 0; i < count; i++) {
+                uint32_t *d32 = (uint32_t *)&cands[n_cands++];
+                uint32_t *s32 = (uint32_t *)&src[i];
+                for(int w=0; w<6; w++) d32[w] = s32[w];
+            }
         }
 
         /* Step 2: simple class-aware NMS (O(n^2), n ~ 100 at most). */
