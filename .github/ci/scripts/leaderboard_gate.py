@@ -330,7 +330,7 @@ def main() -> int:
         "--min-relative-improvement",
         type=float,
         default=float(os.environ.get("LEADERBOARD_MIN_RELATIVE_IMPROVEMENT", "0")),
-        help="Require this fractional improvement over the current best score, e.g. 0.01 for 1%.",
+        help="Require this fractional improvement over the current best score, e.g. 0.01 for 1%%.",
     )
     parser.add_argument(
         "--max-ppl-regression",
