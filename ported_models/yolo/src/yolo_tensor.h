@@ -28,41 +28,6 @@ static inline int tensor_scp_enable(void)
 }
 
 /* ------------------------------------------------------------------ */
-/* Single tile matmul: C += A @ B                                      */
-/* OC%4==0, IC%4==0, HW%16==0 required                                */
-/* ------------------------------------------------------------------ */
-static inline int tensor_matmul_tile(
-    const float *A, float *C,
-    const float *B,
-    uint32_t OC, uint32_t IC, uint32_t HW,
-    uint64_t scp_a, uint64_t scp_b,
-    bool first_pass)
-{
-    if (OC == 0 || IC == 0 || HW == 0) return 0;
-
-    const uint64_t arows = (uint64_t)(OC / 4u) - 1u;
-    const uint64_t acols = (uint64_t)(IC / 4u) - 1u;
-    const uint64_t bcols = (uint64_t)(HW / 16u) - 1u;
-
-    tensor_load(0, 0, scp_a, 0, 1, (uint64_t)A, 0,
-                (uint64_t)OC * (uint64_t)IC / 16u - 1u, 0x40, 0);
-    tensor_wait(TENSOR_LOAD_WAIT_0);
-
-    tensor_load(0, 0, scp_b, 0, 0, (uint64_t)B, 0,
-                (uint64_t)IC * (uint64_t)HW / 16u - 1u, 0x40, 1);
-    tensor_wait(TENSOR_LOAD_WAIT_0);
-
-    tensor_fma(0, bcols, arows, acols, 0,
-               0, 0, 0, 1, scp_b, scp_a, 0, first_pass);
-    tensor_wait(TENSOR_FMA_WAIT);
-
-    tensor_store(0, 0, bcols, arows, (uint64_t)C, 0, 0x40);
-    tensor_wait(TENSOR_STORE_WAIT);
-
-    return 0;
-}
-
-/* ------------------------------------------------------------------ */
 /* Tile sizes — must fit in SCP (256 lines available).                 */
 /* 16-OC x 16-IC weights = 16 lines; 16-IC x 16-HW acts = 16 lines.   */
 /* Result registers: (16/4)*(16/16)*4 = 4 registers total.             */
@@ -109,36 +74,38 @@ static inline void conv2d_1x1_fp32_mh_tensor(uint32_t hid,
     for (uint32_t t_oc = t_lo; t_oc < t_hi; t_oc++) {
         const uint32_t oc0 = t_oc * T_TILE_OC;
 
-        for (uint32_t t_ic = 0; t_ic < IC_tiles; t_ic++) {
-            const uint32_t ic0 = t_ic * T_TILE_IC;
-            const float *wtile = W + oc0 * IC + ic0;
+        for (uint32_t t_hw = 0; t_hw < HW_tiles; t_hw++) {
+            const uint32_t hw0 = t_hw * T_TILE_HW;
 
-            /* Load weights once per (oc,ic) pair — reused across HW tiles */
-            tensor_load(0, 0, T_SCP_A, 0, 1, (uint64_t)wtile, 0,
-                        T_TILE_OC * T_TILE_IC / 16u - 1u, 0x40, 0);
-            tensor_wait(TENSOR_LOAD_WAIT_0);
-
-            for (uint32_t t_hw = 0; t_hw < HW_tiles; t_hw++) {
-                const uint32_t hw0 = t_hw * T_TILE_HW;
+            for (uint32_t t_ic = 0; t_ic < IC_tiles; t_ic++) {
+                const uint32_t ic0 = t_ic * T_TILE_IC;
+                const float *wtile = W + oc0 * IC + ic0;
                 const float *atile = in + ic0 * HW + hw0;
-                float *ctile = out + oc0 * HW + hw0;
                 const bool first = (t_ic == 0u);
 
-                tensor_load(0, 0, T_SCP_B, 0, 0, (uint64_t)atile, 0,
+                /* Load weights (tenA) and activations (tenB) to SCP */
+                tensor_load(0, 0, T_SCP_A, 0, 0, (uint64_t)wtile, 0,
+                            T_TILE_OC * T_TILE_IC / 16u - 1u, 0x40, 0);
+                tensor_wait(TENSOR_LOAD_WAIT_0);
+                tensor_load(0, 0, T_SCP_B, 0, 1, (uint64_t)atile, 0,
                             T_TILE_IC * T_TILE_HW / 16u - 1u, 0x40, 1);
                 tensor_wait(TENSOR_LOAD_WAIT_0);
 
+                /* C[OC_tile, HW_tile] += A[OC_tile, IC_tile] @ B[IC_tile, HW_tile]
+                 * first_pass clears the accumulator (t_ic==0), subsequent calls add. */
                 tensor_fma(0, T_TILE_HW/16u-1, T_TILE_OC/4u-1, T_TILE_IC/4u-1,
                            0, 0, 0, 0, 1, T_SCP_B, T_SCP_A, 0, first);
                 tensor_wait(TENSOR_FMA_WAIT);
-
-                tensor_store(0, 0, T_TILE_HW/16u-1, T_TILE_OC/4u-1,
-                             (uint64_t)ctile, 0, 0x40);
-                tensor_wait(TENSOR_STORE_WAIT);
             }
+
+            /* Store accumulated C[OC_tile, HW_tile] for this HW tile */
+            float *ctile = out + oc0 * HW + hw0;
+            tensor_store(0, 0, T_TILE_HW/4u - 1u, T_TILE_OC - 1u,
+                         (uint64_t)ctile, 0, (uint64_t)(HW) * sizeof(float));
+            tensor_wait(TENSOR_STORE_WAIT);
         }
 
-        /* Bias + activation */
+        /* Bias + activation per OC */
         if (B || act) {
             for (uint32_t oc = oc0; oc < oc0 + T_TILE_OC; oc++) {
                 const float bias = B ? B[oc] : 0.0f;
