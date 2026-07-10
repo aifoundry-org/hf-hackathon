@@ -611,7 +611,10 @@ jobs:
   pr-comment:
     name: PR board comment
     needs: [authorize-board-run, select-board-models, board-benchmark]
-    if: always() && github.event_name == 'pull_request' && !inputs.trusted_yolo
+    if: >-
+      always() &&
+      ((github.event_name == 'pull_request' && !inputs.trusted_yolo) ||
+       (inputs.trusted_yolo && needs.select-board-models.outputs.trusted_yolo == '1'))
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -619,7 +622,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ inputs.trusted_yolo && 'main' || github.sha }}
           fetch-depth: 0
 
       - uses: actions/download-artifact@v4
@@ -643,19 +646,58 @@ jobs:
           BOARD_AUTH_PERMISSION: ${{ needs.authorize-board-run.outputs.permission }}
           BOARD_AUTH_REASON: ${{ needs.authorize-board-run.outputs.reason }}
           BOARD_ACTOR: ${{ github.actor }}
-          GITHUB_SHA: ${{ github.sha }}
-          GITHUB_REF: ${{ github.ref }}
-          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          DISPLAY_SHA: ${{ inputs.trusted_yolo && needs.board-benchmark.outputs.benchmark_sha || github.sha }}
+          DISPLAY_REF: ${{ inputs.trusted_yolo && needs.board-benchmark.outputs.benchmark_ref || github.ref }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_BASE_SHA: ${{ inputs.trusted_yolo && needs.board-benchmark.outputs.trusted_main_sha || github.event.pull_request.base.sha }}
+          TRUSTED_YOLO_MODE: ${{ inputs.trusted_yolo && '1' || '0' }}
+          BENCHMARK_SHA: ${{ needs.board-benchmark.outputs.benchmark_sha }}
+          BENCHMARK_REF: ${{ needs.board-benchmark.outputs.benchmark_ref }}
+          BENCHMARK_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           LEADERBOARD_MIN_RELATIVE_IMPROVEMENT: ${{ vars.LEADERBOARD_MIN_RELATIVE_IMPROVEMENT || '0' }}
         run: |
           set -euo pipefail
+          mkdir -p board-scores
+          DISPLAY_SHA="${DISPLAY_SHA:-$PR_HEAD_SHA}"
+          DISPLAY_REF="${DISPLAY_REF:-refs/pull/${PR_NUMBER}/head}"
+          PR_BASE_SHA="${PR_BASE_SHA:-$(git rev-parse HEAD)}"
+
+          if [[ "$TRUSTED_YOLO_MODE" == "1" ]]; then
+            extra_args=(--require-baseline --force-submission-models yolo)
+            if [[ -n "$BENCHMARK_SHA" && -n "$BENCHMARK_REF" ]]; then
+              extra_args+=(
+                --expected-sha "$BENCHMARK_SHA"
+                --expected-ref "$BENCHMARK_REF"
+                --expected-run-url "$BENCHMARK_RUN_URL"
+              )
+            fi
+            python3 .github/ci/scripts/leaderboard_gate.py \
+              --scores-dir board-scores \
+              --models "$SELECTED_MODELS" \
+              --target board \
+              --base-ref "$PR_BASE_SHA" \
+              "${extra_args[@]}" \
+              --output /tmp/trusted-yolo-gate.md || true
+            cat > /tmp/board-comment.md <<EOF
+          ## Trusted YOLO board result
+
+          Workflow: [${BENCHMARK_RUN_URL}](${BENCHMARK_RUN_URL})
+
+          Commit: \`${DISPLAY_SHA:0:12}\` - ref \`${DISPLAY_REF}\`
+
+          EOF
+            cat /tmp/trusted-yolo-gate.md >> /tmp/board-comment.md
+            exit 0
+          fi
+
           if [[ "$HAS_MODELS" != "1" && "$HAS_UNREGISTERED" != "1" && "$HAS_UNCOVERED" != "1" ]]; then
             cat > /tmp/board-comment.md <<EOF
           ## ET-SoC1 board benchmark
 
           Workflow: [${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
-          Commit: \`${GITHUB_SHA:0:12}\` - ref \`${GITHUB_REF}\`
+          Commit: \`${DISPLAY_SHA:0:12}\` - ref \`${DISPLAY_REF}\`
 
           No changed board benchmark models were selected for this PR.
 
@@ -668,7 +710,6 @@ jobs:
             exit 0
           fi
 
-          mkdir -p board-scores
           python3 .github/ci/scripts/format_pr_comment.py \
             --scores-dir board-scores \
             --output /tmp/board-comment.md \
@@ -677,8 +718,8 @@ jobs:
             --unregistered "$UNREGISTERED" \
             --uncovered "$UNCOVERED" \
             --title "ET-SoC1 board benchmark" \
-            --sha "$GITHUB_SHA" \
-            --ref "$GITHUB_REF" \
+            --sha "$DISPLAY_SHA" \
+            --ref "$DISPLAY_REF" \
             --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
             --footer "Real board PR runs select the changed configured board models only. Main branch pushes update the leaderboard."
           if [[ "$BOARD_AUTH_ALLOWED" != "1" ]]; then
@@ -705,11 +746,11 @@ jobs:
           } >> /tmp/board-comment.md
 
       - uses: peter-evans/create-or-update-comment@v4
-        continue-on-error: true
+        continue-on-error: ${{ !inputs.trusted_yolo }}
         with:
           issue-number: ${{ github.event.pull_request.number }}
           body-path: /tmp/board-comment.md
-          comment-tag: et-soc1-board-benchmark
+          comment-tag: ${{ inputs.trusted_yolo && 'trusted-yolo-board-benchmark' || 'et-soc1-board-benchmark' }}
 
   leaderboard-gate:
     name: ${{ inputs.trusted_yolo && 'Trusted YOLO leaderboard gate' || 'Leaderboard gate' }}

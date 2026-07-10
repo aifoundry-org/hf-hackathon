@@ -687,7 +687,7 @@ static inline void conv2d_1x1_disp(uint32_t hid,
 {
     /* Fixed OC16 RAW pipeline hazard! Safe to use for OC>=128 */
     if   (OC >= 128u) conv2d_1x1_fp32_mh_vpu_oc16(hid, in, out, W, B, IC, H, W_, OC, act);
-    else if(OC >= 64u)conv2d_1x1_fp32_mh_vpu_oc8 (hid, in, out, W, B, IC, H, W_, OC, act);
+    else if(OC >= 32u)conv2d_1x1_fp32_mh_vpu_oc8 (hid, in, out, W, B, IC, H, W_, OC, act);
     else              conv2d_1x1_fp32_mh_vpu    (hid, in, out, W, B, IC, H, W_, OC, act);
 }
 #define CONV_1x1(...) do { conv2d_1x1_disp(hid, __VA_ARGS__); MH_BARRIER(); } while (0)

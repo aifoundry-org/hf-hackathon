@@ -642,6 +642,8 @@ if python3 .github/ci/scripts/leaderboard_gate.py --scores-dir "$tmp" --output "
   --force-submission-models yolo >/dev/null; then
   bad "leaderboard_gate.py should require a trusted YOLO submission to improve runtime"
 fi
+grep -F "Correctness passed on all 5 images, but" "$tmp/gate-forced-submission-fail.md" >/dev/null \
+  || bad "leaderboard_gate.py should explain a correct but slower YOLO result"
 python3 - "$tmp" <<'PY'
 import json
 from pathlib import Path

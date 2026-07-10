@@ -700,19 +700,35 @@ int main(uintptr_t arg_area)
             const uint32_t HW = H * W;
 
             for (uint32_t e = 0; e < 4u; e++) {
-                for (uint32_t s = 0; s < HW; s++) {
-                    float row[16];
-                    float m = -3.4e38f;
+                for (uint32_t s_blk = 0; s_blk < HW; s_blk += 64u) {
+                    uint32_t blk = (s_blk + 64u <= HW) ? 64u : (HW - s_blk);
+                    float m[64];
+                    for (uint32_t j = 0; j < blk; j++) m[j] = -3.4e38f;
+                    
                     for (uint32_t b = 0; b < 16u; b++) {
-                        row[b] = reg_in[(e*16u + b) * HW + s];
-                        if (row[b] > m) m = row[b];
+                        const float *p_in = &reg_in[(e*16u + b) * HW + s_blk];
+                        for (uint32_t j = 0; j < blk; j++) {
+                            if (p_in[j] > m[j]) m[j] = p_in[j];
+                        }
                     }
-                    float sumexp = 0.0f;
-                    for (uint32_t b = 0; b < 16u; b++) { row[b] = my_expf(row[b] - m); sumexp += row[b]; }
-                    const float inv = fast_recip(sumexp);
-                    float ev = 0.0f;
-                    for (uint32_t b = 0; b < 16u; b++) ev += row[b] * inv * (float)b;
-                    tb[e * HW + s] = ev;
+
+                    float sumexp[64];
+                    float ev[64];
+                    for (uint32_t j = 0; j < blk; j++) { sumexp[j] = 0.0f; ev[j] = 0.0f; }
+
+                    for (uint32_t b = 0; b < 16u; b++) {
+                        const float *p_in = &reg_in[(e*16u + b) * HW + s_blk];
+                        const float bf = (float)b;
+                        for (uint32_t j = 0; j < blk; j++) {
+                            float val = my_expf(p_in[j] - m[j]);
+                            sumexp[j] += val;
+                            ev[j] += val * bf;
+                        }
+                    }
+
+                    for (uint32_t j = 0; j < blk; j++) {
+                        tb[e * HW + s_blk + j] = ev[j] * fast_recip(sumexp[j]);
+                    }
                 }
             }
 

@@ -592,7 +592,17 @@ def main() -> int:
             required = baseline_value * (
                 1.0 + args.min_relative_improvement if higher else 1.0 - args.min_relative_improvement
             )
-            note = f"Requires {comparator} {fmt_metric(required, metric)}."
+            if model == "yolo" and not higher:
+                comparison = "slower than" if value > baseline_value else "not faster than"
+                note = (
+                    "Correctness passed on all 5 images, but "
+                    f"{fmt_metric(value, metric)} is {comparison} main's "
+                    f"{fmt_metric(baseline_value, metric)}."
+                )
+                if args.min_relative_improvement:
+                    note += f" Requires {comparator} {fmt_metric(required, metric)}."
+            else:
+                note = f"Requires {comparator} {fmt_metric(required, metric)}."
             lines.append(
                 f"| {model} | {cell(label)} | {score_text} | {baseline_text} | fail | {note} |"
             )
