@@ -417,7 +417,7 @@ static void conv2d_1x1_fp32_mh_vpu(uint32_t hid,
         union { float f; uint32_t u; } bb; bb.f = bias_v;
         for (uint32_t oh = 0; oh < H; oh++) {
             for (uint32_t ow8 = 0; ow8 < W_; ow8 += 8u) {
-                float acc;
+                register float acc asm("f0");
                 __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(acc) : "r"((uint64_t)bb.u));
                 for (uint32_t ic = 0; ic < IC; ic++) {
                     const float w_scalar = W[oc * IC + ic];
@@ -478,8 +478,8 @@ static void conv2d_1x1_fp32_mh_vpu_oc8(uint32_t hid,
         for (uint32_t oh = 0; oh < H; oh++) {
             for (uint32_t ow8 = 0; ow8 < W_; ow8 += 8u) {
                 /* 8 accumulators, one per OC lane in this tile. */
-                float a0, a1, a2, a3;
-                float a4, a5, a6, a7;
+                register float a0 asm("f0"), a1 asm("f1"), a2 asm("f2"), a3 asm("f3");
+                register float a4 asm("f4"), a5 asm("f5"), a6 asm("f6"), a7 asm("f7");
                 /* Initialize each to bias broadcast. */
 #define INIT_ACC(REG, OC_OFFSET) do { \
     union { float f; uint32_t u; } _bb; _bb.f = B[oc0 + OC_OFFSET]; \
@@ -573,10 +573,10 @@ static void conv2d_1x1_fp32_mh_vpu_oc16(uint32_t hid,
         const uint32_t oc0 = tile * 16u;
         for (uint32_t oh = 0; oh < H; oh++) {
             for (uint32_t ow8 = 0; ow8 < W_; ow8 += 8u) {
-                float a0, a1, a2, a3;
-                float a4, a5, a6, a7;
-                float a8, a9, aA, aB;
-                float aC, aD, aE, aF;
+                register float a0 asm("f0"), a1 asm("f1"), a2 asm("f2"), a3 asm("f3");
+                register float a4 asm("f4"), a5 asm("f5"), a6 asm("f6"), a7 asm("f7");
+                register float a8 asm("f10"),a9 asm("f11"),aA asm("f12"),aB asm("f13");
+                register float aC asm("f14"),aD asm("f15"),aE asm("f16"),aF asm("f17");
 #define INIT_ACC(REG, OO) do { \
     union { float f; uint32_t u; } _bb; _bb.f = B[oc0 + OO]; \
     __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(REG) : "r"((uint64_t)_bb.u)); \
@@ -717,7 +717,7 @@ static void conv2d_3x3_p1_fp32_mh_vpu(uint32_t hid,
             int32_t is_h_edge = (oh == 0) || (oh == (int32_t)H - 1);
             for (int32_t ow8 = 0; ow8 < (int32_t)W_; ow8 += 8) {
                 int32_t is_w_edge = (ow8 == 0) || (ow8 + 8 > (int32_t)W_ - 1);
-                float acc;
+                register float acc asm("f0");
                 __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(acc) : "r"((uint64_t)bb.u));
 
                 if (!is_h_edge && !is_w_edge) {
@@ -815,8 +815,8 @@ static void conv2d_3x3_p1_fp32_mh_vpu_oc8(uint32_t hid,
         const uint32_t oc0 = tile * 8u;
         for (int32_t oh = 0; oh < (int32_t)H; oh++) {
             for (int32_t ow8 = 0; ow8 < (int32_t)W_; ow8 += 8) {
-                float a0, a1, a2, a3;
-                float a4, a5, a6, a7;
+                register float a0 asm("f0"), a1 asm("f1"), a2 asm("f2"), a3 asm("f3");
+                register float a4 asm("f4"), a5 asm("f5"), a6 asm("f6"), a7 asm("f7");
 #define INIT_ACC(REG, OO) do { \
     union { float f; uint32_t u; } _bb; _bb.f = B[oc0 + OO]; \
     __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(REG) : "r"((uint64_t)_bb.u)); \
@@ -938,7 +938,7 @@ static void conv2d_3x3_s2_p1_fp32_mh_vpu(uint32_t hid,
             int32_t is_h_edge = (oh == 0); // No bottom edge because stride 2 padding 1 never overshoots by 2
             for (int32_t ow4 = 0; ow4 < (int32_t)OW; ow4 += 4) {
                 int32_t is_w_edge = (ow4 == 0) || (ow4 * 2 + 8 > (int32_t)IW - 1);
-                float acc;
+                register float acc asm("f0");
                 __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(acc) : "r"((uint64_t)bb.u));
 
                 if (!is_h_edge && !is_w_edge) {
@@ -1038,7 +1038,7 @@ static void conv2d_3x3_p1_fp32_mh_vpu_oc4(uint32_t hid,
         const uint32_t oc0 = tile * 4u;
         for (int32_t oh = 0; oh < (int32_t)H; oh++) {
             for (int32_t ow8 = 0; ow8 < (int32_t)W_; ow8 += 8) {
-                float a0, a1, a2, a3;
+                register float a0 asm("f0"), a1 asm("f1"), a2 asm("f2"), a3 asm("f3");
 #define INIT_ACC(REG, OO) do { \
     union { float f; uint32_t u; } _bb; _bb.f = B[oc0 + OO]; \
     __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(REG) : "r"((uint64_t)_bb.u)); \
@@ -1140,7 +1140,7 @@ static void conv2d_dw3x3_s1_p1_fp32_mh_vpu(uint32_t hid,
         const float *wp = W + c * 9u;   /* 3x3 weights for channel c */
         for (int32_t oh = 0; oh < (int32_t)H; oh++) {
             for (int32_t ow8 = 0; ow8 < (int32_t)W_; ow8 += 8) {
-                float acc;
+                register float acc asm("f0");
                 __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(acc) : "r"((uint64_t)bb.u));
 
                 for (uint32_t ky = 0; ky < 3u; ky++) {
