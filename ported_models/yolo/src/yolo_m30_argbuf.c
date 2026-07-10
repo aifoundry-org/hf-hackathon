@@ -328,9 +328,9 @@ int main(uintptr_t arg_area)
         const uint32_t HW = 9u * 16u;
 
         CONV_1x1(c2f_m8, m9_cv1, WP(WR_model_9_cv1_conv_Conv_W), WP(WR_model_9_cv1_conv_Conv_B), 256u, 9u, 16u, 128u, 1u);
-        H0_RUN(maxpool_fp32(m9_cv1,m9_mp1,128u,9u,16u,9u,16u,5u,5u,1u,1u,2u,2u), m9_mp1, (128u)*(9u)*(16u)*sizeof(float));
-        H0_RUN(maxpool_fp32(m9_mp1,m9_mp2,128u,9u,16u,9u,16u,5u,5u,1u,1u,2u,2u), m9_mp2, (128u)*(9u)*(16u)*sizeof(float));
-        H0_RUN(maxpool_fp32(m9_mp2,m9_mp3,128u,9u,16u,9u,16u,5u,5u,1u,1u,2u,2u), m9_mp3, (128u)*(9u)*(16u)*sizeof(float));
+        MH_MAXPOOL5(m9_cv1, m9_mp1, 128u, 9u, 16u, 9u, 16u, 5u, 5u, 1u, 1u, 2u, 2u);
+        MH_MAXPOOL5(m9_mp1, m9_mp2, 128u, 9u, 16u, 9u, 16u, 5u, 5u, 1u, 1u, 2u, 2u);
+        MH_MAXPOOL5(m9_mp2, m9_mp3, 128u, 9u, 16u, 9u, 16u, 5u, 5u, 1u, 1u, 2u, 2u);
 
         /* concat [m9_cv1, mp1, mp2, mp3] = 512 channels at 9x16 */
         MH_CONCAT4(concat, m9_cv1, m9_mp1, m9_mp2, m9_mp3, 128u * HW);

@@ -168,6 +168,44 @@ static inline void split_c_chw(const float *in, uint32_t Cin,
         for (uint32_t i = 0; i < hw; i++) b[c*hw + i] = in[(Ca+c)*hw + i];
 }
 
+/* Multi-hart MaxPool 2D NCHW: split channels across compute harts. */
+static void maxpool_fp32_mh(uint32_t hid,
+                            const float *in, float *out,
+                            uint32_t C, uint32_t IH, uint32_t IW,
+                            uint32_t OH, uint32_t OW,
+                            uint32_t KH, uint32_t KW,
+                            uint32_t SH, uint32_t SW,
+                            uint32_t PH, uint32_t PW)
+{
+    if (!yolo_is_compute(hid)) return;
+    const uint32_t cidx = yolo_compute_idx(hid);
+    uint32_t c_lo, c_hi;
+    yolo_range(C, cidx, &c_lo, &c_hi);
+    for (uint32_t c = c_lo; c < c_hi; c++) {
+        for (uint32_t oh = 0; oh < OH; oh++) {
+            for (uint32_t ow = 0; ow < OW; ow++) {
+                float m = -3.4e38f;
+                for (uint32_t ky = 0; ky < KH; ky++) {
+                    const int32_t ih = (int32_t)(oh * SH) - (int32_t)PH + (int32_t)ky;
+                    if (ih < 0 || ih >= (int32_t)IH) continue;
+                    for (uint32_t kx = 0; kx < KW; kx++) {
+                        const int32_t iw = (int32_t)(ow * SW) - (int32_t)PW + (int32_t)kx;
+                        if (iw < 0 || iw >= (int32_t)IW) continue;
+                        const float v = in[(c * IH + (uint32_t)ih) * IW + (uint32_t)iw];
+                        if (v > m) m = v;
+                    }
+                }
+                out[(c * OH + oh) * OW + ow] = m;
+            }
+        }
+    }
+    if (c_hi > c_lo) {
+        const uint32_t bytes = (c_hi - c_lo) * OH * OW * sizeof(float);
+        evict((const void *)(out + c_lo * OH * OW), bytes);
+    }
+}
+#define MH_MAXPOOL5(...) do { maxpool_fp32_mh(hid, __VA_ARGS__); MH_BARRIER(); } while (0)
+
 /* MaxPool 2D NCHW. */
 static void maxpool_fp32(const float *in, float *out,
                          uint32_t C, uint32_t IH, uint32_t IW,
@@ -790,7 +828,9 @@ static void conv2d_3x3_p1_fp32_mh_vpu(uint32_t hid,
     }
 }
 
-#define CONV_3x3_P1_VPU(...) do { conv2d_3x3_p1_fp32_mh_vpu(hid, __VA_ARGS__); MH_BARRIER(); } while (0)
+/* Use the OC-aware dispatcher (OC4 for OC>=32, per-OC for smaller).
+ * Direct per-OC is available as conv2d_3x3_p1_fp32_mh_vpu if needed. */
+#define CONV_3x3_P1_VPU(...) do { conv2d_3x3_p1_disp(hid, __VA_ARGS__); MH_BARRIER(); } while (0)
 
 /* OC-blocked VPU 3x3 stride=1 pad=1.  8 OC accumulated simultaneously per
  * (oh, ow8) tile - input v_pkg is loaded once per (ic, ky, kx, ow8) and
