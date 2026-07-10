@@ -15,6 +15,7 @@
  */
 #include "yolo_common.h"
 #include "yolo_weight_offsets.h"
+#include "yolo_tensor.h"
 
 #define INPUT_OFFSET        0x00010000u
 #define RAW_INPUT_OFFSET    0x04A00000u   /* uint8 RGB [SH, SW, 3], HWC, host-loaded */
