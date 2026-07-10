@@ -168,6 +168,44 @@ static inline void split_c_chw(const float *in, uint32_t Cin,
         for (uint32_t i = 0; i < hw; i++) b[c*hw + i] = in[(Ca+c)*hw + i];
 }
 
+/* Multi-hart MaxPool 2D NCHW: split channels across compute harts. */
+static void maxpool_fp32_mh(uint32_t hid,
+                            const float *in, float *out,
+                            uint32_t C, uint32_t IH, uint32_t IW,
+                            uint32_t OH, uint32_t OW,
+                            uint32_t KH, uint32_t KW,
+                            uint32_t SH, uint32_t SW,
+                            uint32_t PH, uint32_t PW)
+{
+    if (!yolo_is_compute(hid)) return;
+    const uint32_t cidx = yolo_compute_idx(hid);
+    uint32_t c_lo, c_hi;
+    yolo_range(C, cidx, &c_lo, &c_hi);
+    for (uint32_t c = c_lo; c < c_hi; c++) {
+        for (uint32_t oh = 0; oh < OH; oh++) {
+            for (uint32_t ow = 0; ow < OW; ow++) {
+                float m = -3.4e38f;
+                for (uint32_t ky = 0; ky < KH; ky++) {
+                    const int32_t ih = (int32_t)(oh * SH) - (int32_t)PH + (int32_t)ky;
+                    if (ih < 0 || ih >= (int32_t)IH) continue;
+                    for (uint32_t kx = 0; kx < KW; kx++) {
+                        const int32_t iw = (int32_t)(ow * SW) - (int32_t)PW + (int32_t)kx;
+                        if (iw < 0 || iw >= (int32_t)IW) continue;
+                        const float v = in[(c * IH + (uint32_t)ih) * IW + (uint32_t)iw];
+                        if (v > m) m = v;
+                    }
+                }
+                out[(c * OH + oh) * OW + ow] = m;
+            }
+        }
+    }
+    if (c_hi > c_lo) {
+        const uint32_t bytes = (c_hi - c_lo) * OH * OW * sizeof(float);
+        evict((const void *)(out + c_lo * OH * OW), bytes);
+    }
+}
+#define MH_MAXPOOL5(...) do { maxpool_fp32_mh(hid, __VA_ARGS__); MH_BARRIER(); } while (0)
+
 /* MaxPool 2D NCHW. */
 static void maxpool_fp32(const float *in, float *out,
                          uint32_t C, uint32_t IH, uint32_t IW,
@@ -790,7 +828,9 @@ static void conv2d_3x3_p1_fp32_mh_vpu(uint32_t hid,
     }
 }
 
-#define CONV_3x3_P1_VPU(...) do { conv2d_3x3_p1_fp32_mh_vpu(hid, __VA_ARGS__); MH_BARRIER(); } while (0)
+/* Use the OC-aware dispatcher (OC4 for OC>=32, per-OC for smaller).
+ * Direct per-OC is available as conv2d_3x3_p1_fp32_mh_vpu if needed. */
+#define CONV_3x3_P1_VPU(...) do { conv2d_3x3_p1_disp(hid, __VA_ARGS__); MH_BARRIER(); } while (0)
 
 /* OC-blocked VPU 3x3 stride=1 pad=1.  8 OC accumulated simultaneously per
  * (oh, ow8) tile - input v_pkg is loaded once per (ic, ky, kx, ow8) and
@@ -1191,6 +1231,83 @@ static void conv2d_dw3x3_s1_p1_fp32_mh_vpu(uint32_t hid,
 
 #define CONV_DW3x3_S1_P1_VPU(...) do { conv2d_dw3x3_s1_p1_fp32_mh_vpu(hid, __VA_ARGS__); MH_BARRIER(); } while (0)
 
+/* VPU-vectorized depthwise 3x3 (stride=2 pad=1, OW % 4 == 0).
+ * Same "even-lane" trick as conv2d_3x3_s2_p1_fp32_mh_vpu: 8 input lanes
+ * produce 4 valid output lanes at positions 0,2,4,6. */
+static void conv2d_dw3x3_s2_p1_fp32_mh_vpu(uint32_t hid,
+                                           const float *in, float *out,
+                                           const float *W, const float *B,
+                                           uint32_t C, uint32_t IH, uint32_t IW,
+                                           uint32_t OH, uint32_t OW,
+                                           uint32_t act)
+{
+    if (!mh_is_t0(hid)) return;
+    const uint32_t cidx = mh_t0_idx(hid);
+    uint32_t c_lo, c_hi;
+    *(volatile uint32_t *)&c_lo = (C * cidx) / MH_NUM_T0;
+    *(volatile uint32_t *)&c_hi = (C * (cidx + 1u)) / MH_NUM_T0;
+
+    float acc_buf[8] __attribute__((aligned(32)));
+
+    for (uint32_t c = c_lo; c < c_hi; c++) {
+        const float bias_v = B[c];
+        union { float f; uint32_t u; } bb; bb.f = bias_v;
+        const float *wp = W + c * 9u;   /* 3x3 weights for channel c */
+        for (int32_t oh = 0; oh < (int32_t)OH; oh++) {
+            for (int32_t ow4 = 0; ow4 < (int32_t)OW; ow4 += 4) {
+                register float acc asm("f0");
+                __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(acc) : "r"((uint64_t)bb.u));
+
+                for (uint32_t ky = 0; ky < 3u; ky++) {
+                    const int32_t ih = oh * 2 + (int32_t)ky - 1;
+                    if (ih < 0 || ih >= (int32_t)IH) continue;
+                    for (uint32_t kx = 0; kx < 3u; kx++) {
+                        const int32_t iw_base = ow4 * 2 + (int32_t)kx - 1;
+                        const float w_scalar = wp[ky * 3u + kx];
+                        if (iw_base >= 0 && iw_base + 7 < (int32_t)IW) {
+                            float v_pkg;
+                            float w_pkg;
+                            union { float f; uint32_t u; } ww; ww.f = w_scalar;
+                            const float *src = in + (c * IH + (uint32_t)ih) * IW + (uint32_t)iw_base;
+                            __asm__ volatile("flq2 %0, 0(%1)\n" : "=f"(v_pkg) : "r"(src));
+                            __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w_pkg) : "r"((uint64_t)ww.u));
+                            __asm__ volatile("fmadd.ps %0, %1, %2, %0\n"
+                                             : "+f"(acc) : "f"(v_pkg), "f"(w_pkg));
+                        } else {
+                            __asm__ volatile("fsq2 %1, 0(%0)\n" :: "r"(acc_buf), "f"(acc) : "memory");
+                            __asm__ volatile("fence rw, rw" ::: "memory");
+                            for (int lane = 0; lane < 4; lane++) {
+                                const int32_t iw_l = iw_base + 2 * lane;
+                                if (iw_l >= 0 && iw_l < (int32_t)IW) {
+                                    acc_buf[2 * lane] += in[(c * IH + (uint32_t)ih) * IW + (uint32_t)iw_l] * w_scalar;
+                                }
+                            }
+                            __asm__ volatile("flq2 %0, 0(%1)\n" : "=f"(acc) : "r"(acc_buf));
+                        }
+                    }
+                }
+
+                __asm__ volatile("fsq2 %1, 0(%0)\n" :: "r"(acc_buf), "f"(acc) : "memory");
+                __asm__ volatile("fence rw, rw" ::: "memory");
+                float *dst = out + (c * OH + (uint32_t)oh) * OW + (uint32_t)ow4;
+                if (act == 1u) {
+                    dst[0] = silu(acc_buf[0]); dst[1] = silu(acc_buf[2]);
+                    dst[2] = silu(acc_buf[4]); dst[3] = silu(acc_buf[6]);
+                } else {
+                    dst[0] = acc_buf[0]; dst[1] = acc_buf[2];
+                    dst[2] = acc_buf[4]; dst[3] = acc_buf[6];
+                }
+            }
+        }
+    }
+    if (c_hi > c_lo) {
+        const uint32_t bytes = (c_hi - c_lo) * OH * OW * sizeof(float);
+        evict((const void *)(out + c_lo * OH * OW), bytes);
+    }
+}
+
+#define CONV_DW3x3_S2_P1_VPU(...) do { conv2d_dw3x3_s2_p1_fp32_mh_vpu(hid, __VA_ARGS__); MH_BARRIER(); } while (0)
+
 /* -- Multi-hart helpers for the residual / concat / activation tail -- */
 
 /* mh_copy_floats: split N float copies across all compute harts. */
@@ -1384,6 +1501,32 @@ static inline void upsample_nearest_2x(const float *in, float *out,
         }
     }
 }
+
+/* Multi-hart nearest-neighbor upsample 2x: split channels across compute harts. */
+static inline void mh_upsample_nearest_2x(uint32_t hid,
+                                          const float *in, float *out,
+                                          uint32_t C, uint32_t H, uint32_t W)
+{
+    if (!yolo_is_compute(hid)) return;
+    const uint32_t cidx = yolo_compute_idx(hid);
+    uint32_t c_lo, c_hi;
+    yolo_range(C, cidx, &c_lo, &c_hi);
+    const uint32_t OH = H * 2u, OW = W * 2u;
+    for (uint32_t c = c_lo; c < c_hi; c++) {
+        for (uint32_t oh = 0; oh < OH; oh++) {
+            const uint32_t ih = oh / 2u;
+            for (uint32_t ow = 0; ow < OW; ow++) {
+                const uint32_t iw = ow / 2u;
+                out[(c * OH + oh) * OW + ow] = in[(c * H + ih) * W + iw];
+            }
+        }
+    }
+    if (c_hi > c_lo) {
+        const uint32_t bytes = (c_hi - c_lo) * OH * OW * sizeof(float);
+        evict((const void *)(out + c_lo * OH * OW), bytes);
+    }
+}
+#define MH_UPSAMPLE_2x(IN, OUT, C, H, W) do { mh_upsample_nearest_2x(hid, (IN), (OUT), (C), (H), (W)); MH_BARRIER(); } while (0)
 
 /* Transpose last two axes of a 2D tile: [M,N] -> [N,M] */
 static inline void transpose_2d(const float *in, float *out, uint32_t M, uint32_t N) {
