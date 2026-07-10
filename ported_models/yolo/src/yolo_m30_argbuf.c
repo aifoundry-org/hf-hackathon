@@ -15,6 +15,7 @@
  */
 #include "yolo_common.h"
 #include "yolo_weight_offsets.h"
+#include "yolo_tensor.h"
 
 #define INPUT_OFFSET        0x00010000u
 #define RAW_INPUT_OFFSET    0x04A00000u   /* uint8 RGB [SH, SW, 3], HWC, host-loaded */
@@ -150,6 +151,12 @@ int main(uintptr_t arg_area)
     uint8_t *base = (uint8_t *)buffer_base_from_args(arg_area);
     mh_init_barrier(base);
 
+    /* Enable SCP scratchpad for tensor unit (hart 0).
+     * If unavailable (simulator, no SCP), tensor convs fall through to VPU. */
+    if (is_h0) {
+        tensor_scp_enable();
+    }
+    MH_BARRIER();
     /* === STAGE 0: PREPROCESS on silicon ===
      * Read raw uint8 RGB image at RAW_INPUT_OFFSET (HWC, [SRC_H, SRC_W, 3]).
      * Bilinear resize -> divide by 255 -> transpose HWC->CHW.
