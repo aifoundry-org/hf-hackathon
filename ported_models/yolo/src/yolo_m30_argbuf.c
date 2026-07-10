@@ -376,37 +376,51 @@ int main(uintptr_t arg_area)
         /* qkv: 128 -> 256, 1x1 (no act).  Input = y1 (mutable copy). */
         CONV_1x1(y1, qkv, WP(WR_model_10_attn_qkv_conv_Conv_W), WP(WR_model_10_attn_qkv_conv_Conv_B), 128u, 9u, 16u, 256u, 0u);
 
-        /* Reshape qkv -> Q/K/V (single hart). */
-        if (is_h0) {
-            for (uint32_t h = 0; h < NHEAD; h++) {
-                const uint32_t base_c = h * 128u;
-                for (uint32_t c = 0; c < KEY_DIM; c++) {
-                    const float *src = qkv + (base_c + c) * HW;
-                    float *dst = Q + (h * KEY_DIM + c) * HW;
-                    for (uint32_t s = 0; s < HW; s++) dst[s] = src[s];
-                }
-                for (uint32_t c = 0; c < KEY_DIM; c++) {
-                    const float *src = qkv + (base_c + KEY_DIM + c) * HW;
-                    float *dst = K + (h * KEY_DIM + c) * HW;
-                    for (uint32_t s = 0; s < HW; s++) dst[s] = src[s];
-                }
-                for (uint32_t c = 0; c < HEAD_DIM; c++) {
-                    const float *src = qkv + (base_c + 2u*KEY_DIM + c) * HW;
-                    float *dst = V + (h * HEAD_DIM + c) * HW;
-                    for (uint32_t s = 0; s < HW; s++) dst[s] = src[s];
-                }
+        /* Reshape qkv -> Q/K/V (Multi-Hart Cache-Aligned) */
+        if (yolo_is_compute(hid)) {
+            const uint32_t cidx = yolo_compute_idx(hid);
+            uint32_t lo, hi;
+            
+            yolo_range(NHEAD * KEY_DIM, cidx, &lo, &hi);
+            for (uint32_t idx = lo; idx < hi; idx++) {
+                uint32_t h = idx / KEY_DIM;
+                uint32_t c = idx % KEY_DIM;
+                const float *src = qkv + (h * 128u + c) * HW;
+                float *dst = Q + (h * KEY_DIM + c) * HW;
+                for (uint32_t s = 0; s < HW; s++) dst[s] = src[s];
             }
-            for (uint32_t h = 0; h < NHEAD; h++) {
-                for (uint32_t c = 0; c < HEAD_DIM; c++) {
-                    const float *src = V + (h * HEAD_DIM + c) * HW;
-                    float *dst = V_resh + (h * HEAD_DIM + c) * HW;
-                    for (uint32_t s = 0; s < HW; s++) dst[s] = src[s];
-                }
+            if (hi > lo) evict((const void *)(Q + lo * HW), (hi - lo) * HW * sizeof(float));
+            
+            yolo_range(NHEAD * KEY_DIM, cidx, &lo, &hi);
+            for (uint32_t idx = lo; idx < hi; idx++) {
+                uint32_t h = idx / KEY_DIM;
+                uint32_t c = idx % KEY_DIM;
+                const float *src = qkv + (h * 128u + KEY_DIM + c) * HW;
+                float *dst = K + (h * KEY_DIM + c) * HW;
+                for (uint32_t s = 0; s < HW; s++) dst[s] = src[s];
             }
-            evict((const void *)Q,      NHEAD * KEY_DIM * HW * sizeof(float));
-            evict((const void *)K,      NHEAD * KEY_DIM * HW * sizeof(float));
-            evict((const void *)V,      NHEAD * HEAD_DIM * HW * sizeof(float));
-            evict((const void *)V_resh, 128u * HW * sizeof(float));
+            if (hi > lo) evict((const void *)(K + lo * HW), (hi - lo) * HW * sizeof(float));
+
+            yolo_range(NHEAD * HEAD_DIM, cidx, &lo, &hi);
+            for (uint32_t idx = lo; idx < hi; idx++) {
+                uint32_t h = idx / HEAD_DIM;
+                uint32_t c = idx % HEAD_DIM;
+                const float *src = qkv + (h * 128u + 2u*KEY_DIM + c) * HW;
+                float *dst = V + (h * HEAD_DIM + c) * HW;
+                for (uint32_t s = 0; s < HW; s++) dst[s] = src[s];
+            }
+            if (hi > lo) evict((const void *)(V + lo * HW), (hi - lo) * HW * sizeof(float));
+            
+            yolo_range(NHEAD * HEAD_DIM, cidx, &lo, &hi);
+            for (uint32_t idx = lo; idx < hi; idx++) {
+                uint32_t h = idx / HEAD_DIM;
+                uint32_t c = idx % HEAD_DIM;
+                const float *src = V + (h * HEAD_DIM + c) * HW;
+                float *dst = V_resh + (h * HEAD_DIM + c) * HW;
+                for (uint32_t s = 0; s < HW; s++) dst[s] = src[s];
+            }
+            if (hi > lo) evict((const void *)(V_resh + lo * HW), (hi - lo) * HW * sizeof(float));
+            
             WAIT_CACHEOPS; FENCE;
         }
         MH_BARRIER();
@@ -414,28 +428,43 @@ int main(uintptr_t arg_area)
         /* pe = depthwise Conv3x3 pad1 on V_resh (no activation). */
         CONV_DW3x3_S1_P1_VPU(V_resh, pe, WP(WR_model_10_attn_pe_conv_Conv_W), WP(WR_model_10_attn_pe_conv_Conv_B), 128u, 9u, 16u, 0u);
 
-        /* Attention scoring + softmax + value matmul + pe-add (single hart). */
-        if (is_h0) {
-            for (uint32_t h = 0; h < NHEAD; h++) {
+        /* Attention scoring + softmax + value matmul + pe-add (Multi-Hart) */
+        if (yolo_is_compute(hid)) {
+            const uint32_t cidx = yolo_compute_idx(hid);
+            uint32_t h_lo, h_hi;
+            yolo_range(NHEAD, cidx, &h_lo, &h_hi);
+            for (uint32_t h = h_lo; h < h_hi; h++) {
                 transpose_2d(Q + h * KEY_DIM * HW, QT + h * HW * KEY_DIM, KEY_DIM, HW);
             }
-            for (uint32_t h = 0; h < NHEAD; h++) {
-                matmul_2d_fp32(QT + h * HW * KEY_DIM, K + h * KEY_DIM * HW,
-                               logits + h * HW * HW, HW, KEY_DIM, HW);
-            }
-            for (uint32_t i = 0; i < NHEAD * HW * HW; i++) logits[i] *= SCALE;
-            softmax_rows(logits, NHEAD * HW, HW);
-            for (uint32_t h = 0; h < NHEAD; h++) {
-                transpose_2d(logits + h * HW * HW, sm_T + h * HW * HW, HW, HW);
-            }
-            for (uint32_t h = 0; h < NHEAD; h++) {
-                matmul_2d_fp32(V + h * HEAD_DIM * HW, sm_T + h * HW * HW,
-                               attn_o + h * HEAD_DIM * HW, HEAD_DIM, HW, HW);
-            }
-            for (uint32_t i = 0; i < 128u * HW; i++) attn_o[i] += pe[i];
-            evict((const void *)attn_o, 128u * HW * sizeof(float));
+            if (h_hi > h_lo) evict((const void *)(QT + h_lo * HW * KEY_DIM), (h_hi - h_lo) * HW * KEY_DIM * sizeof(float));
             WAIT_CACHEOPS; FENCE;
         }
+        MH_BARRIER();
+
+        for (uint32_t h = 0; h < NHEAD; h++) {
+            MH_MATMUL(QT + h * HW * KEY_DIM, K + h * KEY_DIM * HW, logits + h * HW * HW, HW, KEY_DIM, HW);
+        }
+        
+        MH_SCALE(logits, SCALE, NHEAD * HW * HW);
+        MH_SOFTMAX(logits, NHEAD * HW, HW);
+
+        if (yolo_is_compute(hid)) {
+            const uint32_t cidx = yolo_compute_idx(hid);
+            uint32_t h_lo, h_hi;
+            yolo_range(NHEAD, cidx, &h_lo, &h_hi);
+            for (uint32_t h = h_lo; h < h_hi; h++) {
+                transpose_2d(logits + h * HW * HW, sm_T + h * HW * HW, HW, HW);
+            }
+            if (h_hi > h_lo) evict((const void *)(sm_T + h_lo * HW * HW), (h_hi - h_lo) * HW * HW * sizeof(float));
+            WAIT_CACHEOPS; FENCE;
+        }
+        MH_BARRIER();
+
+        for (uint32_t h = 0; h < NHEAD; h++) {
+            MH_MATMUL(V + h * HEAD_DIM * HW, sm_T + h * HW * HW, attn_o + h * HEAD_DIM * HW, HEAD_DIM, HW, HW);
+        }
+
+        MH_IADD(attn_o, pe, 128u * HW);
         MH_BARRIER();
 
         /* proj: 128 -> 128, 1x1 (no activation). */
