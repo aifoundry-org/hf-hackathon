@@ -237,8 +237,8 @@ int main(uintptr_t arg_area)
         float *m0_cv1 = (float *)(base + SCR_M2_M0_CV1);
         float *m0_cv2 = (float *)(base + SCR_M2_M0_CV2);
         CONV_1x1(c1, concat, WP(WR_model_2_cv1_conv_Conv_W), WP(WR_model_2_cv1_conv_Conv_B), 32u, 72u, 128u, 32u, 1u);
-        CONV_3x3_P1_VPU(y1, m0_cv1, WP(WR_model_2_m_0_cv1_conv_Conv_W), WP(WR_model_2_m_0_cv1_conv_Conv_B), 16u, 72u, 128u, 16u, 1u);
-        CONV_3x3_P1_VPU(m0_cv1, m0_cv2, WP(WR_model_2_m_0_cv2_conv_Conv_W), WP(WR_model_2_m_0_cv2_conv_Conv_B), 16u, 72u, 128u, 16u, 1u);
+        CONV_3x3_P1(y1, m0_cv1, WP(WR_model_2_m_0_cv1_conv_Conv_W), WP(WR_model_2_m_0_cv1_conv_Conv_B), 16u, 72u, 128u, 16u, 1u);
+        CONV_3x3_P1(m0_cv1, m0_cv2, WP(WR_model_2_m_0_cv2_conv_Conv_W), WP(WR_model_2_m_0_cv2_conv_Conv_B), 16u, 72u, 128u, 16u, 1u);
         MH_ADD(m0_out, y1, m0_cv2, 16u * 72u * 128u);
         CONV_1x1(concat, c2f_m2, WP(WR_model_2_cv2_conv_Conv_W), WP(WR_model_2_cv2_conv_Conv_B), 48u, 72u, 128u, 32u, 1u);
     }
@@ -259,11 +259,11 @@ int main(uintptr_t arg_area)
         float *m1_cv1 = (float *)(base + SCR_M4_M1_CV1);
         float *m1_cv2 = (float *)(base + SCR_M4_M1_CV2);
         CONV_1x1(c3, concat, WP(WR_model_4_cv1_conv_Conv_W), WP(WR_model_4_cv1_conv_Conv_B), 64u, 36u, 64u, 64u, 1u);
-        CONV_3x3_P1_VPU(y1, m0_cv1, WP(WR_model_4_m_0_cv1_conv_Conv_W), WP(WR_model_4_m_0_cv1_conv_Conv_B), 32u, 36u, 64u, 32u, 1u);
-        CONV_3x3_P1_VPU(m0_cv1, m0_cv2, WP(WR_model_4_m_0_cv2_conv_Conv_W), WP(WR_model_4_m_0_cv2_conv_Conv_B), 32u, 36u, 64u, 32u, 1u);
+        CONV_3x3_P1(y1, m0_cv1, WP(WR_model_4_m_0_cv1_conv_Conv_W), WP(WR_model_4_m_0_cv1_conv_Conv_B), 32u, 36u, 64u, 32u, 1u);
+        CONV_3x3_P1(m0_cv1, m0_cv2, WP(WR_model_4_m_0_cv2_conv_Conv_W), WP(WR_model_4_m_0_cv2_conv_Conv_B), 32u, 36u, 64u, 32u, 1u);
         MH_ADD(m0_out, y1, m0_cv2, 32u * HW);
-        CONV_3x3_P1_VPU(m0_out, m1_cv1, WP(WR_model_4_m_1_cv1_conv_Conv_W), WP(WR_model_4_m_1_cv1_conv_Conv_B), 32u, 36u, 64u, 32u, 1u);
-        CONV_3x3_P1_VPU(m1_cv1, m1_cv2, WP(WR_model_4_m_1_cv2_conv_Conv_W), WP(WR_model_4_m_1_cv2_conv_Conv_B), 32u, 36u, 64u, 32u, 1u);
+        CONV_3x3_P1(m0_out, m1_cv1, WP(WR_model_4_m_1_cv1_conv_Conv_W), WP(WR_model_4_m_1_cv1_conv_Conv_B), 32u, 36u, 64u, 32u, 1u);
+        CONV_3x3_P1(m1_cv1, m1_cv2, WP(WR_model_4_m_1_cv2_conv_Conv_W), WP(WR_model_4_m_1_cv2_conv_Conv_B), 32u, 36u, 64u, 32u, 1u);
         MH_ADD(m1_out, m0_out, m1_cv2, 32u * HW);
         CONV_1x1(concat, c2f_m4, WP(WR_model_4_cv2_conv_Conv_W), WP(WR_model_4_cv2_conv_Conv_B), 128u, 36u, 64u, 64u, 1u);
     }
@@ -288,11 +288,11 @@ int main(uintptr_t arg_area)
         float *m1_cv1 = (float *)(base + SCR_M6_M1_CV1);
         float *m1_cv2 = (float *)(base + SCR_M6_M1_CV2);
         CONV_1x1(m5_cv2, concat, WP(WR_model_6_cv1_conv_Conv_W), WP(WR_model_6_cv1_conv_Conv_B), 128u, 18u, 32u, 128u, 1u);
-        CONV_3x3_P1_VPU(y1, m0_cv1, WP(WR_model_6_m_0_cv1_conv_Conv_W), WP(WR_model_6_m_0_cv1_conv_Conv_B), 64u, 18u, 32u, 64u, 1u);
-        CONV_3x3_P1_VPU(m0_cv1, m0_cv2, WP(WR_model_6_m_0_cv2_conv_Conv_W), WP(WR_model_6_m_0_cv2_conv_Conv_B), 64u, 18u, 32u, 64u, 1u);
+        CONV_3x3_P1(y1, m0_cv1, WP(WR_model_6_m_0_cv1_conv_Conv_W), WP(WR_model_6_m_0_cv1_conv_Conv_B), 64u, 18u, 32u, 64u, 1u);
+        CONV_3x3_P1(m0_cv1, m0_cv2, WP(WR_model_6_m_0_cv2_conv_Conv_W), WP(WR_model_6_m_0_cv2_conv_Conv_B), 64u, 18u, 32u, 64u, 1u);
         MH_ADD(m0_out, y1, m0_cv2, 64u * HW);
-        CONV_3x3_P1_VPU(m0_out, m1_cv1, WP(WR_model_6_m_1_cv1_conv_Conv_W), WP(WR_model_6_m_1_cv1_conv_Conv_B), 64u, 18u, 32u, 64u, 1u);
-        CONV_3x3_P1_VPU(m1_cv1, m1_cv2, WP(WR_model_6_m_1_cv2_conv_Conv_W), WP(WR_model_6_m_1_cv2_conv_Conv_B), 64u, 18u, 32u, 64u, 1u);
+        CONV_3x3_P1(m0_out, m1_cv1, WP(WR_model_6_m_1_cv1_conv_Conv_W), WP(WR_model_6_m_1_cv1_conv_Conv_B), 64u, 18u, 32u, 64u, 1u);
+        CONV_3x3_P1(m1_cv1, m1_cv2, WP(WR_model_6_m_1_cv2_conv_Conv_W), WP(WR_model_6_m_1_cv2_conv_Conv_B), 64u, 18u, 32u, 64u, 1u);
         MH_ADD(m1_out, m0_out, m1_cv2, 64u * HW);
         CONV_1x1(concat, c2f_m6, WP(WR_model_6_cv2_conv_Conv_W), WP(WR_model_6_cv2_conv_Conv_B), 256u, 18u, 32u, 128u, 1u);
     }
@@ -312,8 +312,8 @@ int main(uintptr_t arg_area)
         float *m0_cv1 = (float *)(base + SCR_M8_M0_CV1);
         float *m0_cv2 = (float *)(base + SCR_M8_M0_CV2);
         CONV_1x1(m7_cv2, concat, WP(WR_model_8_cv1_conv_Conv_W), WP(WR_model_8_cv1_conv_Conv_B), 256u, 9u, 16u, 256u, 1u);
-        CONV_3x3_P1_VPU(y1, m0_cv1, WP(WR_model_8_m_0_cv1_conv_Conv_W), WP(WR_model_8_m_0_cv1_conv_Conv_B), 128u, 9u, 16u, 128u, 1u);
-        CONV_3x3_P1_VPU(m0_cv1, m0_cv2, WP(WR_model_8_m_0_cv2_conv_Conv_W), WP(WR_model_8_m_0_cv2_conv_Conv_B), 128u, 9u, 16u, 128u, 1u);
+        CONV_3x3_P1(y1, m0_cv1, WP(WR_model_8_m_0_cv1_conv_Conv_W), WP(WR_model_8_m_0_cv1_conv_Conv_B), 128u, 9u, 16u, 128u, 1u);
+        CONV_3x3_P1(m0_cv1, m0_cv2, WP(WR_model_8_m_0_cv2_conv_Conv_W), WP(WR_model_8_m_0_cv2_conv_Conv_B), 128u, 9u, 16u, 128u, 1u);
         MH_ADD(m0_out, y1, m0_cv2, 128u * HW);
         CONV_1x1(concat, c2f_m8, WP(WR_model_8_cv2_conv_Conv_W), WP(WR_model_8_cv2_conv_Conv_B), 384u, 9u, 16u, 256u, 1u);
     }
@@ -518,8 +518,8 @@ int main(uintptr_t arg_area)
 
         float *m0_cv1 = (float *)(base + SCR_M13_M0_CV1);
         float *m0_cv2 = (float *)(base + SCR_M13_M0_CV2);
-        CONV_3x3_P1_VPU(y1, m0_cv1, WP(WR_model_13_m_0_cv1_conv_Conv_W), WP(WR_model_13_m_0_cv1_conv_Conv_B), 64u, 18u, 32u, 64u, 1u);
-        CONV_3x3_P1_VPU(m0_cv1, m0_cv2, WP(WR_model_13_m_0_cv2_conv_Conv_W), WP(WR_model_13_m_0_cv2_conv_Conv_B), 64u, 18u, 32u, 64u, 1u);
+        CONV_3x3_P1(y1, m0_cv1, WP(WR_model_13_m_0_cv1_conv_Conv_W), WP(WR_model_13_m_0_cv1_conv_Conv_B), 64u, 18u, 32u, 64u, 1u);
+        CONV_3x3_P1(m0_cv1, m0_cv2, WP(WR_model_13_m_0_cv2_conv_Conv_W), WP(WR_model_13_m_0_cv2_conv_Conv_B), 64u, 18u, 32u, 64u, 1u);
 
         /* concat [y0, y1, m0_cv2] - 192 channels.  Use a fresh tmp buf
          * (overwrite SCR_M12_CONCAT, no longer needed). */
@@ -546,8 +546,8 @@ int main(uintptr_t arg_area)
 
         float *m0_cv1 = (float *)(base + SCR_M16_M0_CV1);
         float *m0_cv2 = (float *)(base + SCR_M16_M0_CV2);
-        CONV_3x3_P1_VPU(y1, m0_cv1, WP(WR_model_16_m_0_cv1_conv_Conv_W), WP(WR_model_16_m_0_cv1_conv_Conv_B), 32u, 36u, 64u, 32u, 1u);
-        CONV_3x3_P1_VPU(m0_cv1, m0_cv2, WP(WR_model_16_m_0_cv2_conv_Conv_W), WP(WR_model_16_m_0_cv2_conv_Conv_B), 32u, 36u, 64u, 32u, 1u);
+        CONV_3x3_P1(y1, m0_cv1, WP(WR_model_16_m_0_cv1_conv_Conv_W), WP(WR_model_16_m_0_cv1_conv_Conv_B), 32u, 36u, 64u, 32u, 1u);
+        CONV_3x3_P1(m0_cv1, m0_cv2, WP(WR_model_16_m_0_cv2_conv_Conv_W), WP(WR_model_16_m_0_cv2_conv_Conv_B), 32u, 36u, 64u, 32u, 1u);
 
         /* concat [y0, y1, m0_cv2] = 96 channels at 36x64.  Reuse SCR_M15_CONCAT (192 ch buffer). */
         float *cat96 = (float *)(base + SCR_M15_CONCAT);
@@ -573,8 +573,8 @@ int main(uintptr_t arg_area)
 
         float *m0_cv1 = (float *)(base + SCR_M19_M0_CV1);
         float *m0_cv2 = (float *)(base + SCR_M19_M0_CV2);
-        CONV_3x3_P1_VPU(y1, m0_cv1, WP(WR_model_19_m_0_cv1_conv_Conv_W), WP(WR_model_19_m_0_cv1_conv_Conv_B), 64u, 18u, 32u, 64u, 1u);
-        CONV_3x3_P1_VPU(m0_cv1, m0_cv2, WP(WR_model_19_m_0_cv2_conv_Conv_W), WP(WR_model_19_m_0_cv2_conv_Conv_B), 64u, 18u, 32u, 64u, 1u);
+        CONV_3x3_P1(y1, m0_cv1, WP(WR_model_19_m_0_cv1_conv_Conv_W), WP(WR_model_19_m_0_cv1_conv_Conv_B), 64u, 18u, 32u, 64u, 1u);
+        CONV_3x3_P1(m0_cv1, m0_cv2, WP(WR_model_19_m_0_cv2_conv_Conv_W), WP(WR_model_19_m_0_cv2_conv_Conv_B), 64u, 18u, 32u, 64u, 1u);
 
         const uint32_t HW = 18u*32u;
         float *cat192 = (float *)(base + SCR_M18_CONCAT);   /* 192 ch buffer */
@@ -650,9 +650,9 @@ int main(uintptr_t arg_area)
 
     /* === Scale 0 (P3, 36x64, IN_C=64) === */
     /* reg.0: 3x3 64->64 + SiLU -> ta */
-    CONV_3x3_P1_VPU(p3_out, ta, WP(WR_model_23_cv2_0_cv2_0_0_conv_Conv_W), WP(WR_model_23_cv2_0_cv2_0_0_conv_Conv_B), 64u, 36u, 64u, 64u, 1u);
+    CONV_3x3_P1(p3_out, ta, WP(WR_model_23_cv2_0_cv2_0_0_conv_Conv_W), WP(WR_model_23_cv2_0_cv2_0_0_conv_Conv_B), 64u, 36u, 64u, 64u, 1u);
     /* reg.1: 3x3 64->64 + SiLU -> tb */
-    CONV_3x3_P1_VPU(ta, tb, WP(WR_model_23_cv2_0_cv2_0_1_conv_Conv_W), WP(WR_model_23_cv2_0_cv2_0_1_conv_Conv_B), 64u, 36u, 64u, 64u, 1u);
+    CONV_3x3_P1(ta, tb, WP(WR_model_23_cv2_0_cv2_0_1_conv_Conv_W), WP(WR_model_23_cv2_0_cv2_0_1_conv_Conv_B), 64u, 36u, 64u, 64u, 1u);
     /* reg.2: 1x1 64->64, no act -> reg0 */
     CONV_1x1(tb, reg0, WP(WR_model_23_cv2_0_cv2_0_2_Conv_W), WP(WR_model_23_cv2_0_cv2_0_2_Conv_B), 64u, 36u, 64u, 64u, 0u);
 
@@ -668,8 +668,8 @@ int main(uintptr_t arg_area)
     CONV_1x1(td, cls0, WP(WR_model_23_cv3_0_cv3_0_2_Conv_W), WP(WR_model_23_cv3_0_cv3_0_2_Conv_B), 80u, 36u, 64u, 80u, 0u);
 
     /* === Scale 1 (P4, 18x32, IN_C=128) === */
-    CONV_3x3_P1_VPU(p4_out, ta, WP(WR_model_23_cv2_1_cv2_1_0_conv_Conv_W), WP(WR_model_23_cv2_1_cv2_1_0_conv_Conv_B), 128u, 18u, 32u, 64u, 1u);
-    CONV_3x3_P1_VPU(ta, tb, WP(WR_model_23_cv2_1_cv2_1_1_conv_Conv_W), WP(WR_model_23_cv2_1_cv2_1_1_conv_Conv_B), 64u, 18u, 32u, 64u, 1u);
+    CONV_3x3_P1(p4_out, ta, WP(WR_model_23_cv2_1_cv2_1_0_conv_Conv_W), WP(WR_model_23_cv2_1_cv2_1_0_conv_Conv_B), 128u, 18u, 32u, 64u, 1u);
+    CONV_3x3_P1(ta, tb, WP(WR_model_23_cv2_1_cv2_1_1_conv_Conv_W), WP(WR_model_23_cv2_1_cv2_1_1_conv_Conv_B), 64u, 18u, 32u, 64u, 1u);
     CONV_1x1(tb, reg1, WP(WR_model_23_cv2_1_cv2_1_2_Conv_W), WP(WR_model_23_cv2_1_cv2_1_2_Conv_B), 64u, 18u, 32u, 64u, 0u);
 
     CONV_DW3x3_S1_P1_VPU(p4_out, ta, WP(WR_model_23_cv3_1_cv3_1_0_cv3_1_0_0_conv_Conv_W), WP(WR_model_23_cv3_1_cv3_1_0_cv3_1_0_0_conv_Conv_B), 128u, 18u, 32u, 1u);
@@ -679,8 +679,8 @@ int main(uintptr_t arg_area)
     CONV_1x1(td, cls1, WP(WR_model_23_cv3_1_cv3_1_2_Conv_W), WP(WR_model_23_cv3_1_cv3_1_2_Conv_B), 80u, 18u, 32u, 80u, 0u);
 
     /* === Scale 2 (P5, 9x16, IN_C=256) === */
-    CONV_3x3_P1_VPU(p5_out, ta, WP(WR_model_23_cv2_2_cv2_2_0_conv_Conv_W), WP(WR_model_23_cv2_2_cv2_2_0_conv_Conv_B), 256u, 9u, 16u, 64u, 1u);
-    CONV_3x3_P1_VPU(ta, tb, WP(WR_model_23_cv2_2_cv2_2_1_conv_Conv_W), WP(WR_model_23_cv2_2_cv2_2_1_conv_Conv_B), 64u, 9u, 16u, 64u, 1u);
+    CONV_3x3_P1(p5_out, ta, WP(WR_model_23_cv2_2_cv2_2_0_conv_Conv_W), WP(WR_model_23_cv2_2_cv2_2_0_conv_Conv_B), 256u, 9u, 16u, 64u, 1u);
+    CONV_3x3_P1(ta, tb, WP(WR_model_23_cv2_2_cv2_2_1_conv_Conv_W), WP(WR_model_23_cv2_2_cv2_2_1_conv_Conv_B), 64u, 9u, 16u, 64u, 1u);
     CONV_1x1(tb, reg2, WP(WR_model_23_cv2_2_cv2_2_2_Conv_W), WP(WR_model_23_cv2_2_cv2_2_2_Conv_B), 64u, 9u, 16u, 64u, 0u);
 
     CONV_DW3x3_S1_P1_VPU(p5_out, ta, WP(WR_model_23_cv3_2_cv3_2_0_cv3_2_0_0_conv_Conv_W), WP(WR_model_23_cv3_2_cv3_2_0_cv3_2_0_0_conv_Conv_B), 256u, 9u, 16u, 1u);
