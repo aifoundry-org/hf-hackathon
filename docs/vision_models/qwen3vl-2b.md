@@ -1,0 +1,51 @@
+# Porting Plan: Qwen3-VL-2B-Instruct
+
+**Path:** GGUF (llama.cpp-et) — VLM (text + image → text)
+**Model ID:** `qwen3vl_2b` · **Port:** 18107
+**Status:** Implemented — PR open
+
+> Chosen as the small-Qwen VLM after the originally-planned **Qwen3.5-0.8B** was
+> found to publish **no `mmproj`** on `ggml-org` (LLM-only GGUFs), which blocks
+> the VLM path. Qwen3-VL-2B-Instruct ships both the LLM and mmproj GGUFs and uses
+> the same `qwen3vl` architecture family already proven by ZwZ-4B and Qwen3-8B.
+
+## Model Overview
+
+| Property | Value |
+|----------|-------|
+| Parameters | ~2B LLM + native Qwen3-VL vision encoder |
+| Architecture | `qwen3vl` — Qwen3 text decoder + vision encoder + merger |
+| License | Apache-2.0 |
+| HF base | `Qwen/Qwen3-VL-2B-Instruct` |
+| GGUF repo | `ggml-org/Qwen3-VL-2B-Instruct-GGUF` |
+| Revision | `ea6a11058182570be6436b9a2e4ee7f7b49f908d` |
+
+## GGUF files
+
+| File | Size | SHA256 |
+|------|------|--------|
+| `Qwen3-VL-2B-Instruct-Q8_0.gguf` | 1,834,427,296 B | `b7802e29…813c39` |
+| `mmproj-Qwen3-VL-2B-Instruct-Q8_0.gguf` | 445,053,056 B | `69066c8f…ca9e7b` |
+| **Total** | **~2.28 GB** | |
+
+## Why this model
+
+- **Real VLM with ready mmproj** — no local conversion needed; both files pinned verbatim.
+- **Proven architecture** — `qwen3vl` matches ZwZ-4B (PR #30); Qwen3 decoder matches Qwen3-8B (merged, PR #11).
+- **Fits budget** — ~2.28 GB total, well under the ~10 GiB GGUF limit.
+- **Apache-2.0** — clean license.
+
+## Porting steps (done)
+
+1. Pinned HF refs in `docs/HF_REFERENCES.md`.
+2. Added `qwen3vl_2b_q8_gguf` + `qwen3vl_2b_mmproj_q8` to `ported_models/llama_cpp_et/artifacts.json`.
+3. Created `ported_models/llama_cpp_et/benchmarks/qwen3vl_2b.json` (port 18107).
+4. Registered `qwen3vl_2b` in `.github/ci/benchmark_config.json`.
+5. Wrote submission recipe `ported_models/llama_cpp_et/docs/qwen3vl_2b.md`.
+
+## Risks / follow-ups
+
+| Risk | Mitigation |
+|------|------------|
+| `llama_server` board runner is text-only (no `--mmproj` image path yet) | mmproj pinned; full vision gate lands with shared VLM runner extension |
+| ET backend kernel coverage for Qwen3-VL vision ops | Text decode + PPL proven via Qwen3 decoder; vision path validated once runner extended |
