@@ -1268,6 +1268,28 @@ static inline void mh_concat4(uint32_t hid, float *dst,
 #define MH_CONCAT3(DST, A, B, C, N)      do { mh_concat3(hid, (DST), (A), (B), (C), (N)); MH_BARRIER(); } while (0)
 #define MH_CONCAT4(DST, A, B, C, D, N)   do { mh_concat4(hid, (DST), (A), (B), (C), (D), (N)); MH_BARRIER(); } while (0)
 
+static inline void mh_concat_c_chw(uint32_t hid, const float *a, uint32_t Ca,
+                                   const float *b, uint32_t Cb,
+                                   float *out, uint32_t H, uint32_t W) {
+    if (!yolo_is_compute(hid)) return;
+    const uint32_t cidx = yolo_compute_idx(hid);
+    uint32_t a_lo, a_hi, b_lo, b_hi;
+    yolo_range(Ca, cidx, &a_lo, &a_hi);
+    yolo_range(Cb, cidx, &b_lo, &b_hi);
+    
+    const uint32_t HW = H * W;
+    for (uint32_t c = a_lo; c < a_hi; c++) {
+        for (uint32_t i = 0; i < HW; i++) out[c * HW + i] = a[c * HW + i];
+    }
+    for (uint32_t c = b_lo; c < b_hi; c++) {
+        for (uint32_t i = 0; i < HW; i++) out[(Ca + c) * HW + i] = b[c * HW + i];
+    }
+    
+    if (a_hi > a_lo) evict((const void *)(out + a_lo * HW), (a_hi - a_lo) * HW * sizeof(float));
+    if (b_hi > b_lo) evict((const void *)(out + (Ca + b_lo) * HW), (b_hi - b_lo) * HW * sizeof(float));
+}
+#define MH_CONCAT_C_CHW(A, CA, B, CB, OUT, H, W) do { mh_concat_c_chw(hid, (A), (CA), (B), (CB), (OUT), (H), (W)); MH_BARRIER(); } while (0)
+
 /* Multi-hart 5x5 maxpool stride=1 pad=2 (used in SPPF). */
 static void mh_maxpool5_s1_p2(uint32_t hid, const float *in, float *out,
                               uint32_t C, uint32_t H, uint32_t W) {
@@ -1384,6 +1406,26 @@ static inline void upsample_nearest_2x(const float *in, float *out,
         }
     }
 }
+
+static inline void mh_upsample_nearest_2x(uint32_t hid, const float *in, float *out,
+                                          uint32_t C, uint32_t H, uint32_t W) {
+    if (!yolo_is_compute(hid)) return;
+    const uint32_t cidx = yolo_compute_idx(hid);
+    uint32_t c_lo, c_hi;
+    yolo_range(C, cidx, &c_lo, &c_hi);
+    const uint32_t OH = H * 2u, OW = W * 2u;
+    for (uint32_t c = c_lo; c < c_hi; c++) {
+        for (uint32_t oh = 0; oh < OH; oh++) {
+            const uint32_t ih = oh / 2u;
+            for (uint32_t ow = 0; ow < OW; ow++) {
+                const uint32_t iw = ow / 2u;
+                out[(c * OH + oh) * OW + ow] = in[(c * H + ih) * W + iw];
+            }
+        }
+    }
+    if (c_hi > c_lo) evict((const void *)(out + c_lo * OH * OW), (c_hi - c_lo) * OH * OW * sizeof(float));
+}
+#define MH_UPSAMPLE_2x(IN, OUT, C, H, W) do { mh_upsample_nearest_2x(hid, (IN), (OUT), (C), (H), (W)); MH_BARRIER(); } while (0)
 
 /* Transpose last two axes of a 2D tile: [M,N] -> [N,M] */
 static inline void transpose_2d(const float *in, float *out, uint32_t M, uint32_t N) {
