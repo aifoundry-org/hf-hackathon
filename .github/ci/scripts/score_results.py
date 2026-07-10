@@ -21,7 +21,6 @@ from benchmark_config_helpers import load_config as load_benchmark_config
 REPO_ROOT = Path(__file__).resolve().parents[3]
 CONFIG_PATH = REPO_ROOT / ".github" / "ci" / "benchmark_config.json"
 
-DNCNN_MAGIC = 0xD3C11003
 YOLO_MAGIC = 0x10500001
 SUMMARY = struct.Struct("<16I")
 YOLO_DETECTION = struct.Struct("<I5f")
@@ -172,6 +171,186 @@ def read_yolo_detections(path: Path, offset: int, max_detections: int) -> list[d
     return detections
 
 
+def yolo_host_reference_path() -> Path:
+    configured = os.environ.get("YOLO_HOST_REFERENCE_JSON")
+    if configured:
+        return Path(configured)
+    output_root = Path(os.environ.get("BENCHMARK_OUTPUT", REPO_ROOT / ".ci-work" / "benchmark-output"))
+    return output_root / "yolo-host-reference.json"
+
+
+def load_yolo_contract(mcfg: dict) -> tuple[Path, dict]:
+    contract_value = mcfg.get("reference_contract") or mcfg.get("validation", {}).get(
+        "reference_contract"
+    )
+    if not contract_value:
+        raise ValueError("YOLO reference contract is not configured")
+    contract_path = Path(contract_value)
+    if not contract_path.is_absolute():
+        contract_path = REPO_ROOT / contract_path
+    return contract_path, json.loads(contract_path.read_text())
+
+
+def yolo_benchmark_contract_error(mcfg: dict, cases: list[dict], contract: dict) -> str | None:
+    if mcfg.get("runner", "elf") != "elf":
+        return "YOLO benchmark runner must remain elf"
+    score = mcfg.get("score", {})
+    if score.get("metric") != "kernel_wait_s" or score.get("higher_is_better") is not False:
+        return "YOLO must remain a lower-is-better kernel_wait_s benchmark"
+    source = str(mcfg.get("source") or "")
+    if not source.startswith("ported_models/yolo/src/"):
+        return "YOLO benchmark source must stay under ported_models/yolo/src"
+
+    fixtures = contract["fixtures"]["cases"]
+    if [str(case.get("name")) for case in cases] != [str(item["name"]) for item in fixtures]:
+        return "YOLO benchmark cases do not match the fixed COCO reference contract"
+    abi = contract["board_abi"]
+    detection_offset = int_cfg(abi["detections_offset"])
+    max_detections = int(abi["max_detections"])
+    if int_cfg(mcfg["dump_size"]) < detection_offset + 4 + max_detections * YOLO_DETECTION.size:
+        return "YOLO dump_size does not include the fixed detection output"
+
+    for case, fixture in zip(cases, fixtures):
+        name = str(fixture["name"])
+        accuracy = case.get("accuracy", {})
+        if (
+            accuracy.get("kind") != "yolo_reference_detections"
+            or accuracy.get("reference_case") != name
+            or int_cfg(accuracy.get("offset", -1)) != detection_offset
+            or int(accuracy.get("max_detections", 0)) != max_detections
+        ):
+            return f"{name}: accuracy ABI does not match the YOLO reference contract"
+        expected_asset = str(fixture["asset"]).removeprefix("ported_models/yolo/assets/")
+        input_loads = [
+            load
+            for load in case.get("file_loads", [])
+            if int_cfg(load.get("address", -1)) == int_cfg(abi["input_address"])
+        ]
+        if not any(expected_asset in (load.get("paths") or [load.get("path")]) for load in input_loads):
+            return f"{name}: input asset does not match the fixed COCO reference contract"
+    return None
+
+
+def load_yolo_reference_case(mcfg: dict, case_name: str) -> tuple[list[dict], dict, str]:
+    reference_path = yolo_host_reference_path()
+    if not reference_path.is_file():
+        raise ValueError(f"missing host reference {reference_path}")
+    payload = json.loads(reference_path.read_text())
+    if payload.get("schema_version") != 1:
+        raise ValueError("unsupported YOLO host-reference schema")
+
+    contract_path, contract = load_yolo_contract(mcfg)
+    contract_sha = hashlib.sha256(contract_path.read_bytes()).hexdigest()
+    if payload.get("contract_sha256") != contract_sha:
+        raise ValueError("host reference was generated from a different YOLO contract")
+
+    fixture = next(
+        (item for item in contract["fixtures"]["cases"] if item.get("name") == case_name),
+        None,
+    )
+    case = payload.get("cases", {}).get(case_name)
+    if fixture is None or not isinstance(case, dict):
+        raise ValueError(f"host reference has no fixed case {case_name}")
+    if case.get("input_sha256") != fixture.get("asset_sha256"):
+        raise ValueError(f"host reference input hash mismatch for {case_name}")
+    checkpoint_sha = payload.get("reference", {}).get("checkpoint_sha256")
+    if checkpoint_sha != contract["model"]["source"]["sha256"]:
+        raise ValueError("host reference checkpoint hash does not match the YOLO contract")
+    detections = case.get("detections")
+    if not isinstance(detections, list):
+        raise ValueError(f"host reference detections missing for {case_name}")
+    description = (
+        f"{contract['model']['source']['repo']}@"
+        f"{contract['model']['source']['revision'][:12]}:{case_name}"
+    )
+    return detections, payload["agreement"], description
+
+
+def compare_yolo_detections(
+    actual: list[dict], reference: list[dict], agreement: dict
+) -> tuple[bool, list[str], dict]:
+    score_threshold = float(agreement["comparison_score_threshold"])
+    matching_iou = float(agreement["matching_iou_threshold"])
+    actual = [item for item in actual if float(item["score"]) >= score_threshold]
+    reference = [item for item in reference if float(item["score"]) >= score_threshold]
+    if len(reference) < int(agreement["minimum_reference_detections_per_case"]):
+        raise ValueError("host reference has too few compared detections")
+
+    pairs = []
+    for reference_index, expected in enumerate(reference):
+        expected_box = tuple(float(value) for value in expected["box"])
+        for actual_index, candidate in enumerate(actual):
+            if int(candidate["class_id"]) != int(expected["class_id"]):
+                continue
+            iou = box_iou(candidate["box"], expected_box)
+            if iou >= matching_iou:
+                pairs.append((iou, reference_index, actual_index))
+    pairs.sort(reverse=True)
+
+    used_reference: set[int] = set()
+    used_actual: set[int] = set()
+    matches = []
+    for iou, reference_index, actual_index in pairs:
+        if reference_index in used_reference or actual_index in used_actual:
+            continue
+        used_reference.add(reference_index)
+        used_actual.add(actual_index)
+        expected = reference[reference_index]
+        candidate = actual[actual_index]
+        matches.append(
+            {
+                "iou": iou,
+                "score_abs": abs(float(candidate["score"]) - float(expected["score"])),
+                "box_abs": max_box_abs_diff(candidate["box"], tuple(float(value) for value in expected["box"])),
+            }
+        )
+
+    true_positives = len(matches)
+    precision = true_positives / len(actual) if actual else 0.0
+    recall = true_positives / len(reference) if reference else 0.0
+    mean_iou = sum(item["iou"] for item in matches) / true_positives if matches else 0.0
+    score_mae = sum(item["score_abs"] for item in matches) / true_positives if matches else None
+    box_abs_values = [item["box_abs"] for item in matches]
+
+    failures = []
+    if precision < float(agreement["minimum_precision"]):
+        failures.append(
+            f"precision={precision:.3f} below {float(agreement['minimum_precision']):.3f}"
+        )
+    if recall < float(agreement["minimum_recall"]):
+        failures.append(f"recall={recall:.3f} below {float(agreement['minimum_recall']):.3f}")
+    if mean_iou < float(agreement["minimum_mean_iou"]):
+        failures.append(
+            f"mean_iou={mean_iou:.3f} below {float(agreement['minimum_mean_iou']):.3f}"
+        )
+    if score_mae is None or score_mae > float(agreement["maximum_score_mae"]):
+        score_text = "none" if score_mae is None else f"{score_mae:.3f}"
+        failures.append(
+            f"score_mae={score_text} above {float(agreement['maximum_score_mae']):.3f}"
+        )
+
+    missing = [reference[index] for index in range(len(reference)) if index not in used_reference]
+    unexpected = [actual[index] for index in range(len(actual)) if index not in used_actual]
+    if missing:
+        failures.append("missing classes=" + ",".join(str(item["class_id"]) for item in missing))
+    if unexpected:
+        failures.append("unexpected classes=" + ",".join(str(item["class_id"]) for item in unexpected))
+
+    return not failures, failures, {
+        "accuracy_true_positives": true_positives,
+        "accuracy_reference_count": len(reference),
+        "accuracy_candidate_count": len(actual),
+        "accuracy_precision": precision,
+        "accuracy_recall": recall,
+        "accuracy_mean_iou": mean_iou,
+        "accuracy_score_mae": score_mae,
+        "accuracy_max_abs": max(box_abs_values) if box_abs_values else None,
+        "accuracy_mean_abs": (
+            sum(box_abs_values) / len(box_abs_values) if box_abs_values else None
+        ),
+    }
+
+
 def validate_accuracy(
     model: str,
     dump_path: Path | None,
@@ -196,6 +375,13 @@ def validate_accuracy(
         "accuracy_max_abs": None,
         "accuracy_mean_abs": None,
         "accuracy_reference": None,
+        "accuracy_true_positives": None,
+        "accuracy_reference_count": None,
+        "accuracy_candidate_count": None,
+        "accuracy_precision": None,
+        "accuracy_recall": None,
+        "accuracy_mean_iou": None,
+        "accuracy_score_mae": None,
     }
 
     try:
@@ -277,83 +463,36 @@ def validate_accuracy(
                 accuracy_reference=rel,
             )
 
-        if kind == "yolo_detections":
+        if kind == "yolo_reference_detections":
             if dump_path is None or not dump_path.is_file():
                 return False, "accuracy check failed: missing dump.bin", metrics
-            offset = int_cfg(acfg["offset"])
-            max_detections = int_cfg(acfg.get("max_detections", 64))
-            detections = read_yolo_detections(dump_path, offset, max_detections)
-            expected = acfg.get("expected", [])
-            if not isinstance(expected, list) or not expected:
-                return False, "accuracy check failed: yolo_detections has no expected entries", metrics
-
-            used: set[int] = set()
-            matches: list[str] = []
-            failures: list[str] = []
-            box_abs_values: list[float] = []
-
-            for exp in expected:
-                class_id = int_cfg(exp["class_id"])
-                label = str(exp.get("label") or f"class_{class_id}")
-                min_score = float(exp.get("min_score", acfg.get("min_score", 0.0)))
-                exp_box = exp.get("box")
-                exp_box_tuple = tuple(float(v) for v in exp_box) if exp_box is not None else None
-
-                candidates = [
-                    (idx, det)
-                    for idx, det in enumerate(detections)
-                    if idx not in used
-                    and int(det["class_id"]) == class_id
-                    and float(det["score"]) >= min_score
-                ]
-                if not candidates:
-                    failures.append(f"{label}: missing class_id={class_id} score>={min_score:.2f}")
-                    continue
-
-                if exp_box_tuple is None:
-                    best_idx, best_det = max(candidates, key=lambda item: float(item[1]["score"]))
-                    used.add(best_idx)
-                    matches.append(f"{label} score={float(best_det['score']):.3f}")
-                    continue
-
-                scored = []
-                for idx, det in candidates:
-                    det_box = det["box"]
-                    iou = box_iou(det_box, exp_box_tuple)
-                    abs_diff = max_box_abs_diff(det_box, exp_box_tuple)
-                    scored.append((iou, -abs_diff, idx, det, abs_diff))
-                iou, neg_abs_diff, best_idx, best_det, abs_diff = max(scored, key=lambda item: (item[0], item[1]))
-                min_iou = float(exp.get("min_iou", acfg.get("min_iou", 0.5)))
-                max_abs_allowed = float(exp.get("max_box_abs", acfg.get("max_box_abs", "inf")))
-                if iou < min_iou:
-                    failures.append(f"{label}: iou={iou:.3f} below {min_iou:.3f}")
-                    continue
-                if abs_diff > max_abs_allowed:
-                    failures.append(f"{label}: box_abs={abs_diff:.2f} above {max_abs_allowed:.2f}")
-                    continue
-                used.add(best_idx)
-                box_abs_values.append(abs_diff)
-                matches.append(
-                    f"{label} score={float(best_det['score']):.3f} iou={iou:.3f} box_abs={abs_diff:.1f}"
-                )
-
-            ok = not failures
-            found = ", ".join(matches) if matches else "none"
-            if failures:
-                found += "; " if found else ""
-                found += "failures: " + "; ".join(failures)
-            note = (
-                f"accuracy yolo_detections {'valid' if ok else 'failed'} "
-                f"count={len(detections)} found={found}"
+            case_name = str(acfg.get("reference_case") or "")
+            if not case_name:
+                return False, "accuracy check failed: missing reference_case", metrics
+            detections = read_yolo_detections(
+                dump_path,
+                int_cfg(acfg["offset"]),
+                int_cfg(acfg.get("max_detections", 64)),
             )
-            max_abs = max(box_abs_values) if box_abs_values else None
-            mean_abs = sum(box_abs_values) / len(box_abs_values) if box_abs_values else None
+            expected, agreement, description = load_yolo_reference_case(mcfg, case_name)
+            ok, failures, comparison = compare_yolo_detections(detections, expected, agreement)
+            note = (
+                f"accuracy yolo_reference_detections {'valid' if ok else 'failed'} "
+                f"tp={comparison['accuracy_true_positives']}/"
+                f"{comparison['accuracy_reference_count']} "
+                f"precision={comparison['accuracy_precision']:.3f} "
+                f"recall={comparison['accuracy_recall']:.3f} "
+                f"mean_iou={comparison['accuracy_mean_iou']:.3f}"
+            )
+            if comparison["accuracy_score_mae"] is not None:
+                note += f" score_mae={comparison['accuracy_score_mae']:.4f}"
+            if failures:
+                note += "; " + "; ".join(failures)
             return ok, note, with_metrics(
                 metrics,
                 valid_accuracy=ok,
-                accuracy_max_abs=max_abs,
-                accuracy_mean_abs=mean_abs,
-                accuracy_reference=acfg.get("reference"),
+                accuracy_reference=description,
+                **comparison,
             )
 
         return False, f"accuracy check failed: unknown kind {kind}", metrics
@@ -478,6 +617,24 @@ def score_benchmark_cases(
     run_url: str,
 ) -> dict | None:
     cases = [case for case in mcfg.get("benchmark_cases", []) if isinstance(case, dict) and case.get("name")]
+    if model == "yolo":
+        try:
+            contract_path, contract = load_yolo_contract(mcfg)
+            contract_error = yolo_benchmark_contract_error(mcfg, cases, contract)
+        except (OSError, KeyError, TypeError, ValueError, json.JSONDecodeError) as exc:
+            return fail_payload(
+                model, variant, sha, ref, actor, run_url, f"invalid YOLO reference contract: {exc}"
+            )
+        if contract_error:
+            return fail_payload(
+                model,
+                variant,
+                sha,
+                ref,
+                actor,
+                run_url,
+                contract_error,
+            )
     if not cases:
         return None
 
@@ -535,7 +692,7 @@ def score_benchmark_cases(
     ]
     valid_note = (
         f"{sum(1 for result in case_results if result['passed'])}/{len(case_results)} "
-        "YOLO image cases valid"
+        "YOLO COCO cases valid"
     )
     if failed_notes:
         valid_note += "; " + "; ".join(failed_notes[:3])
@@ -551,7 +708,44 @@ def score_benchmark_cases(
         for metric in accuracy_metrics
         if isinstance(metric.get("accuracy_mean_abs"), (int, float))
     ]
+    true_positives = sum(
+        int(metric.get("accuracy_true_positives") or 0) for metric in accuracy_metrics
+    )
+    reference_count = sum(
+        int(metric.get("accuracy_reference_count") or 0) for metric in accuracy_metrics
+    )
+    candidate_count = sum(
+        int(metric.get("accuracy_candidate_count") or 0) for metric in accuracy_metrics
+    )
+    matched_metrics = [
+        metric
+        for metric in accuracy_metrics
+        if int(metric.get("accuracy_true_positives") or 0) > 0
+    ]
+    mean_iou = (
+        sum(
+            float(metric["accuracy_mean_iou"]) * int(metric["accuracy_true_positives"])
+            for metric in matched_metrics
+        )
+        / true_positives
+        if true_positives
+        else None
+    )
+    score_mae = (
+        sum(
+            float(metric["accuracy_score_mae"]) * int(metric["accuracy_true_positives"])
+            for metric in matched_metrics
+            if metric.get("accuracy_score_mae") is not None
+        )
+        / true_positives
+        if true_positives
+        else None
+    )
     first_kind = next((metric.get("accuracy_kind") for metric in accuracy_metrics if metric.get("accuracy_kind")), None)
+    first_reference = next(
+        (metric.get("accuracy_reference") for metric in accuracy_metrics if metric.get("accuracy_reference")),
+        None,
+    )
     return {
         "model": model,
         "variant": variant,
@@ -574,12 +768,23 @@ def score_benchmark_cases(
         "accuracy_kind": first_kind,
         "accuracy_max_abs": max(max_abs_values) if max_abs_values else None,
         "accuracy_mean_abs": sum(mean_abs_values) / len(mean_abs_values) if mean_abs_values else None,
-        "accuracy_reference": f"{len(case_results)}-image YOLO detection suite",
+        "accuracy_reference": first_reference,
+        "accuracy_true_positives": true_positives,
+        "accuracy_reference_count": reference_count,
+        "accuracy_candidate_count": candidate_count,
+        "accuracy_precision": true_positives / candidate_count if candidate_count else None,
+        "accuracy_recall": true_positives / reference_count if reference_count else None,
+        "accuracy_mean_iou": mean_iou,
+        "accuracy_score_mae": score_mae,
+        "validation_contract_sha256": (
+            hashlib.sha256(contract_path.read_bytes()).hexdigest()
+            if model == "yolo"
+            else None
+        ),
         "case_results": [
             {
-                key: value
-                for key, value in result.items()
-                if key != "accuracy_metrics"
+                **{key: value for key, value in result.items() if key != "accuracy_metrics"},
+                "accuracy": result["accuracy_metrics"],
             }
             for result in case_results
         ],
@@ -670,6 +875,7 @@ def score_from_results(
         "valid_dump": evaluated["valid_dump"],
         "valid_note": evaluated["valid_note"],
         **evaluated["accuracy_metrics"],
+        "validation_contract_sha256": None,
         "emu_cycle_last": evaluated["emu_cycle_last"],
         "elapsed_s": evaluated["elapsed_s"],
         "note": evaluated["note"],
@@ -713,6 +919,14 @@ def fail_payload(
         "accuracy_max_abs": None,
         "accuracy_mean_abs": None,
         "accuracy_reference": None,
+        "accuracy_true_positives": None,
+        "accuracy_reference_count": None,
+        "accuracy_candidate_count": None,
+        "accuracy_precision": None,
+        "accuracy_recall": None,
+        "accuracy_mean_iou": None,
+        "accuracy_score_mae": None,
+        "validation_contract_sha256": None,
         "valid_note": note,
         "emu_cycle_last": None,
         "elapsed_s": None,

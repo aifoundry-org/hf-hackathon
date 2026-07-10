@@ -3,16 +3,17 @@
 Use Hugging Face model repos as the base reference for hackathon ports. Pin the
 repo, revision, and file in your PR so the model identity is reproducible.
 
-Generated ET-SoC1 fixtures, packed weights, board dumps, and exported ELFs stay
-out of git. If a port needs derived artifacts, document the conversion command
-from the pinned Hugging Face base model.
+Downloaded model packages, board dumps, and exported ELFs stay out of git. A
+small fixed validation fixture may be committed when its public source, source
+hash, deterministic transform, and committed hash are all recorded. If a port
+needs derived artifacts, document the conversion command from the pinned
+Hugging Face base model.
 
 ## Current showcase bases
 
 | Showcase row | Hugging Face base | Revision | License tag | File(s) |
 |--------------|-------------------|----------|-------------|---------|
-| `dncnn` | `deepinv/dncnn` | `3bb1f2a95321781343331069776c3eba98707a56` | `bsd-3-clause` | `dncnn_sigma2_gray.pth`, `dncnn_sigma2_color.pth` |
-| `yolo` | `onnx-community/yolov10n` | `57657320425ee34056408a57ad9d29c4d4815bd8` | `agpl-3.0` | `onnx/model.onnx` |
+| `yolo` | `kadirnar/yolov10n` | `9fa42234fbcdb13b78fa57ebaac6c50e6dd2eb21` | `agpl-3.0` | `yolov10n.pt` |
 | `lfm25` | `LiquidAI/LFM2.5-1.2B-Instruct-GGUF` | `047e06635fbe71469926b35ea414537245218200` | `other` | `LFM2.5-1.2B-Instruct-Q8_0.gguf` |
 | `llama32_1b` | `lmstudio-community/Llama-3.2-1B-Instruct-GGUF` | `199151125cf15a129ab3b548b26afeed976df066` | `llama3.2` | `Llama-3.2-1B-Instruct-Q8_0.gguf` |
 | `gemma3n_e2b` | `ggml-org/gemma-3n-E2B-it-GGUF` | `989cffaba23976934324f5e3abfabe31b30eb73b` | `gemma` | `gemma-3n-E2B-it-Q8_0.gguf` |

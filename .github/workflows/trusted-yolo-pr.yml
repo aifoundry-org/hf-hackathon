@@ -1,0 +1,73 @@
+name: Trusted YOLO PR gate
+run-name: "Trusted YOLO PR #${{ github.event.pull_request.number }} (${{ github.event.pull_request.head.sha }})"
+
+# This file is intentionally only a caller. The implementation is resolved from
+# main so a participant PR cannot replace the benchmark harness it runs against.
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  # The shared workflow also contains main-push/comment jobs with these maximum
+  # permissions. They are skipped in trusted mode; its board job still declares
+  # and receives contents:read only.
+  actions: write
+  contents: write
+  pull-requests: write
+  statuses: write
+
+concurrency:
+  group: trusted-yolo-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  mark-pending:
+    name: Mark trusted YOLO gate pending
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish pending status on participant commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/statuses/${PR_HEAD_SHA}" \
+            -f state=pending \
+            -f context=trusted-yolo/main-gate \
+            -f description='Queued against the current main-owned YOLO harness.' \
+            -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            >/dev/null
+
+  trusted-yolo:
+    needs: mark-pending
+    uses: aifoundry-org/hf-hackathon/.github/workflows/benchmark-board.yml@main
+    with:
+      trusted_yolo: true
+
+  publish-result:
+    name: Publish trusted YOLO merge status
+    needs: [mark-pending, trusted-yolo]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish final status on participant commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          TRUSTED_RESULT: ${{ needs.trusted-yolo.result }}
+        run: |
+          if [[ "$TRUSTED_RESULT" == "success" ]]; then
+            state=success
+            description='Trusted YOLO correctness and leaderboard policy passed.'
+          else
+            state=failure
+            description="Trusted YOLO workflow result: ${TRUSTED_RESULT}."
+          fi
+          gh api --method POST \
+            "repos/${GITHUB_REPOSITORY}/statuses/${PR_HEAD_SHA}" \
+            -f state="$state" \
+            -f context=trusted-yolo/main-gate \
+            -f description="$description" \
+            -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+            >/dev/null
+          [[ "$state" == "success" ]]

@@ -8,7 +8,16 @@ if [[ "${GITHUB_EVENT_NAME:-}" == "push" && "${GITHUB_REF:-}" == "refs/heads/mai
   login=""
   api_token="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
   if [[ -n "${GITHUB_REPOSITORY:-}" && -n "$api_token" ]] && command -v gh >/dev/null 2>&1; then
-    login="$(GH_TOKEN="$api_token" gh api "repos/${GITHUB_REPOSITORY}/commits/${sha}" --jq '.author.login // empty' 2>/dev/null || true)"
+    # GitHub records the maintainer who clicked Merge as the merge commit's
+    # author. Prefer the merged PR submitter so leaderboard ownership follows
+    # the contribution rather than the merger.
+    login="$(GH_TOKEN="$api_token" gh api "repos/${GITHUB_REPOSITORY}/commits/${sha}/pulls" \
+      --jq "map(select(.merged_at != null and .merge_commit_sha == \"${sha}\"))[0].user.login // empty" \
+      2>/dev/null || true)"
+    if [[ -z "$login" ]]; then
+      login="$(GH_TOKEN="$api_token" gh api "repos/${GITHUB_REPOSITORY}/commits/${sha}" \
+        --jq '.author.login // empty' 2>/dev/null || true)"
+    fi
   fi
 
   if [[ -n "$login" ]]; then

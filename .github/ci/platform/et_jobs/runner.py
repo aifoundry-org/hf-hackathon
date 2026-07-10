@@ -73,7 +73,7 @@ def resolve_zero_bin() -> str:
         return config.ZERO_BIN
     for p in [
         config.MODEL_PORT_ARTIFACTS / "zero2m.bin",
-        config.MODEL_PORT_ARTIFACTS / "dncnn3-bench/zero2m.bin",
+        config.MODEL_PORT_ARTIFACTS / "common/zero2m.bin",
     ]:
         if p.is_file():
             return str(p)
@@ -244,19 +244,11 @@ def run_board_benchmark_legacy(job_id: str, model: str) -> dict:
         elf = config.MODEL_PORT_ARTIFACTS / bench_dir / elf_name
         if not elf.is_file():
             raise FileNotFoundError(f"ELF not found for board run: {elf_name}")
-        extra = []
-        if model == "dncnn":
-            base = config.MODEL_PORT_ARTIFACTS / "dncnn3-bench"
-            for name, off in [("dncnn3_input.bin", "0x2000"), ("dncnn3_weights.bin", "0x4000")]:
-                p = base / name
-                if p.is_file():
-                    extra.append(f"{off},{p}")
         return run_kernel(
             job_id=job_id,
             device="soc1sim",
             elf=str(elf),
             stage="board",
-            extra_file_loads=extra or None,
         )
     finally:
         soc_reset()

@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "model": {
+    "name": "YOLOv10n",
+    "task": "object_detection",
+    "source": {
+      "type": "huggingface",
+      "repo": "kadirnar/yolov10n",
+      "revision": "9fa42234fbcdb13b78fa57ebaac6c50e6dd2eb21",
+      "filename": "yolov10n.pt",
+      "url": "https://huggingface.co/kadirnar/yolov10n/resolve/9fa42234fbcdb13b78fa57ebaac6c50e6dd2eb21/yolov10n.pt",
+      "sha256": "61b91ffc99b284792dca49bf40216945833cc2a515e1a742954e6e9327cfc19e",
+      "license": "agpl-3.0"
+    },
+    "host_runtime": {
+      "ultralytics": "8.4.47",
+      "end2end_head": false
+    },
+    "canonical_export": {
+      "format": "onnx",
+      "input_shape": [1, 3, 288, 512],
+      "output_shape": [1, 84, 3024],
+      "opset": 12,
+      "graph_sha256": "5c3c15c895405b4858a3776e0b53f3dcdb3c666e4e67ebb04fc834d281194f5a"
+    }
+  },
+  "input": {
+    "dtype": "uint8",
+    "layout": "HWC_RGB",
+    "shape": [480, 640, 3],
+    "model_shape": [1, 3, 288, 512],
+    "preprocess": "half-pixel bilinear resize, multiply by 1/255, HWC to CHW"
+  },
+  "postprocess": {
+    "confidence_threshold": 0.25,
+    "nms_iou_threshold": 0.5,
+    "class_aware": true,
+    "max_detections": 64
+  },
+  "board_abi": {
+    "input_address": "0x04A00000",
+    "detections_offset": "0x01D00000",
+    "max_detections": 64,
+    "detection_record": "uint32 class_id; float score,x1,y1,x2,y2"
+  },
+  "agreement": {
+    "comparison_score_threshold": 0.35,
+    "minimum_reference_detections_per_case": 1,
+    "minimum_precision": 1.0,
+    "minimum_recall": 1.0,
+    "minimum_mean_iou": 0.85,
+    "matching_iou_threshold": 0.5,
+    "maximum_score_mae": 0.1
+  },
+  "fixtures": {
+    "dataset": "COCO val2017",
+    "transform": "Pillow RGB conversion and 640x480 bilinear resize",
+    "cases": [
+      {
+        "name": "coco_room_000139",
+        "image_id": 139,
+        "source_url": "http://images.cocodataset.org/val2017/000000000139.jpg",
+        "source_sha256": "ffe0f0cec3b2e27aab1967229cdf0a0d7751dcdd5800322f0b8ac0dffb3b8a8d",
+        "asset": "ported_models/yolo/assets/yolo/coco_room_000139_raw_480x640x3_uint8_rgb.bin",
+        "asset_sha256": "66b6131da00004bd2eab6a5d2fafab937289839d10d8199b3e95bfa3e76d8ca9"
+      },
+      {
+        "name": "coco_cat_524280",
+        "image_id": 524280,
+        "source_url": "http://images.cocodataset.org/val2017/000000524280.jpg",
+        "source_sha256": "3b83ffd2d2ce4c28a05b1dcd486edf8a06542584a05c9a66cf208df9ed6e2c7d",
+        "asset": "ported_models/yolo/assets/yolo/coco_cat_524280_raw_480x640x3_uint8_rgb.bin",
+        "asset_sha256": "389553428fd9abe3b2d3f04b21f971dec9e961d4b734b2fa52124edece0da43c"
+      },
+      {
+        "name": "coco_giraffes_296969",
+        "image_id": 296969,
+        "source_url": "http://images.cocodataset.org/val2017/000000296969.jpg",
+        "source_sha256": "1032b203f4b7faf2ea0268dddc1d9568e7ad8cbc39eb077b62ecf7b171bf90ff",
+        "asset": "ported_models/yolo/assets/yolo/coco_giraffes_296969_raw_480x640x3_uint8_rgb.bin",
+        "asset_sha256": "012cddc6078fcd002336a5c2d51732f8a33d9146fea99d0c6e0b81d81435a928"
+      },
+      {
+        "name": "coco_elephants_445248",
+        "image_id": 445248,
+        "source_url": "http://images.cocodataset.org/val2017/000000445248.jpg",
+        "source_sha256": "caca5f576c379d916e7890a08a2e685d9b0d7dde36457095d9d7096e540df119",
+        "asset": "ported_models/yolo/assets/yolo/coco_elephants_445248_raw_480x640x3_uint8_rgb.bin",
+        "asset_sha256": "e0179f637c69440eaccd6d96c81bdcf0ea702e5b6436b9acd7174a89f93a777c"
+      },
+      {
+        "name": "coco_baseball_043816",
+        "image_id": 43816,
+        "source_url": "http://images.cocodataset.org/val2017/000000043816.jpg",
+        "source_sha256": "f2f806d70581cc12926f575e567b39dc0e7ab5c411a9f264d65d3c31f8c6d102",
+        "asset": "ported_models/yolo/assets/yolo/coco_baseball_043816_raw_480x640x3_uint8_rgb.bin",
+        "asset_sha256": "1a164c8a01eb128548494c9e7643e2c6415d0dafaf720acc81569c2672dac41b"
+      }
+    ]
+  }
+}

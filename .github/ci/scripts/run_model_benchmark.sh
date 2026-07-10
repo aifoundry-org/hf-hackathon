@@ -77,22 +77,15 @@ if [[ "$runner" != "elf" ]]; then
   exit 0
 fi
 
-"$(dirname "$0")/prepare_benchmark_inputs.sh" "$model"
-DNCNN_INPUTS_READY="$(cat "${BENCHMARK_OUTPUT}/.dncnn_inputs_ready" 2>/dev/null || echo 0)"
-
-requires_dncnn="$(python3 -c "import json; c=json.load(open('$BENCHMARK_CONFIG')); print(int(c['models']['$model'].get('requires_dncnn_inputs', False)))")"
-if [[ "$model" == "dncnn" && "$requires_dncnn" -eq 1 && "$DNCNN_INPUTS_READY" -eq 0 ]]; then
-  python3 "${REPO_ROOT}/.github/ci/scripts/score_results.py" \
-    --model "$model" \
-    --status skipped \
-    --note "DnCNN input blobs missing. Set BENCHMARK_ASSETS_URL or BENCHMARK_ASSETS_DIR." \
-    --output "${BENCHMARK_OUTPUT}/score-${model}.json" \
-    --sha "${GITHUB_SHA:-local}" \
-    --ref "${GITHUB_REF:-local}" \
-    --actor "$leaderboard_team" \
-    --run-url "${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY:-local}/actions/runs/${GITHUB_RUN_ID:-0}"
-  exit 0
+if [[ "$model" == "yolo" ]]; then
+  export YOLO_HOST_REFERENCE_JSON="${BENCHMARK_OUTPUT}/yolo-host-reference.json"
+  if ! "$(dirname "$0")/run_yolo_host_reference.sh" "$YOLO_HOST_REFERENCE_JSON"; then
+    write_score fail "pinned YOLO host reference failed; board timing is not eligible"
+    exit 0
+  fi
 fi
+
+"$(dirname "$0")/prepare_benchmark_inputs.sh" "$model"
 
 bench_dir="$(python3 -c "import json; print(json.load(open('$BENCHMARK_CONFIG'))['models']['$model']['bench_dir'])")"
 variant="$(python3 -c "import json; print(json.load(open('$BENCHMARK_CONFIG'))['models']['$model']['canonical_variant'])")"

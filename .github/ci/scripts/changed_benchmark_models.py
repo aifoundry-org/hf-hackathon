@@ -70,6 +70,16 @@ RUNTIME_CODE_SUFFIXES = {
 
 INCLUDE_RE = re.compile(r'^\s*#\s*include\s+"([^"]+)"', re.MULTILINE)
 YOLO_REAL_IMAGE_DETECTIONS_VALIDATION = "yolo_real_image_detections"
+YOLO_REFERENCE_DETECTIONS_ACCURACY = "yolo_reference_detections"
+YOLO_REFERENCE_INFRA_PATHS = {
+    ".github/ci/reference/yolo.json",
+    ".github/ci/scripts/prepare_trusted_yolo_tree.py",
+    ".github/ci/scripts/refresh_trusted_yolo_prs.sh",
+    ".github/ci/scripts/run_yolo_host_reference.sh",
+    ".github/ci/scripts/trusted_yolo_input_hash.sh",
+    ".github/workflows/trusted-yolo-pr.yml",
+}
+ZERO_BLOB_PRIMARY = "zero2m.bin"
 
 
 def norm(path: str | Path) -> str:
@@ -147,6 +157,29 @@ def json_changed_keys(old: dict[str, Any] | None, new: dict[str, Any], key: str)
     changed = {name for name, value in new_values.items() if old_values.get(name) != value}
     changed.update(name for name in old_values.keys() if name not in new_values)
     return changed
+
+
+def normalize_zero_blob_fallbacks(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {
+            key: (
+                [ZERO_BLOB_PRIMARY]
+                if key == "paths"
+                and isinstance(nested, list)
+                and nested
+                and norm(str(nested[0])) == ZERO_BLOB_PRIMARY
+                else normalize_zero_blob_fallbacks(nested)
+            )
+            for key, nested in value.items()
+            if not (
+                key.startswith("requires_")
+                and key.endswith("_inputs")
+                and nested is False
+            )
+        }
+    if isinstance(value, list):
+        return [normalize_zero_blob_fallbacks(nested) for nested in value]
+    return value
 
 
 def collect_artifact_refs(value: Any) -> set[str]:
@@ -274,6 +307,14 @@ def model_satisfies_validation(model_cfg: dict[str, Any], requirement: str | Non
     if not requirement:
         return True
     if requirement == YOLO_REAL_IMAGE_DETECTIONS_VALIDATION:
+        if model_cfg.get("runner", "elf") != "elf":
+            return False
+        score = model_cfg.get("score", {})
+        if score.get("metric") != "kernel_wait_s" or score.get("higher_is_better") is not False:
+            return False
+        source = repo_rel(model_cfg.get("source")) or ""
+        if not is_under(source, "ported_models/yolo/src"):
+            return False
         validation = model_cfg.get("validation", {})
         if not isinstance(validation, dict):
             return False
@@ -286,18 +327,71 @@ def model_satisfies_validation(model_cfg: dict[str, Any], requirement: str | Non
             min_image_count = int(validation.get("min_image_count", 5))
         except (TypeError, ValueError):
             return False
+        contract_value = validation.get("reference_contract") or model_cfg.get(
+            "reference_contract"
+        )
+        if not contract_value:
+            return False
+        contract_path = Path(contract_value)
+        if not contract_path.is_absolute():
+            contract_path = REPO_ROOT / contract_path
+        try:
+            contract = json.loads(contract_path.read_text())
+            fixtures = contract["fixtures"]["cases"]
+            board_abi = contract["board_abi"]
+        except (OSError, KeyError, TypeError, json.JSONDecodeError):
+            return False
+        fixed_cases = {
+            str(case["name"]): case
+            for case in fixtures
+            if isinstance(case, dict) and case.get("name") and case.get("asset")
+        }
+        if len(fixed_cases) < min_image_count:
+            return False
+        if [str(case.get("name")) for case in cases] != list(fixed_cases):
+            return False
         valid_cases = 0
         for case in cases:
             if not isinstance(case, dict) or not case.get("name"):
                 continue
-            accuracy = case.get("accuracy", {})
-            if not isinstance(accuracy, dict) or accuracy.get("kind") != "yolo_detections":
+            name = str(case["name"])
+            fixture = fixed_cases.get(name)
+            if fixture is None:
                 continue
-            expected = accuracy.get("expected", [])
-            if not isinstance(expected, list) or not expected:
+            accuracy = case.get("accuracy", {})
+            if (
+                not isinstance(accuracy, dict)
+                or accuracy.get("kind") != YOLO_REFERENCE_DETECTIONS_ACCURACY
+                or accuracy.get("reference_case") != name
+            ):
+                continue
+            try:
+                if int(str(accuracy.get("offset")), 0) != int(
+                    str(board_abi["detections_offset"]), 0
+                ):
+                    continue
+                if int(accuracy.get("max_detections", 0)) != int(
+                    board_abi["max_detections"]
+                ):
+                    continue
+            except (TypeError, ValueError):
+                continue
+            expected_asset = str(fixture["asset"])
+            prefix = "ported_models/yolo/assets/"
+            if not expected_asset.startswith(prefix):
+                continue
+            expected_load = norm(expected_asset[len(prefix) :])
+            input_paths = {
+                norm(path)
+                for load in case.get("file_loads", [])
+                if str(load.get("address")) == str(board_abi["input_address"])
+                for path in (load.get("paths") or [load.get("path")])
+                if path
+            }
+            if expected_load not in input_paths:
                 continue
             valid_cases += 1
-        return valid_cases >= min_image_count
+        return valid_cases >= min_image_count and valid_cases == len(fixed_cases) == len(cases)
     return False
 
 
@@ -445,7 +539,9 @@ def select_from_benchmark_config(
     old_models = old.get("models", {}) if old else {}
     new_models = new.get("models", {})
     for model in configured_model_names(cfg, target, default_only=False):
-        if old_models.get(model) != new_models.get(model):
+        old_model = normalize_zero_blob_fallbacks(old_models.get(model))
+        new_model = normalize_zero_blob_fallbacks(new_models.get(model))
+        if old_model != new_model:
             selected.add(model)
     old_without_models = {k: v for k, v in (old or {}).items() if k != "models"}
     new_without_models = {k: v for k, v in new.items() if k != "models"}
@@ -556,6 +652,9 @@ def main() -> int:
             if honor_global:
                 shared_all = global_change or shared_all
             continue
+        if path in YOLO_REFERENCE_INFRA_PATHS:
+            selected.add("yolo")
+            continue
         if path in GENERIC_BOARD_INFRA_PATHS or is_under(path, ".github/ci/platform/"):
             if honor_global:
                 shared_all = True
@@ -616,6 +715,16 @@ def main() -> int:
     if args.unregistered_out:
         Path(args.unregistered_out).write_text(" ".join(unregistered))
     uncovered = uncovered_runtime_code_paths(cfg, changed_files, args.target)
+    if (
+        "yolo" in selected
+        and not model_satisfies_validation(
+            cfg["models"]["yolo"], YOLO_REAL_IMAGE_DETECTIONS_VALIDATION
+        )
+    ):
+        source = repo_rel(cfg["models"]["yolo"].get("source"))
+        if source and source not in uncovered:
+            uncovered.append(source)
+            uncovered.sort()
     if args.uncovered_out:
         Path(args.uncovered_out).write_text(" ".join(uncovered))
 

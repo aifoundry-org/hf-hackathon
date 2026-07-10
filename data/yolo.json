@@ -2,13 +2,13 @@
   "model": "yolo",
   "metric": "kernel_wait_s",
   "lower_is_better": true,
-  "updated_at": "2026-07-09T13:28:20.314311+00:00",
+  "updated_at": "2026-07-10T12:57:00.592512+00:00",
   "entries": [
     {
-      "team": "Afonso Oliveira",
+      "team": "DarthCeltic",
       "variant": "yolo_m30",
-      "kernel_wait_s": 4.703488,
-      "kernel_wait_per_image_s": 4.703488,
+      "kernel_wait_s": 3.847858,
+      "kernel_wait_per_image_s": 3.847858,
       "tokens_per_second": null,
       "prompt_tokens_per_second": null,
       "prompt_tokens": null,
@@ -18,10 +18,11 @@
       "perplexity_error": null,
       "perplexity_tokens": null,
       "perplexity_prompt_tokens_per_second": null,
-      "sha": "2612bd06c28901b84e4e9fbee94d64d1503a77d8",
+      "validation_contract_sha256": "976947a7f36e6db78c58e20d2220acc539ddd1335c07e11ffbacee7e3403dfc5",
+      "sha": "2fd253789cd2c05eae2f2c5fb6ac193e45e54c45",
       "ref": "refs/heads/main",
-      "run_url": "https://github.com/aifoundry-org/hf-hackathon/actions/runs/29021228645",
-      "scored_at": "2026-07-09T13:26:50.478143+00:00"
+      "run_url": "https://github.com/aifoundry-org/hf-hackathon/actions/runs/29094066659",
+      "scored_at": "2026-07-10T12:55:19.491893+00:00"
     }
   ]
 }

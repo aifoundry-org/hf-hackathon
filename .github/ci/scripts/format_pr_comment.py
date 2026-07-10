@@ -59,7 +59,7 @@ def is_yolo_real_image_path(path: str) -> bool:
 def uncovered_note(path: str) -> str:
     if is_yolo_real_image_path(path):
         return (
-            "YOLO source changed; no configured five-image category detection "
+            "YOLO source changed; no configured five-image COCO host-reference "
             "benchmark covers it"
         )
     return "changed runtime source is not built by any configured benchmark row"

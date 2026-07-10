@@ -26,20 +26,10 @@ download_model() {
 }
 
 download_model \
-  "dncnn" \
-  "deepinv/dncnn" \
-  "3bb1f2a95321781343331069776c3eba98707a56" \
-  "dncnn" \
-  "dncnn_sigma2_gray.pth" \
-  "dncnn_sigma2_color.pth"
-
-download_model \
   "yolov10n" \
-  "onnx-community/yolov10n" \
-  "57657320425ee34056408a57ad9d29c4d4815bd8" \
+  "kadirnar/yolov10n" \
+  "9fa42234fbcdb13b78fa57ebaac6c50e6dd2eb21" \
   "yolo" \
-  "onnx/model.onnx" \
-  "config.json" \
-  "preprocessor_config.json"
+  "yolov10n.pt"
 
 echo "Hugging Face references ready under $out"

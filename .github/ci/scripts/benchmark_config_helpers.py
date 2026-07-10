@@ -175,7 +175,7 @@ def suite_rows(
 
 
 def model_file_loads(cfg: dict, model: str) -> list[dict]:
-    default = [{"address": "0x0", "paths": ["zero2m.bin", "dncnn3-bench/zero2m.bin"], "required": True}]
+    default = [{"address": "0x0", "paths": ["zero2m.bin", "common/zero2m.bin"], "required": True}]
     return list(cfg["models"][model].get("file_loads", default))
 
 

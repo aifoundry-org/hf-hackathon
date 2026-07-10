@@ -21,13 +21,13 @@ for model in cfg.get("models", {}).values():
         print(model["bench_dir"])
 PY
 )
-mkdir -p "${AMP_ROOT}/dncnn3-bench"
+mkdir -p "${AMP_ROOT}/common"
 
 # 2 MiB zero blob used by all smoke kernels.
-if [[ ! -f "${AMP_ROOT}/dncnn3-bench/zero2m.bin" ]]; then
-  python3 -c "open('${AMP_ROOT}/dncnn3-bench/zero2m.bin','wb').write(b'\\0' * (2 * 1024 * 1024))"
+if [[ ! -f "${AMP_ROOT}/common/zero2m.bin" ]]; then
+  python3 -c "open('${AMP_ROOT}/common/zero2m.bin','wb').write(b'\\0' * (2 * 1024 * 1024))"
 fi
-ln -sf dncnn3-bench/zero2m.bin "${AMP_ROOT}/zero2m.bin"
+ln -sf common/zero2m.bin "${AMP_ROOT}/zero2m.bin"
 
 copy_if_exists() {
   local src="$1" dst="$2"
@@ -110,19 +110,4 @@ if [[ -n "${BENCHMARK_ASSETS_URL:-}" ]]; then
   rm -rf "${tmp}"
 fi
 
-export DNCNN_INPUTS_READY=0
-if [[ (-f "${AMP_ROOT}/dncnn3_input.bin" || -f "${AMP_ROOT}/dncnn3-bench/dncnn3_input.bin") && \
-      (-f "${AMP_ROOT}/dncnn3_weights.bin" || -f "${AMP_ROOT}/dncnn3-bench/dncnn3_weights.bin") ]]; then
-  export DNCNN_INPUTS_READY=1
-fi
-
-if [[ "$model" == "dncnn" || "$model" == "all" ]]; then
-  if [[ "$DNCNN_INPUTS_READY" -eq 0 ]]; then
-    echo "warn: dncnn3_input.bin / dncnn3_weights.bin missing; dncnn benchmark will be skipped." >&2
-    echo "Set BENCHMARK_ASSETS_DIR or BENCHMARK_ASSETS_URL to enable dncnn CI." >&2
-  fi
-fi
-
-echo "${DNCNN_INPUTS_READY}" > "${BENCHMARK_OUTPUT}/.dncnn_inputs_ready"
-echo "zero2m.bin ready under ${AMP_ROOT}/dncnn3-bench"
-echo "DNCNN_INPUTS_READY=${DNCNN_INPUTS_READY}"
+echo "zero2m.bin ready under ${AMP_ROOT}/common"

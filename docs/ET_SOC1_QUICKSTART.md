@@ -16,15 +16,13 @@ The shared `ported_models` set for this flow is:
 
 ```text
 ported_models = [
-  "dncnn",
   "yolo",
   "lfm25",
 ]
 ```
 
-These are the models with current sys-emu/board sweep manifests:
+These are the models with current board sweep manifests:
 
-- `dncnn`: denoising CNN kernels; requires input and weights blobs.
 - `yolo`: YOLO-style detection kernels.
 - `lfm25`: board-only LFM2.5 GGUF through the ET-backed `llama.cpp` framework.
 
@@ -150,15 +148,11 @@ cd "$MODEL_PORT_REPO"
 
 .github/ci/scripts/prepare_benchmark_inputs.sh all
 .github/ci/scripts/build_leaderboard_elf.sh yolo
-.github/ci/scripts/build_leaderboard_elf.sh dncnn
 
 find "$BENCHMARK_ARTIFACT_ROOT" -maxdepth 2 -type f \
   \( -name '*.elf' -o -name '*_variants.txt' -o -name 'zero2m.bin' \) \
   | sort
 ```
-
-The DnCNN ELF builds from checked-in source, but a DnCNN run also needs derived
-input and weight blobs under `$BENCHMARK_ARTIFACT_ROOT/dncnn3-bench`.
 
 ## Local Sys-Emu Run
 
@@ -231,7 +225,7 @@ ssh "$BOARD_SSH" "
 These examples assume the smoke artifacts above exist under
 `$BENCHMARK_ARTIFACT_ROOT`.
 
-Common input used by YOLO and DnCNN:
+Common zero blob used by ELF smoke kernels:
 
 ```bash
 ssh "$BOARD_SSH" "mkdir -p '$REMOTE_MODELS'"
@@ -254,27 +248,7 @@ rsync -aq \
   "$BOARD_SSH:$REMOTE_MODELS/yolo/"
 ```
 
-DnCNN example:
-
-```bash
-test -f "$BENCHMARK_ARTIFACT_ROOT/dncnn3-bench/dncnn3_input.bin"
-test -f "$BENCHMARK_ARTIFACT_ROOT/dncnn3-bench/dncnn3_weights.bin"
-
-ssh "$BOARD_SSH" "mkdir -p '$REMOTE_MODELS/dncnn3-pmc'"
-rsync -aq \
-  "$BENCHMARK_ARTIFACT_ROOT/dncnn3-pmc"/v3x_*.elf \
-  "$BENCHMARK_ARTIFACT_ROOT/dncnn3-pmc/v3x_variants.txt" \
-  "$BOARD_SSH:$REMOTE_MODELS/dncnn3-pmc/"
-
-rsync -aq \
-  "$BENCHMARK_ARTIFACT_ROOT/dncnn3-bench/dncnn3_input.bin" \
-  "$BENCHMARK_ARTIFACT_ROOT/dncnn3-bench/dncnn3_weights.bin" \
-  "$BOARD_SSH:$REMOTE_MODELS/"
-```
-
 ## Run One Kernel On The Board
-
-YOLO:
 
 ```bash
 ssh "$BOARD_SSH" "
@@ -287,37 +261,17 @@ STAMP=\$(date +%Y%m%d-%H%M%S)
     --shire 0 \
     --file_load 0x0,../zero2m.bin \
     --file_load 0x02000000,../yolo/weights_region.bin \
-    --file_load 0x04A00000,../yolo/web_car_raw_480x640x3_uint8_rgb.bin \
+    --file_load 0x04A00000,../yolo/coco_room_000139_raw_480x640x3_uint8_rgb.bin \
     --dump_after dump_yolo_m30_\$STAMP.bin \
     --timeout 240 \
   2>&1 | tee run_yolo_m30_\$STAMP.log
 "
 ```
 
-DnCNN, with input and weights:
-
-```bash
-ssh "$BOARD_SSH" "
-set -euo pipefail
-export LD_LIBRARY_PATH='$REMOTE_ROOT:$REMOTE_MODELS:'\"\${LD_LIBRARY_PATH:-}\"
-cd '$REMOTE_MODELS/dncnn3-pmc'
-STAMP=\$(date +%Y%m%d-%H%M%S)
-'$REMOTE_MODELS/erbium_soc1sim_argbuf' \
-    --elf-load ./v3x_01_oc2_base.elf \
-    --shire 0 \
-    --file_load 0x0,../zero2m.bin \
-    --file_load 0x2000,../dncnn3_input.bin \
-    --file_load 0x4000,../dncnn3_weights.bin \
-    --dump_after dump_dncnn_v3x_01_oc2_base_\$STAMP.bin \
-    --timeout 240 \
-  2>&1 | tee run_dncnn_v3x_01_oc2_base_\$STAMP.log
-"
-```
-
 Check results:
 
 ```bash
-ssh "$BOARD_SSH" "grep -R 'Kernel wait seconds' '$REMOTE_MODELS'/*-bench/run_*.log '$REMOTE_MODELS'/dncnn3-pmc/run_*.log 2>/dev/null || true"
+ssh "$BOARD_SSH" "grep -R 'Kernel wait seconds' '$REMOTE_MODELS'/*-bench/run_*.log 2>/dev/null || true"
 ```
 
 Pull logs and dumps:
@@ -346,20 +300,13 @@ while read -r variant; do
       --shire 0 \
       --file_load 0x0,../zero2m.bin \
       --file_load 0x02000000,../yolo/weights_region.bin \
-      --file_load 0x04A00000,../yolo/web_car_raw_480x640x3_uint8_rgb.bin \
+      --file_load 0x04A00000,../yolo/coco_room_000139_raw_480x640x3_uint8_rgb.bin \
       --dump_after dump_\"\$variant\"_\"\$STAMP\".bin \
       --timeout 240 \
     > run_\"\$variant\"_\"\$STAMP\".log 2>&1
   grep 'Kernel wait seconds' run_\"\$variant\"_\"\$STAMP\".log || true
 done < yolo_variants.txt
 "
-```
-
-For DnCNN, add:
-
-```text
---file_load 0x2000,../dncnn3_input.bin
---file_load 0x4000,../dncnn3_weights.bin
 ```
 
 ## Build A Kernel With Portable Paths

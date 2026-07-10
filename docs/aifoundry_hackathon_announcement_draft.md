@@ -63,7 +63,7 @@ Good submissions make an open model, kernel, runtime path, or benchmark more use
 That can mean:
 
 - Porting a new open model.
-- Improving an existing DnCNN, YOLO, or LLM benchmark.
+- Improving an existing YOLO or LLM benchmark.
 - Making a kernel faster and documenting the board result.
 - Adding a reproducible benchmark around a real robotics, drone, speech, or vision workload.
 - Packaging a small demo that shows why the model port matters.
@@ -107,7 +107,7 @@ The model repo is the technical home for examples, docs, benchmark artifacts, an
 
 ## 💬 Need help?
 
-Join Discord and ask in `#Lab`:
+Join Discord and ask in `#community-lab`:
 
 https://discord.gg/CbSA2umxf6
 

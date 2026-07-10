@@ -8,6 +8,8 @@ This port runs the real YOLOv10n detector path on ET-SoC1:
 - on-chip DFL decode, class sigmoid, thresholding, and class-aware NMS
 - compact detections at `0x01D00000`
 
-The CI benchmark uses five committed raw RGB samples and gates every run on
-expected category detections. The suite covers car/person, cat, giraffe,
-elephant, and baseball-scene objects.
+The CI benchmark uses five committed COCO `val2017` samples. On each run, the
+host categorizes them with the pinned YOLOv10n checkpoint; the board must match
+the host classes with the configured precision, recall, IoU, and score-error
+bounds. Implementations may fuse, quantize, or repack weights and scales, but
+only a correctness-passing result is ranked by mean end-to-end latency.

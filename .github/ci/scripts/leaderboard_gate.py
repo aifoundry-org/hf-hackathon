@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import subprocess
@@ -17,6 +18,15 @@ REPO_ROOT = Path(__file__).resolve().parents[3]
 CONFIG_PATH = REPO_ROOT / ".github" / "ci" / "benchmark_config.json"
 BENCHMARK_CONFIG_REL = ".github/ci/benchmark_config.json"
 VALIDATION_ONLY_MODEL_CONFIG_KEYS = {"accuracy", "dump_magic", "dump_size"}
+YOLO_VALIDATION_ONLY_MODEL_CONFIG_KEYS = {
+    "accuracy",
+    "benchmark_cases",
+    "dump_magic",
+    "dump_size",
+    "reference_contract",
+    "validation",
+}
+YOLO_INPUT_ADDRESS = 0x04A00000
 
 
 def split_items(value: str | None) -> list[str]:
@@ -78,14 +88,26 @@ def raw_benchmark_config_local() -> dict[str, Any]:
     return data if isinstance(data, dict) else {}
 
 
-def strip_validation_only_keys(model_cfg: Any) -> Any:
+def strip_validation_only_keys(model_cfg: Any, model: str = "") -> Any:
     if not isinstance(model_cfg, dict):
         return model_cfg
-    return {
+    ignored = (
+        YOLO_VALIDATION_ONLY_MODEL_CONFIG_KEYS
+        if model == "yolo"
+        else VALIDATION_ONLY_MODEL_CONFIG_KEYS
+    )
+    stripped = {
         key: value
         for key, value in model_cfg.items()
-        if key not in VALIDATION_ONLY_MODEL_CONFIG_KEYS
+        if key not in ignored
     }
+    if model == "yolo" and isinstance(stripped.get("file_loads"), list):
+        stripped["file_loads"] = [
+            load
+            for load in stripped["file_loads"]
+            if int(str(load.get("address", "-1")), 0) != YOLO_INPUT_ADDRESS
+        ]
+    return stripped
 
 
 def model_config_submission_changed(model: str, base_ref: str) -> bool:
@@ -93,7 +115,16 @@ def model_config_submission_changed(model: str, base_ref: str) -> bool:
     new = raw_benchmark_config_local()
     old_model = old.get("models", {}).get(model, {}) if isinstance(old.get("models"), dict) else {}
     new_model = new.get("models", {}).get(model, {}) if isinstance(new.get("models"), dict) else {}
-    return strip_validation_only_keys(old_model) != strip_validation_only_keys(new_model)
+    return strip_validation_only_keys(old_model, model) != strip_validation_only_keys(
+        new_model, model
+    )
+
+
+def is_yolo_validation_only_path(path: str) -> bool:
+    return path == "ported_models/yolo/tools/host_reference.py" or (
+        path.startswith("ported_models/yolo/assets/yolo/coco_")
+        and path.endswith("_raw_480x640x3_uint8_rgb.bin")
+    )
 
 
 def source_model_root(model_cfg: dict[str, Any]) -> str | None:
@@ -173,6 +204,8 @@ def model_submission_changed(
     root = source_model_root(model_cfg)
 
     for path in files:
+        if model == "yolo" and is_yolo_validation_only_path(path):
+            continue
         if path == BENCHMARK_CONFIG_REL:
             if model_config_submission_changed(model, base_ref):
                 return True
@@ -214,6 +247,17 @@ def baseline_variant(cfg: dict[str, Any], model: str) -> str | None:
     score_cfg = model_cfg.get("score", {})
     variant = score_cfg.get("baseline_variant")
     return str(variant) if variant else None
+
+
+def validation_contract_sha256(cfg: dict[str, Any], model: str) -> str | None:
+    model_cfg = cfg.get("models", {}).get(model, {})
+    value = model_cfg.get("reference_contract")
+    if not value:
+        return None
+    path = Path(value)
+    if not path.is_absolute():
+        path = REPO_ROOT / path
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 def load_json_from_ref(path: str, base_ref: str) -> Any | None:
@@ -303,9 +347,9 @@ def is_yolo_real_image_path(path: str) -> bool:
 def uncovered_note(path: str) -> str:
     if is_yolo_real_image_path(path):
         return (
-            "YOLO source changed, but no configured five-image real-image "
-            "detection benchmark covers it. The gate must validate expected "
-            "categories across the fixed image suite."
+            "YOLO source changed, but no configured five-image COCO host-reference "
+            "benchmark covers it. The gate must validate classes, scores, and boxes "
+            "against the pinned reference model."
         )
     return "Changed runtime source is not built by any configured benchmark row. Add or update a benchmark row before merging."
 
@@ -338,6 +382,16 @@ def main() -> int:
         default=float(os.environ.get("LEADERBOARD_MAX_PPL_REGRESSION", "0.20")),
         help="Allow at most this fractional PPL regression from the best seen PPL for perplexity-gated models.",
     )
+    parser.add_argument(
+        "--require-baseline",
+        action="store_true",
+        help="Fail selected models that have no compatible base-branch leaderboard entry.",
+    )
+    parser.add_argument(
+        "--force-submission-models",
+        default="",
+        help="Treat these models as participant submissions even when the trusted tree contains no source diff.",
+    )
     args = parser.parse_args()
 
     cfg = load_config(CONFIG_PATH)
@@ -356,7 +410,7 @@ def main() -> int:
             f"must also stay within {args.max_ppl_regression:.0%} of the best seen PPL. "
             "CI/scoring-only changes must pass board CI but do not need to improve runtime. "
             "Fidelity-sensitive paths need their model-specific validation row; YOLO changes "
-            "require five-image real-image detection validation."
+            "require five-image COCO agreement with the pinned host reference."
         ),
         "",
         "| Model | Metric | PR score | Current best | Verdict | Notes |",
@@ -371,6 +425,9 @@ def main() -> int:
         model: model_submission_changed(cfg, model, files, args.base_ref)
         for model in models
     }
+    for model in split_items(args.force_submission_models):
+        if model in submission_changed:
+            submission_changed[model] = True
 
     for port in unregistered:
         failed = True
@@ -391,6 +448,13 @@ def main() -> int:
         required_variant = baseline_variant(cfg, model)
         if required_variant:
             entries = [entry for entry in entries if entry.get("variant") == required_variant]
+        required_contract_sha = validation_contract_sha256(cfg, model)
+        if required_contract_sha:
+            entries = [
+                entry
+                for entry in entries
+                if entry.get("validation_contract_sha256") == required_contract_sha
+            ]
         baseline = best_entry(entries, metric, higher)
         baseline_value = float(baseline[metric]) if baseline else None
         baseline_text = fmt_metric(baseline_value, metric)
@@ -426,6 +490,12 @@ def main() -> int:
                 f"| {model} | {cell(label)} | {score_text} | {baseline_text} | fail | {cell(note)} |"
             )
             continue
+        if required_contract_sha and score.get("validation_contract_sha256") != required_contract_sha:
+            failed = True
+            lines.append(
+                f"| {model} | {cell(label)} | {score_text} | {baseline_text} | fail | Score was not produced by the current validation contract. |"
+            )
+            continue
         if value is None:
             failed = True
             lines.append(
@@ -455,9 +525,15 @@ def main() -> int:
                 ppl_note = f" PPL {float(ppl_value):.2f} recorded for new baseline."
 
         if baseline_value is None:
-            lines.append(
-                f"| {model} | {cell(label)} | {score_text} | none | pass | First valid leaderboard score for this model.{ppl_note} |"
-            )
+            if args.require_baseline:
+                failed = True
+                lines.append(
+                    f"| {model} | {cell(label)} | {score_text} | none | fail | Main has no compatible validated baseline; wait for the main-branch board update and re-run this gate. |"
+                )
+            else:
+                lines.append(
+                    f"| {model} | {cell(label)} | {score_text} | none | pass | First valid leaderboard score for this model.{ppl_note} |"
+                )
             continue
 
         if not submission_changed.get(model, True):

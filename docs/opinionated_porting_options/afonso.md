@@ -1,8 +1,7 @@
 # Afonso Opinionated CORE-ET Porting Guide
 
 This is the silicon-port workflow for the checked-in CORE-ET reference models
-running on ET-SoC1 boards:
-DnCNN and YOLO.
+running on ET-SoC1 boards.
 
 The goal is not to ask a model to write an end-to-end model port. The useful
 unit of work is one operation, one layer, one block, or one audit boundary at a
@@ -159,7 +158,6 @@ scripts/run_sysemu_model_ports.sh --suite full
 
 The script covers the current model set:
 
-- `dncnn`
 - `yolo`
 
 If a model requires external reference files, put them under `local-artifacts/`.

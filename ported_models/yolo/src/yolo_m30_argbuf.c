@@ -224,10 +224,10 @@ int main(uintptr_t arg_area)
 
     /* conv0 */
     CONV_3x3_S2_P1_VPU(img, c0, WP(WR_model_0_conv_Conv_W), WP(WR_model_0_conv_Conv_B),
-                3u, 288u, 512u, 16u, 144u, 256u, 3u,3u, 2u,2u, 1u,1u, 1u);
+                       3u, 288u, 512u, 16u, 144u, 256u, 1u);
     /* conv1 */
     CONV_3x3_S2_P1_VPU(c0, c1, WP(WR_model_1_conv_Conv_W), WP(WR_model_1_conv_Conv_B),
-                16u, 144u, 256u, 32u, 72u, 128u, 3u,3u, 2u,2u, 1u,1u, 1u);
+                       16u, 144u, 256u, 32u, 72u, 128u, 1u);
 
     /* C2f model.2 (1 bottleneck) */
     {
@@ -245,7 +245,7 @@ int main(uintptr_t arg_area)
 
     /* conv3: 32 -> 64, 3x3 s=2 */
     CONV_3x3_S2_P1_VPU(c2f_m2, c3, WP(WR_model_3_conv_Conv_W), WP(WR_model_3_conv_Conv_B),
-                32u,72u,128u, 64u,36u,64u, 3u,3u, 2u,2u, 1u,1u, 1u);
+                       32u, 72u, 128u, 64u, 36u, 64u, 1u);
 
     /* C2f model.4 (2 bottlenecks) */
     {
@@ -543,8 +543,8 @@ int main(uintptr_t arg_area)
     /* m.17: down conv 64->64 3x3 s=2 + SiLU on p3_out -> [64,18,32]; m.18: concat with m13_cv2_out = [192,18,32]. */
     {
         float *down = (float *)(base + SCR_M17_DOWN);
-        CONV_MH(p3_out, down, WP(WR_model_17_conv_Conv_W), WP(WR_model_17_conv_Conv_B),
-                    64u,36u,64u, 64u,18u,32u, 3u,3u, 2u,2u, 1u,1u, 1u);
+        CONV_3x3_S2_P1_VPU(p3_out, down, WP(WR_model_17_conv_Conv_W), WP(WR_model_17_conv_Conv_B),
+                           64u, 36u, 64u, 64u, 18u, 32u, 1u);
         float *cat = (float *)(base + SCR_M18_CONCAT);
         H0_RUN(concat_c_chw(down,64u,m13_cv2_out,128u,cat,18u,32u), cat, ((64u)+(128u))*(18u)*(32u)*sizeof(float));
 

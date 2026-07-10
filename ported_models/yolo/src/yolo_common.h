@@ -475,17 +475,38 @@ static void conv2d_1x1_fp32_mh_vpu_oc8(uint32_t hid,
 
                 for (uint32_t ic = 0; ic < IC; ic++) {
                     register float v_pkg asm("f8");
-                    register float w_pkg asm("f9");
+                    register float w0 asm("f20"), w1 asm("f21"), w2 asm("f22"), w3 asm("f23");
+                    register float w4 asm("f24"), w5 asm("f25"), w6 asm("f26"), w7 asm("f27");
                     const float *src = in + (ic * H + oh) * W_ + ow8;
+                    
+                    union { float f; uint32_t u; } w0_u; w0_u.f = W[(oc0 + 0) * IC + ic];
+                    union { float f; uint32_t u; } w1_u; w1_u.f = W[(oc0 + 1) * IC + ic];
+                    union { float f; uint32_t u; } w2_u; w2_u.f = W[(oc0 + 2) * IC + ic];
+                    union { float f; uint32_t u; } w3_u; w3_u.f = W[(oc0 + 3) * IC + ic];
+                    union { float f; uint32_t u; } w4_u; w4_u.f = W[(oc0 + 4) * IC + ic];
+                    union { float f; uint32_t u; } w5_u; w5_u.f = W[(oc0 + 5) * IC + ic];
+                    union { float f; uint32_t u; } w6_u; w6_u.f = W[(oc0 + 6) * IC + ic];
+                    union { float f; uint32_t u; } w7_u; w7_u.f = W[(oc0 + 7) * IC + ic];
+                    
                     __asm__ volatile("flq2 %0, 0(%1)\n" : "=f"(v_pkg) : "r"(src));
-#define FMADD_ONE(REG, OC_OFFSET) do { \
-    union { float f; uint32_t u; } _ww; _ww.f = W[(oc0 + OC_OFFSET) * IC + ic]; \
-    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w_pkg) : "r"((uint64_t)_ww.u)); \
-    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(REG) : "f"(v_pkg), "f"(w_pkg)); \
-} while (0)
-                    FMADD_ONE(a0, 0); FMADD_ONE(a1, 1); FMADD_ONE(a2, 2); FMADD_ONE(a3, 3);
-                    FMADD_ONE(a4, 4); FMADD_ONE(a5, 5); FMADD_ONE(a6, 6); FMADD_ONE(a7, 7);
-#undef FMADD_ONE
+                    
+                    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w0) : "r"((uint64_t)w0_u.u));
+                    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w1) : "r"((uint64_t)w1_u.u));
+                    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w2) : "r"((uint64_t)w2_u.u));
+                    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w3) : "r"((uint64_t)w3_u.u));
+                    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w4) : "r"((uint64_t)w4_u.u));
+                    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w5) : "r"((uint64_t)w5_u.u));
+                    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w6) : "r"((uint64_t)w6_u.u));
+                    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w7) : "r"((uint64_t)w7_u.u));
+
+                    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a0) : "f"(v_pkg), "f"(w0));
+                    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a1) : "f"(v_pkg), "f"(w1));
+                    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a2) : "f"(v_pkg), "f"(w2));
+                    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a3) : "f"(v_pkg), "f"(w3));
+                    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a4) : "f"(v_pkg), "f"(w4));
+                    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a5) : "f"(v_pkg), "f"(w5));
+                    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a6) : "f"(v_pkg), "f"(w6));
+                    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a7) : "f"(v_pkg), "f"(w7));
                 }
 
                 /* Store each accumulator with optional SiLU. */
@@ -552,19 +573,67 @@ static void conv2d_1x1_fp32_mh_vpu_oc16(uint32_t hid,
 
                 for (uint32_t ic = 0; ic < IC; ic++) {
                     register float v_pkg asm("f8");
-                    register float w_pkg asm("f9");
+                    register float w0 asm("f20"), w1 asm("f21"), w2 asm("f22"), w3 asm("f23");
+                    register float w4 asm("f24"), w5 asm("f25"), w6 asm("f26"), w7 asm("f27");
                     const float *src = in + (ic * H + oh) * W_ + ow8;
+                    
                     __asm__ volatile("flq2 %0, 0(%1)\n" : "=f"(v_pkg) : "r"(src));
-#define FMADD_ONE(REG, OO) do { \
-    union { float f; uint32_t u; } _ww; _ww.f = W[(oc0 + OO) * IC + ic]; \
-    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w_pkg) : "r"((uint64_t)_ww.u)); \
-    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(REG) : "f"(v_pkg), "f"(w_pkg)); \
-} while (0)
-                    FMADD_ONE(a0, 0); FMADD_ONE(a1, 1); FMADD_ONE(a2, 2); FMADD_ONE(a3, 3);
-                    FMADD_ONE(a4, 4); FMADD_ONE(a5, 5); FMADD_ONE(a6, 6); FMADD_ONE(a7, 7);
-                    FMADD_ONE(a8, 8); FMADD_ONE(a9, 9); FMADD_ONE(aA,10); FMADD_ONE(aB,11);
-                    FMADD_ONE(aC,12); FMADD_ONE(aD,13); FMADD_ONE(aE,14); FMADD_ONE(aF,15);
-#undef FMADD_ONE
+                    
+                    // Batch 1 (0-7)
+                    union { float f; uint32_t u; } w0_u; w0_u.f = W[(oc0 + 0) * IC + ic];
+                    union { float f; uint32_t u; } w1_u; w1_u.f = W[(oc0 + 1) * IC + ic];
+                    union { float f; uint32_t u; } w2_u; w2_u.f = W[(oc0 + 2) * IC + ic];
+                    union { float f; uint32_t u; } w3_u; w3_u.f = W[(oc0 + 3) * IC + ic];
+                    union { float f; uint32_t u; } w4_u; w4_u.f = W[(oc0 + 4) * IC + ic];
+                    union { float f; uint32_t u; } w5_u; w5_u.f = W[(oc0 + 5) * IC + ic];
+                    union { float f; uint32_t u; } w6_u; w6_u.f = W[(oc0 + 6) * IC + ic];
+                    union { float f; uint32_t u; } w7_u; w7_u.f = W[(oc0 + 7) * IC + ic];
+                    
+                    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w0) : "r"((uint64_t)w0_u.u));
+                    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w1) : "r"((uint64_t)w1_u.u));
+                    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w2) : "r"((uint64_t)w2_u.u));
+                    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w3) : "r"((uint64_t)w3_u.u));
+                    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w4) : "r"((uint64_t)w4_u.u));
+                    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w5) : "r"((uint64_t)w5_u.u));
+                    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w6) : "r"((uint64_t)w6_u.u));
+                    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w7) : "r"((uint64_t)w7_u.u));
+
+                    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a0) : "f"(v_pkg), "f"(w0));
+                    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a1) : "f"(v_pkg), "f"(w1));
+                    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a2) : "f"(v_pkg), "f"(w2));
+                    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a3) : "f"(v_pkg), "f"(w3));
+                    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a4) : "f"(v_pkg), "f"(w4));
+                    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a5) : "f"(v_pkg), "f"(w5));
+                    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a6) : "f"(v_pkg), "f"(w6));
+                    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a7) : "f"(v_pkg), "f"(w7));
+
+                    // Batch 2 (8-15)
+                    w0_u.f = W[(oc0 + 8) * IC + ic];
+                    w1_u.f = W[(oc0 + 9) * IC + ic];
+                    w2_u.f = W[(oc0 + 10) * IC + ic];
+                    w3_u.f = W[(oc0 + 11) * IC + ic];
+                    w4_u.f = W[(oc0 + 12) * IC + ic];
+                    w5_u.f = W[(oc0 + 13) * IC + ic];
+                    w6_u.f = W[(oc0 + 14) * IC + ic];
+                    w7_u.f = W[(oc0 + 15) * IC + ic];
+                    
+                    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w0) : "r"((uint64_t)w0_u.u));
+                    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w1) : "r"((uint64_t)w1_u.u));
+                    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w2) : "r"((uint64_t)w2_u.u));
+                    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w3) : "r"((uint64_t)w3_u.u));
+                    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w4) : "r"((uint64_t)w4_u.u));
+                    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w5) : "r"((uint64_t)w5_u.u));
+                    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w6) : "r"((uint64_t)w6_u.u));
+                    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w7) : "r"((uint64_t)w7_u.u));
+
+                    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a8) : "f"(v_pkg), "f"(w0));
+                    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a9) : "f"(v_pkg), "f"(w1));
+                    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(aA) : "f"(v_pkg), "f"(w2));
+                    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(aB) : "f"(v_pkg), "f"(w3));
+                    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(aC) : "f"(v_pkg), "f"(w4));
+                    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(aD) : "f"(v_pkg), "f"(w5));
+                    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(aE) : "f"(v_pkg), "f"(w6));
+                    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(aF) : "f"(v_pkg), "f"(w7));
                 }
 
 #define STORE_ACC(REG, OO) do { \
@@ -600,10 +669,10 @@ static inline void conv2d_1x1_disp(uint32_t hid,
                                    uint32_t OC,
                                    uint32_t act)
 {
-    /* OC16 hung silicon (register pressure?), so cap at OC8. */
-    if   (OC >=  64u) conv2d_1x1_fp32_mh_vpu_oc8(hid, in, out, W, B, IC, H, W_, OC, act);
+    /* Fixed OC16 RAW pipeline hazard! Safe to use for OC>=128 */
+    if   (OC >= 128u) conv2d_1x1_fp32_mh_vpu_oc16(hid, in, out, W, B, IC, H, W_, OC, act);
+    else if(OC >= 64u)conv2d_1x1_fp32_mh_vpu_oc8 (hid, in, out, W, B, IC, H, W_, OC, act);
     else              conv2d_1x1_fp32_mh_vpu    (hid, in, out, W, B, IC, H, W_, OC, act);
-    (void)conv2d_1x1_fp32_mh_vpu_oc16;  /* keep helper definition for journaling */
 }
 #define CONV_1x1(...) do { conv2d_1x1_disp(hid, __VA_ARGS__); MH_BARRIER(); } while (0)
 
@@ -728,15 +797,37 @@ static void conv2d_3x3_p1_fp32_mh_vpu_oc8(uint32_t hid,
                             register float w_pkg asm("f9");
                             if (iw >= 0 && iw + 7 < (int32_t)W_) {
                                 const float *src = in + (ic * H + (uint32_t)ih) * W_ + (uint32_t)iw;
+                                register float w0 asm("f20"), w1 asm("f21"), w2 asm("f22"), w3 asm("f23");
+                                register float w4 asm("f24"), w5 asm("f25"), w6 asm("f26"), w7 asm("f27");
+                                
+                                union { float f; uint32_t u; } w0_u; w0_u.f = W[((oc0 + 0) * IC + ic) * 9u + ky * 3u + kx];
+                                union { float f; uint32_t u; } w1_u; w1_u.f = W[((oc0 + 1) * IC + ic) * 9u + ky * 3u + kx];
+                                union { float f; uint32_t u; } w2_u; w2_u.f = W[((oc0 + 2) * IC + ic) * 9u + ky * 3u + kx];
+                                union { float f; uint32_t u; } w3_u; w3_u.f = W[((oc0 + 3) * IC + ic) * 9u + ky * 3u + kx];
+                                union { float f; uint32_t u; } w4_u; w4_u.f = W[((oc0 + 4) * IC + ic) * 9u + ky * 3u + kx];
+                                union { float f; uint32_t u; } w5_u; w5_u.f = W[((oc0 + 5) * IC + ic) * 9u + ky * 3u + kx];
+                                union { float f; uint32_t u; } w6_u; w6_u.f = W[((oc0 + 6) * IC + ic) * 9u + ky * 3u + kx];
+                                union { float f; uint32_t u; } w7_u; w7_u.f = W[((oc0 + 7) * IC + ic) * 9u + ky * 3u + kx];
+                                
                                 __asm__ volatile("flq2 %0, 0(%1)\n" : "=f"(v_pkg) : "r"(src));
-#define FMADD_ONE(REG, OO) do { \
-    union { float f; uint32_t u; } _ww; _ww.f = W[((oc0 + OO) * IC + ic) * 9u + ky * 3u + kx]; \
-    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w_pkg) : "r"((uint64_t)_ww.u)); \
-    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(REG) : "f"(v_pkg), "f"(w_pkg)); \
-} while (0)
-                                FMADD_ONE(a0, 0); FMADD_ONE(a1, 1); FMADD_ONE(a2, 2); FMADD_ONE(a3, 3);
-                                FMADD_ONE(a4, 4); FMADD_ONE(a5, 5); FMADD_ONE(a6, 6); FMADD_ONE(a7, 7);
-#undef FMADD_ONE
+                                
+                                __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w0) : "r"((uint64_t)w0_u.u));
+                                __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w1) : "r"((uint64_t)w1_u.u));
+                                __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w2) : "r"((uint64_t)w2_u.u));
+                                __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w3) : "r"((uint64_t)w3_u.u));
+                                __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w4) : "r"((uint64_t)w4_u.u));
+                                __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w5) : "r"((uint64_t)w5_u.u));
+                                __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w6) : "r"((uint64_t)w6_u.u));
+                                __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w7) : "r"((uint64_t)w7_u.u));
+
+                                __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a0) : "f"(v_pkg), "f"(w0));
+                                __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a1) : "f"(v_pkg), "f"(w1));
+                                __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a2) : "f"(v_pkg), "f"(w2));
+                                __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a3) : "f"(v_pkg), "f"(w3));
+                                __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a4) : "f"(v_pkg), "f"(w4));
+                                __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a5) : "f"(v_pkg), "f"(w5));
+                                __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a6) : "f"(v_pkg), "f"(w6));
+                                __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a7) : "f"(v_pkg), "f"(w7));
                             } else {
                                 /* Edge case: scalar lane updates of all 8 accs. */
 #define EDGE_ONE(REG, OO) do { \

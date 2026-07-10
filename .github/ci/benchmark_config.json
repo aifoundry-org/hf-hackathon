@@ -8,14 +8,6 @@
     "outer_timeout_s": 660,
     "comment": "Real silicon via PCIe on a self-hosted ET board runner.",
     "models": {
-      "dncnn": {
-        "defines": [
-          "-fno-tree-loop-distribute-patterns",
-          "-DNUM_HARTS=16",
-          "-DACTIVE_HARTS=8",
-          "-DBENCH_THREAD0_ONLY=1"
-        ]
-      },
       "yolo": {
         "defines": [
           "-funroll-loops",
@@ -33,13 +25,6 @@
     "launcher_timeout_s": 10800,
     "outer_timeout_s": 10900,
     "models": {
-      "dncnn": {
-        "defines": [
-          "-fno-tree-loop-distribute-patterns",
-          "-DACTIVE_HARTS=1",
-          "-DBENCH_THREAD0_ONLY=1"
-        ]
-      },
       "yolo": {
         "defines": [
           "-funroll-loops",
@@ -53,56 +38,8 @@
     }
   },
   "models": {
-    "dncnn": {
-      "canonical_variant": "int8_tfma_8hart",
-      "source": "ported_models/dncnn/src/dncnn3_tfma_int8.c",
-      "bench_dir": "dncnn3-pmc",
-      "manifest": "int8_tfma_variants.txt",
-      "full_manifest": "int8_tfma_variants.txt",
-      "build": {
-        "opt": "-O3",
-        "defines": [
-          "-fno-tree-loop-distribute-patterns",
-          "-DBENCH_THREAD0_ONLY=1"
-        ]
-      },
-      "file_loads": [
-        {
-          "address": "0x0",
-          "paths": [
-            "zero2m.bin",
-            "dncnn3-bench/zero2m.bin"
-          ],
-          "required": true
-        },
-        {
-          "address": "0x2000",
-          "paths": [
-            "dncnn3_input.bin",
-            "dncnn3-bench/dncnn3_input.bin"
-          ],
-          "required": true
-        },
-        {
-          "address": "0x4000",
-          "paths": [
-            "dncnn3_weights.bin",
-            "dncnn3-bench/dncnn3_weights.bin"
-          ],
-          "required": true
-        }
-      ],
-      "dump_magic": "0xD3C11003",
-      "dump_size": "0x12000",
-      "accuracy": {
-        "kind": "sha256",
-        "offset": "0x10000",
-        "count": 4096,
-        "expected_sha256": "78aacbc3fb34efb8ffa5467b931291ec2bdf5e19564fc45fe97b5affbc893dc6"
-      },
-      "requires_dncnn_inputs": true
-    },
     "yolo": {
+      "reference_contract": ".github/ci/reference/yolo.json",
       "canonical_variant": "yolo_m30_vpus2",
       "source": "ported_models/yolo/src/yolo_m30_argbuf.c",
       "bench_dir": "yolo-bench",
@@ -119,8 +56,7 @@
           "-funroll-loops",
           "-fno-tree-loop-distribute-patterns",
           "-DNUM_HARTS=16",
-          "-DACTIVE_HARTS=8u",
-          "-DBENCH_THREAD0_ONLY=1",
+          "-DYOLO_USE_16HART=1",
           "-DYOLO_SKIP_FINAL_EVICT=1"
         ]
       },
@@ -131,7 +67,7 @@
           "address": "0x0",
           "paths": [
             "zero2m.bin",
-            "dncnn3-bench/zero2m.bin"
+            "common/zero2m.bin"
           ],
           "required": true
         },
@@ -145,7 +81,7 @@
         {
           "address": "0x04A00000",
           "paths": [
-            "yolo/web_car_raw_480x640x3_uint8_rgb.bin"
+            "yolo/coco_room_000139_raw_480x640x3_uint8_rgb.bin"
           ],
           "required": true
         }
@@ -155,6 +91,7 @@
         "kind": "yolo_real_image_detections",
         "image_count": 5,
         "min_image_count": 5,
+        "reference_contract": ".github/ci/reference/yolo.json",
         "source_shape": [
           480,
           640,
@@ -163,47 +100,21 @@
       },
       "benchmark_cases": [
         {
-          "name": "web_car",
+          "name": "coco_room_000139",
           "file_loads": [
             {
               "address": "0x04A00000",
               "paths": [
-                "yolo/web_car_raw_480x640x3_uint8_rgb.bin"
+                "yolo/coco_room_000139_raw_480x640x3_uint8_rgb.bin"
               ],
               "required": true
             }
           ],
           "accuracy": {
-            "kind": "yolo_detections",
+            "kind": "yolo_reference_detections",
             "offset": "0x01D00000",
             "max_detections": 64,
-            "reference": "web_car raw RGB expected detections",
-            "expected": [
-              {
-                "class_id": 2,
-                "label": "car",
-                "min_score": 0.55,
-                "box": [
-                  4.6,
-                  56.0,
-                  505.5,
-                  273.6
-                ],
-                "min_iou": 0.7
-              },
-              {
-                "class_id": 0,
-                "label": "person",
-                "min_score": 0.35,
-                "box": [
-                  424.3,
-                  88.6,
-                  511.7,
-                  204.6
-                ],
-                "min_iou": 0.6
-              }
-            ]
+            "reference_case": "coco_room_000139"
           }
         },
         {
@@ -218,24 +129,10 @@
             }
           ],
           "accuracy": {
-            "kind": "yolo_detections",
+            "kind": "yolo_reference_detections",
             "offset": "0x01D00000",
             "max_detections": 64,
-            "reference": "COCO 524280 raw RGB expected cat detection",
-            "expected": [
-              {
-                "class_id": 15,
-                "label": "cat",
-                "min_score": 0.8,
-                "box": [
-                  52.5,
-                  5.1,
-                  510.1,
-                  287.3
-                ],
-                "min_iou": 0.7
-              }
-            ]
+            "reference_case": "coco_cat_524280"
           }
         },
         {
@@ -250,36 +147,10 @@
             }
           ],
           "accuracy": {
-            "kind": "yolo_detections",
+            "kind": "yolo_reference_detections",
             "offset": "0x01D00000",
             "max_detections": 64,
-            "reference": "COCO 296969 raw RGB expected giraffe detections",
-            "expected": [
-              {
-                "class_id": 23,
-                "label": "giraffe",
-                "min_score": 0.8,
-                "box": [
-                  102.8,
-                  21.4,
-                  256.8,
-                  220.0
-                ],
-                "min_iou": 0.7
-              },
-              {
-                "class_id": 23,
-                "label": "giraffe",
-                "min_score": 0.75,
-                "box": [
-                  292.2,
-                  46.0,
-                  441.3,
-                  217.6
-                ],
-                "min_iou": 0.7
-              }
-            ]
+            "reference_case": "coco_giraffes_296969"
           }
         },
         {
@@ -294,36 +165,10 @@
             }
           ],
           "accuracy": {
-            "kind": "yolo_detections",
+            "kind": "yolo_reference_detections",
             "offset": "0x01D00000",
             "max_detections": 64,
-            "reference": "COCO 445248 raw RGB expected elephant detections",
-            "expected": [
-              {
-                "class_id": 20,
-                "label": "elephant",
-                "min_score": 0.8,
-                "box": [
-                  271.1,
-                  37.2,
-                  477.2,
-                  214.1
-                ],
-                "min_iou": 0.7
-              },
-              {
-                "class_id": 20,
-                "label": "elephant",
-                "min_score": 0.8,
-                "box": [
-                  24.2,
-                  46.5,
-                  278.8,
-                  215.3
-                ],
-                "min_iou": 0.7
-              }
-            ]
+            "reference_case": "coco_elephants_445248"
           }
         },
         {
@@ -338,84 +183,13 @@
             }
           ],
           "accuracy": {
-            "kind": "yolo_detections",
+            "kind": "yolo_reference_detections",
             "offset": "0x01D00000",
             "max_detections": 64,
-            "reference": "COCO 043816 raw RGB expected baseball detections",
-            "expected": [
-              {
-                "class_id": 0,
-                "label": "person",
-                "min_score": 0.8,
-                "box": [
-                  197.6,
-                  59.1,
-                  363.0,
-                  231.5
-                ],
-                "min_iou": 0.7
-              },
-              {
-                "class_id": 35,
-                "label": "baseball glove",
-                "min_score": 0.7,
-                "box": [
-                  384.2,
-                  153.6,
-                  416.2,
-                  182.9
-                ],
-                "min_iou": 0.6
-              },
-              {
-                "class_id": 32,
-                "label": "sports ball",
-                "min_score": 0.55,
-                "box": [
-                  74.3,
-                  145.3,
-                  87.3,
-                  155.5
-                ],
-                "min_iou": 0.5
-              }
-            ]
+            "reference_case": "coco_baseball_043816"
           }
         }
-      ],
-      "accuracy": {
-        "kind": "yolo_detections",
-        "offset": "0x01D00000",
-        "max_detections": 64,
-        "reference": "web_car raw RGB expected detections",
-        "expected": [
-          {
-            "class_id": 2,
-            "label": "car",
-            "min_score": 0.55,
-            "box": [
-              4.6,
-              56.0,
-              505.5,
-              273.6
-            ],
-            "min_iou": 0.7
-          },
-          {
-            "class_id": 0,
-            "label": "person",
-            "min_score": 0.35,
-            "box": [
-              424.3,
-              88.6,
-              511.7,
-              204.6
-            ],
-            "min_iou": 0.6
-          }
-        ]
-      },
-      "requires_dncnn_inputs": false
+      ]
     },
     "lfm25": {
       "config": "ported_models/llama_cpp_et/benchmarks/lfm25.json"

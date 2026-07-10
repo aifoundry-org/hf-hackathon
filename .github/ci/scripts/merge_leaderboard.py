@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import subprocess
 import sys
@@ -39,6 +40,17 @@ def baseline_variant(model: str) -> str | None:
     return str(variant) if variant else None
 
 
+def validation_contract_sha256(model: str) -> str | None:
+    cfg = load_config(CONFIG_PATH)
+    value = cfg.get("models", {}).get(model, {}).get("reference_contract")
+    if not value:
+        return None
+    path = Path(value)
+    if not path.is_absolute():
+        path = REPO_ROOT / path
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
 def selected_models(value: str | None) -> list[str]:
     names = configured_models()
     if not value:
@@ -64,6 +76,13 @@ def load_board(model: str) -> list:
     required_variant = baseline_variant(model)
     if required_variant:
         entries = [entry for entry in entries if entry.get("variant") == required_variant]
+    required_contract_sha = validation_contract_sha256(model)
+    if required_contract_sha:
+        entries = [
+            entry
+            for entry in entries
+            if entry.get("validation_contract_sha256") == required_contract_sha
+        ]
     return entries
 
 
@@ -106,6 +125,7 @@ def merge_entry(entries: list, score: dict) -> list:
         "perplexity_error": score.get("perplexity_error"),
         "perplexity_tokens": score.get("perplexity_tokens"),
         "perplexity_prompt_tokens_per_second": score.get("perplexity_prompt_tokens_per_second"),
+        "validation_contract_sha256": score.get("validation_contract_sha256"),
         "sha": sha,
         "ref": score.get("ref"),
         "run_url": score.get("run_url"),
