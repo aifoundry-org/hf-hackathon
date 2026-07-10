@@ -370,11 +370,7 @@ int main(uintptr_t arg_area)
         CONV_1x1(sppf, cv1_out, WP(WR_model_10_cv1_conv_Conv_W), WP(WR_model_10_cv1_conv_Conv_B), 256u, 9u, 16u, 256u, 1u);
 
         /* Copy y1 into mutable buffer (will receive residuals). */
-        if (is_h0) {
-            for (uint32_t i = 0; i < 128u * HW; i++) y1[i] = y1_src[i];
-            evict((const void *)y1, 128u * HW * sizeof(float));
-            WAIT_CACHEOPS; FENCE;
-        }
+        MH_COPY(y1, y1_src, 128u * HW);
         MH_BARRIER();
 
         /* qkv: 128 -> 256, 1x1 (no act).  Input = y1 (mutable copy). */
@@ -446,11 +442,7 @@ int main(uintptr_t arg_area)
         CONV_1x1(attn_o, proj_o, WP(WR_model_10_attn_proj_conv_Conv_W), WP(WR_model_10_attn_proj_conv_Conv_B), 128u, 9u, 16u, 128u, 0u);
 
         /* y1 += proj_o (residual) */
-        if (is_h0) {
-            for (uint32_t i = 0; i < 128u * HW; i++) y1[i] += proj_o[i];
-            evict((const void *)y1, 128u * HW * sizeof(float));
-            WAIT_CACHEOPS; FENCE;
-        }
+        MH_IADD(y1, proj_o, 128u * HW);
         MH_BARRIER();
 
         /* ffn0: 128 -> 256, 1x1 + SiLU */
@@ -459,12 +451,8 @@ int main(uintptr_t arg_area)
         CONV_1x1(ffn0, ffn1, WP(WR_model_10_ffn_ffn_1_conv_Conv_W), WP(WR_model_10_ffn_ffn_1_conv_Conv_B), 256u, 9u, 16u, 128u, 0u);
 
         /* y1 += ffn1; Concat [y0, y1] into cv1_out. */
-        if (is_h0) {
-            for (uint32_t i = 0; i < 128u * HW; i++) y1[i] += ffn1[i];
-            for (uint32_t i = 0; i < 128u * HW; i++) y1_src[i] = y1[i];
-            evict((const void *)y1_src, 128u * HW * sizeof(float));
-            WAIT_CACHEOPS; FENCE;
-        }
+        MH_IADD(y1, ffn1, 128u * HW);
+        MH_COPY(y1_src, y1, 128u * HW);
         MH_BARRIER();
 
         /* cv2: 256 -> 256, 1x1 + SiLU.  Output: psa_out @ 0x1300000. */
@@ -605,14 +593,8 @@ int main(uintptr_t arg_area)
 
         /* Residual + concat (single hart). */
         float *cat384 = (float *)(base + SCR_M21_CONCAT);
-        if (is_h0) {
-            for (uint32_t i = 0; i < 128u*HW; i++) t4[i] = y1[i] + t4[i];
-            for (uint32_t i = 0; i < 128u*HW; i++) cat384[0*128u*HW + i] = y0[i];
-            for (uint32_t i = 0; i < 128u*HW; i++) cat384[1*128u*HW + i] = y1[i];
-            for (uint32_t i = 0; i < 128u*HW; i++) cat384[2*128u*HW + i] = t4[i];
-            evict((const void *)cat384, 384u*HW*sizeof(float));
-            WAIT_CACHEOPS; FENCE;
-        }
+        MH_IADD(t4, y1, 128u * HW);
+        MH_CONCAT3(cat384, y0, y1, t4, 128u * HW);
         MH_BARRIER();
 
         CONV_1x1(cat384, p5_out, WP(WR_model_22_cv2_conv_Conv_W), WP(WR_model_22_cv2_conv_Conv_B), 384u, 9u, 16u, 256u, 1u);
