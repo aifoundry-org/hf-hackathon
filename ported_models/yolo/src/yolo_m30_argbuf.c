@@ -770,42 +770,59 @@ int main(uintptr_t arg_area)
      *   uint32 count N
      *   then N x { uint32 class_id; float score; float x1,y1,x2,y2; }
      */
-    if (is_h0) {
-        const float CONF_THRESH = 0.25f;
-        const float IOU_THRESH  = 0.5f;
-        /* Step 1: scan anchors, keep those with max-class-prob >= CONF_THRESH.
-         * Build candidate list in scratch (use `tb`, plenty of space). */
-        struct __attribute__((packed)) Cand {
-            uint32_t class_id;
-            float    score;
-            float    x1, y1, x2, y2;
-            uint8_t  alive;
-            uint8_t  pad[3];
-        };
-        struct Cand *cands = (struct Cand *)tb;   /* up to 3024 candidates */
-        uint32_t n_cands = 0;
-        for (uint32_t a = 0; a < 3024u; a++) {
+    struct __attribute__((packed)) Cand {
+        uint32_t class_id; float score; float x1, y1, x2, y2; uint8_t alive; uint8_t pad[3];
+    };
+    struct Cand *all_cands = (struct Cand *)tb;
+    uint32_t *n_cands_arr = (uint32_t *)(tb + 3024u * 8u * 6u); /* offset past cand array */
+    
+    if (yolo_is_compute(hid)) {
+        const uint32_t cidx = yolo_compute_idx(hid);
+        uint32_t a_lo, a_hi;
+        yolo_range(3024u, cidx, &a_lo, &a_hi);
+        
+        struct Cand *my_cands = all_cands + cidx * 3024u;
+        uint32_t my_n = 0;
+        
+        for (uint32_t a = a_lo; a < a_hi; a++) {
             float best_logit = -1e9f;
             uint32_t best_cls = 0;
             for (uint32_t c = 0; c < 80u; c++) {
                 const float p = final_out[(4u + c) * 3024u + a];
                 if (p > best_logit) { best_logit = p; best_cls = c; }
             }
-            /* CONF_THRESH = 0.25f in prob space -> logit = ln(0.25/0.75) = -1.09861228867f */
             if (best_logit < -1.09861228867f) continue;
             float best_score = fast_recip(1.0f + my_expf(-best_logit));
             const float cx = final_out[0u * 3024u + a];
             const float cy = final_out[1u * 3024u + a];
             const float bw = final_out[2u * 3024u + a];
             const float bh = final_out[3u * 3024u + a];
-            cands[n_cands].class_id = best_cls;
-            cands[n_cands].score    = best_score;
-            cands[n_cands].x1 = cx - 0.5f * bw;
-            cands[n_cands].y1 = cy - 0.5f * bh;
-            cands[n_cands].x2 = cx + 0.5f * bw;
-            cands[n_cands].y2 = cy + 0.5f * bh;
-            cands[n_cands].alive = 1u;
-            n_cands++;
+            my_cands[my_n].class_id = best_cls;
+            my_cands[my_n].score    = best_score;
+            my_cands[my_n].x1 = cx - 0.5f * bw;
+            my_cands[my_n].y1 = cy - 0.5f * bh;
+            my_cands[my_n].x2 = cx + 0.5f * bw;
+            my_cands[my_n].y2 = cy + 0.5f * bh;
+            my_cands[my_n].alive = 1u;
+            my_n++;
+        }
+        n_cands_arr[cidx * 16] = my_n; /* 16 uints = 64 bytes cache-aligned padding */
+        evict((const void *)my_cands, my_n * sizeof(struct Cand));
+        evict((const void *)&n_cands_arr[cidx * 16], sizeof(uint32_t));
+        WAIT_CACHEOPS; FENCE;
+    }
+    MH_BARRIER();
+
+    if (is_h0) {
+        const float IOU_THRESH  = 0.5f;
+        struct Cand *cands = all_cands;
+        uint32_t n_cands = n_cands_arr[0];
+        for (uint32_t h = 1; h < 8u; h++) {
+            uint32_t count = n_cands_arr[h * 16];
+            struct Cand *src = all_cands + h * 3024u;
+            for (uint32_t i = 0; i < count; i++) {
+                cands[n_cands++] = src[i];
+            }
         }
 
         /* Step 2: simple class-aware NMS (O(n^2), n ~ 100 at most). */
