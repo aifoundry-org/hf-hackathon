@@ -274,8 +274,8 @@ int main(uintptr_t arg_area)
     CONV_1x1(c2f_m4, c5_post, WP(WR_model_5_cv1_conv_Conv_W), WP(WR_model_5_cv1_conv_Conv_B), 64u, 36u, 64u, 128u, 1u);
     {
         float *m5_cv2 = (float *)(base + SCR_M5_CV2_OUT);
-        CONV_DW_MH(c5_post, m5_cv2, WP(WR_model_5_cv2_conv_Conv_W), WP(WR_model_5_cv2_conv_Conv_B),
-                       128u, 36u, 64u, 18u, 32u, 3u, 3u, 2u, 2u, 1u, 1u, 0u);
+        CONV_DW3x3_S2_P1_VPU(c5_post, m5_cv2, WP(WR_model_5_cv2_conv_Conv_W), WP(WR_model_5_cv2_conv_Conv_B),
+                       128u, 36u, 64u, 18u, 32u, 0u);
 
         /* C2f model.6 (2 bottlenecks).  Input = m5_cv2 [128,18,32] */
         const uint32_t HW = 18u * 32u;
@@ -301,8 +301,8 @@ int main(uintptr_t arg_area)
     CONV_1x1(c2f_m6, c7_post, WP(WR_model_7_cv1_conv_Conv_W), WP(WR_model_7_cv1_conv_Conv_B), 128u, 18u, 32u, 256u, 1u);
     {
         float *m7_cv2 = (float *)(base + SCR_M7_CV2_OUT);
-        CONV_DW_MH(c7_post, m7_cv2, WP(WR_model_7_cv2_conv_Conv_W), WP(WR_model_7_cv2_conv_Conv_B),
-                       256u, 18u, 32u, 9u, 16u, 3u, 3u, 2u, 2u, 1u, 1u, 0u);
+        CONV_DW3x3_S2_P1_VPU(c7_post, m7_cv2, WP(WR_model_7_cv2_conv_Conv_W), WP(WR_model_7_cv2_conv_Conv_B),
+                       256u, 18u, 32u, 9u, 16u, 0u);
 
         /* C2f model.8 (1 bottleneck).  Input = m7_cv2 [256, 9, 16] */
         const uint32_t HW = 9u * 16u;
@@ -480,7 +480,7 @@ int main(uintptr_t arg_area)
     /* m.11: nearest-2x upsample of psa_out [256,9,16] -> [256,18,32]. */
     {
         float *up = (float *)(base + SCR_M11_UP);
-        H0_RUN(upsample_nearest_2x(psa_out,up,256u,9u,16u), up, (256u)*(9u*2u)*(16u*2u)*sizeof(float));
+        MH_UPSAMPLE_2x(psa_out, up, 256u, 9u, 16u);
 
         /* m.12: concat [up, c2f_m6] axis=1 -> [384,18,32] */
         float *cat = (float *)(base + SCR_M12_CONCAT);
@@ -516,7 +516,7 @@ int main(uintptr_t arg_area)
     /* m.14: nearest-2x upsample of m13 -> [128,36,64]; m.15: concat with c2f_m4 [64,36,64] = [192,36,64]. */
     {
         float *up = (float *)(base + SCR_M14_UP);
-        H0_RUN(upsample_nearest_2x(m13_cv2_out,up,128u,18u,32u), up, (128u)*(18u*2u)*(32u*2u)*sizeof(float));
+        MH_UPSAMPLE_2x(m13_cv2_out, up, 128u, 18u, 32u);
         float *cat = (float *)(base + SCR_M15_CONCAT);
         H0_RUN(concat_c_chw(up,128u,c2f_m4,64u,cat,36u,64u), cat, ((128u)+(64u))*(36u)*(64u)*sizeof(float));
 
@@ -572,8 +572,8 @@ int main(uintptr_t arg_area)
         float *cv1 = (float *)(base + SCR_M20_CV1);
         float *down = (float *)(base + SCR_M20_DOWN);
         CONV_1x1(p4_out, cv1, WP(WR_model_20_cv1_conv_Conv_W), WP(WR_model_20_cv1_conv_Conv_B), 128u, 18u, 32u, 128u, 1u);
-        CONV_DW_MH(cv1, down, WP(WR_model_20_cv2_conv_Conv_W), WP(WR_model_20_cv2_conv_Conv_B),
-                       128u, 18u, 32u, 9u, 16u, 3u, 3u, 2u, 2u, 1u, 1u, 0u);
+        CONV_DW3x3_S2_P1_VPU(cv1, down, WP(WR_model_20_cv2_conv_Conv_W), WP(WR_model_20_cv2_conv_Conv_B),
+                       128u, 18u, 32u, 9u, 16u, 0u);
 
         float *cat = (float *)(base + SCR_M21_CONCAT);
         H0_RUN(concat_c_chw(down,128u,psa_out,256u,cat,9u,16u), cat, ((128u)+(256u))*(9u)*(16u)*sizeof(float));
@@ -682,13 +682,24 @@ int main(uintptr_t arg_area)
     float *final_out = (float *)(base + FINAL_OUT_OFFSET);
     const uint32_t HW0 = 36u * 64u;     /* 2304 */
     const uint32_t HW1 = 18u * 32u;     /* 576  */
+    const uint32_t TOTAL_ANCHORS = 3024u;
 
-    /* DFL + box decode + class sigmoid (single-hart hart 0).
-     * The naive parallel-by-anchor version had a non-coherent-L1D race
-     * around the scattered writes to final_out (84 disjoint regions per
-     * hart), even with whole-buffer evicts.  Decode is only ~50 ms anyway. */
-    if (is_h0) {
-        for (uint32_t k = 0; k < 3u; k++) {
+    /* DFL + box decode + class sigmoid (multi-hart by anchor range).
+     * Each hart owns a contiguous range of anchors, writing 84 contiguous
+     * floats per anchor in final_out — eliminates the scattered-write race. */
+    if (yolo_is_compute(hid)) {
+        const uint32_t cidx = yolo_compute_idx(hid);
+        uint32_t a_lo, a_hi;
+        yolo_range(TOTAL_ANCHORS, cidx, &a_lo, &a_hi);
+
+        /* Determine which scale each anchor range spans. */
+        uint32_t k_start = 0u, k_end = 3u;
+        if (a_lo >= HW0 + HW1) { k_start = 2u; }
+        else if (a_lo >= HW0)  { k_start = 1u; }
+        if (a_hi <= HW0)               { k_end = 1u; }
+        else if (a_hi <= HW0 + HW1)    { k_end = 2u; }
+
+        for (uint32_t k = k_start; k < k_end; k++) {
             const float *reg_in;
             const float *cls_in;
             uint32_t H, W;
@@ -698,9 +709,13 @@ int main(uintptr_t arg_area)
             else if (k == 1u) { reg_in = reg1; cls_in = cls1; H = 18u; W = 32u; stride = 16.0f; anchor_off = HW0; }
             else              { reg_in = reg2; cls_in = cls2; H =  9u; W = 16u; stride = 32.0f; anchor_off = HW0 + HW1; }
             const uint32_t HW = H * W;
+            const uint32_t scale_lo = (a_lo > anchor_off) ? a_lo - anchor_off : 0u;
+            const uint32_t scale_hi = (a_hi > anchor_off + HW) ? HW : (a_hi > anchor_off ? a_hi - anchor_off : 0u);
+            if (scale_hi <= scale_lo) continue;
 
+            /* DFL: compute expected values for our anchor range. */
             for (uint32_t e = 0; e < 4u; e++) {
-                for (uint32_t s = 0; s < HW; s++) {
+                for (uint32_t s = scale_lo; s < scale_hi; s++) {
                     float row[16];
                     float m = -3.4e38f;
                     for (uint32_t b = 0; b < 16u; b++) {
@@ -716,35 +731,43 @@ int main(uintptr_t arg_area)
                 }
             }
 
-            for (uint32_t h = 0; h < H; h++) {
-                for (uint32_t w = 0; w < W; w++) {
-                    const uint32_t s = h * W + w;
-                    const float a_cx = (float)w + 0.5f;
-                    const float a_cy = (float)h + 0.5f;
-                    const float lt_x = tb[0u*HW + s];
-                    const float lt_y = tb[1u*HW + s];
-                    const float rb_x = tb[2u*HW + s];
-                    const float rb_y = tb[3u*HW + s];
-                    const float left   = (a_cx - lt_x) * stride;
-                    const float top    = (a_cy - lt_y) * stride;
-                    const float right  = (a_cx + rb_x) * stride;
-                    const float bottom = (a_cy + rb_y) * stride;
-                    const uint32_t a = anchor_off + s;
-                    final_out[0u * 3024u + a] = (left + right) * 0.5f;
-                    final_out[1u * 3024u + a] = (top + bottom) * 0.5f;
-                    final_out[2u * 3024u + a] = right - left;
-                    final_out[3u * 3024u + a] = bottom - top;
-                }
+            /* Box decode + class sigmoid for our anchors. */
+            for (uint32_t s = scale_lo; s < scale_hi; s++) {
+                const uint32_t h = s / W;
+                const uint32_t w = s % W;
+                const float a_cx = (float)w + 0.5f;
+                const float a_cy = (float)h + 0.5f;
+                const float lt_x = tb[0u*HW + s];
+                const float lt_y = tb[1u*HW + s];
+                const float rb_x = tb[2u*HW + s];
+                const float rb_y = tb[3u*HW + s];
+                const float left   = (a_cx - lt_x) * stride;
+                const float top    = (a_cy - lt_y) * stride;
+                const float right  = (a_cx + rb_x) * stride;
+                const float bottom = (a_cy + rb_y) * stride;
+                const uint32_t a = anchor_off + s;
+                final_out[0u * 3024u + a] = (left + right) * 0.5f;
+                final_out[1u * 3024u + a] = (top + bottom) * 0.5f;
+                final_out[2u * 3024u + a] = right - left;
+                final_out[3u * 3024u + a] = bottom - top;
             }
 
             for (uint32_t c = 0; c < 80u; c++) {
-                for (uint32_t s = 0; s < HW; s++) {
+                for (uint32_t s = scale_lo; s < scale_hi; s++) {
                     const float v = cls_in[c * HW + s];
                     final_out[(4u + c) * 3024u + (anchor_off + s)] = v;
                 }
             }
         }
-        /* Skipped eviction of final_out to save memory bandwidth */
+        /* Evict our anchor range across all 84 feature slices.
+         * Each slice is 3024 floats apart, so we evict 84 disjoint ranges. */
+        if (a_hi > a_lo) {
+            const uint32_t nbytes = (a_hi - a_lo) * sizeof(float);
+            for (uint32_t f = 0u; f < 84u; f++) {
+                evict((const void *)(final_out + f * 3024u + a_lo), nbytes);
+            }
+            WAIT_CACHEOPS; FENCE;
+        }
     }
     MH_BARRIER();
 
