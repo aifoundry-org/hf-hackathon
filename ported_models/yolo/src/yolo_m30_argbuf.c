@@ -759,12 +759,16 @@ int main(uintptr_t arg_area)
                 }
             }
         }
-        /* Evict our anchor range across all 84 feature slices.
-         * Each slice is 3024 floats apart, so we evict 84 disjoint ranges. */
+        /* Evict our anchor range across all 84 feature slices using a single
+         * strided evict per cache-line group.  stride = 3024 * sizeof(float)
+         * jumps between feature slices; num_lines = 83 covers all 84 slices. */
         if (a_hi > a_lo) {
-            const uint32_t nbytes = (a_hi - a_lo) * sizeof(float);
-            for (uint32_t f = 0u; f < 84u; f++) {
-                evict((const void *)(final_out + f * 3024u + a_lo), nbytes);
+            const uint32_t line_lo = a_lo / 16u;
+            const uint32_t line_hi = (a_hi + 15u) / 16u;
+            const uint64_t stride = 3024u * sizeof(float);
+            for (uint32_t line = line_lo; line < line_hi; line++) {
+                uint64_t addr = (uint64_t)(final_out + line * 16u);
+                evict_va(/*use_tmask=*/0, addr, 83, stride, /*id=*/0);
             }
             WAIT_CACHEOPS; FENCE;
         }
