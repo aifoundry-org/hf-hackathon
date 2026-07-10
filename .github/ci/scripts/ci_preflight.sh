@@ -200,12 +200,12 @@ yolo_det_bad_cases = [
 ]
 yolo_det_good_score = run_score(
     "yolo",
-    write_case_results("yolo", "yolo_m30", yolo_det_good_cases),
+    write_case_results("yolo", "yolo_m30_vpus2", yolo_det_good_cases),
     "yolo-good",
 )
 yolo_det_bad_score = run_score(
     "yolo",
-    write_case_results("yolo", "yolo_m30", yolo_det_bad_cases),
+    write_case_results("yolo", "yolo_m30_vpus2", yolo_det_bad_cases),
     "yolo-bad",
 )
 assert yolo_det_good_score["passed"] and yolo_det_good_score["valid_accuracy"]
