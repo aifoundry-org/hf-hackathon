@@ -1377,6 +1377,23 @@ static inline void matmul_2d_fp32(const float *A, const float *B, float *C,
     }
 }
 
+static inline void mh_matmul_2d_fp32(uint32_t hid, const float *A, const float *B, float *C,
+                                     uint32_t M, uint32_t K, uint32_t N) {
+    if (!yolo_is_compute(hid)) return;
+    const uint32_t cidx = yolo_compute_idx(hid);
+    uint32_t m_lo, m_hi;
+    yolo_range(M, cidx, &m_lo, &m_hi);
+    for (uint32_t i = m_lo; i < m_hi; i++) {
+        for (uint32_t j = 0; j < N; j++) {
+            float acc = 0.0f;
+            for (uint32_t k = 0; k < K; k++) acc += A[i*K + k] * B[k*N + j];
+            C[i*N + j] = acc;
+        }
+    }
+    if (m_hi > m_lo) evict((const void *)(C + m_lo * N), (m_hi - m_lo) * N * sizeof(float));
+}
+#define MH_MATMUL(A, B, C, M, K, N) do { mh_matmul_2d_fp32(hid, (A), (B), (C), (M), (K), (N)); MH_BARRIER(); } while (0)
+
 /* Softmax over rows (last axis): for each row of length N, compute
  * x = exp(x - max(x)) / sum(exp(x - max(x))) */
 static inline void softmax_rows(float *x, uint32_t M, uint32_t N) {
@@ -1390,6 +1407,34 @@ static inline void softmax_rows(float *x, uint32_t M, uint32_t N) {
         for (uint32_t j = 0; j < N; j++) row[j] *= inv;
     }
 }
+
+static inline void mh_softmax_rows(uint32_t hid, float *x, uint32_t M, uint32_t N) {
+    if (!yolo_is_compute(hid)) return;
+    const uint32_t cidx = yolo_compute_idx(hid);
+    uint32_t m_lo, m_hi;
+    yolo_range(M, cidx, &m_lo, &m_hi);
+    for (uint32_t i = m_lo; i < m_hi; i++) {
+        float *row = x + i * N;
+        float m = row[0];
+        for (uint32_t j = 1; j < N; j++) if (row[j] > m) m = row[j];
+        float s = 0.0f;
+        for (uint32_t j = 0; j < N; j++) { row[j] = my_expf(row[j] - m); s += row[j]; }
+        const float inv = fast_recip(s);
+        for (uint32_t j = 0; j < N; j++) row[j] *= inv;
+    }
+    if (m_hi > m_lo) evict((const void *)(x + m_lo * N), (m_hi - m_lo) * N * sizeof(float));
+}
+#define MH_SOFTMAX(X, M, N) do { mh_softmax_rows(hid, (X), (M), (N)); MH_BARRIER(); } while (0)
+
+static inline void mh_scale_array(uint32_t hid, float *arr, float scale, uint32_t N) {
+    if (!yolo_is_compute(hid)) return;
+    const uint32_t cidx = yolo_compute_idx(hid);
+    uint32_t lo, hi;
+    yolo_range(N, cidx, &lo, &hi);
+    for (uint32_t i = lo; i < hi; i++) arr[i] *= scale;
+    if (hi > lo) evict((const void *)(arr + lo), (hi - lo) * sizeof(float));
+}
+#define MH_SCALE(ARR, S, N) do { mh_scale_array(hid, (ARR), (S), (N)); MH_BARRIER(); } while (0)
 
 /* Nearest-neighbor upsample 2x: [C, H, W] -> [C, 2H, 2W] */
 static inline void upsample_nearest_2x(const float *in, float *out,
