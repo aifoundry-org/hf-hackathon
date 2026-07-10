@@ -12,13 +12,14 @@ Index of per-model PR timelines. Each model has its own `prs/<model>-PR.md` with
 | SmolVLM-500M | [#27](https://github.com/aifoundry-org/hf-hackathon/pull/27) | OPEN (mergeable; re-review) | [prs/smolvlm-500m-PR.md](./prs/smolvlm-500m-PR.md) |
 | SmolVLM2-2.2B | [#29](https://github.com/aifoundry-org/hf-hackathon/pull/29) | OPEN (mergeable) | [prs/smolvlm2-2.2b-PR.md](./prs/smolvlm2-2.2b-PR.md) |
 | ZwZ-4B | [#30](https://github.com/aifoundry-org/hf-hackathon/pull/30) | OPEN (mergeable; re-review) | [prs/zwz-4b-PR.md](./prs/zwz-4b-PR.md) |
+| Qwen3-VL-2B-Instruct | [#73](https://github.com/aifoundry-org/hf-hackathon/pull/73) | OPEN (mergeable; CI running) | [prs/qwen3vl-2b-PR.md](./prs/qwen3vl-2b-PR.md) |
 
 ## Not yet submitted
 
 | Model | Path | Timeline |
 |-------|------|----------|
 | MiniCPM-V 4.6 | GGUF / ONNX | [prs/minicpm-v-4.6-PR.md](./prs/minicpm-v-4.6-PR.md) |
-| Qwen3.5-0.8B | GGUF | [prs/qwen35-0.8b-PR.md](./prs/qwen35-0.8b-PR.md) |
+| Qwen3.5-0.8B | GGUF (text-only) | [prs/qwen35-0.8b-PR.md](./prs/qwen35-0.8b-PR.md) — **superseded as VLM** by #73 (no mmproj) |
 | Ministral 3 3B | GGUF | [prs/ministral-3-3b-PR.md](./prs/ministral-3-3b-PR.md) |
 | D-FINE Nano | ggonnx | [prs/dfine-nano-PR.md](./prs/dfine-nano-PR.md) |
 | RF-DETR Small | ggonnx | [prs/rf-detr-small-PR.md](./prs/rf-detr-small-PR.md) |
