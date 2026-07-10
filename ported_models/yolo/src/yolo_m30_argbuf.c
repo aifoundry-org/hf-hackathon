@@ -328,9 +328,9 @@ int main(uintptr_t arg_area)
         const uint32_t HW = 9u * 16u;
 
         CONV_1x1(c2f_m8, m9_cv1, WP(WR_model_9_cv1_conv_Conv_W), WP(WR_model_9_cv1_conv_Conv_B), 256u, 9u, 16u, 128u, 1u);
-        H0_RUN(maxpool_fp32(m9_cv1,m9_mp1,128u,9u,16u,9u,16u,5u,5u,1u,1u,2u,2u), m9_mp1, (128u)*(9u)*(16u)*sizeof(float));
-        H0_RUN(maxpool_fp32(m9_mp1,m9_mp2,128u,9u,16u,9u,16u,5u,5u,1u,1u,2u,2u), m9_mp2, (128u)*(9u)*(16u)*sizeof(float));
-        H0_RUN(maxpool_fp32(m9_mp2,m9_mp3,128u,9u,16u,9u,16u,5u,5u,1u,1u,2u,2u), m9_mp3, (128u)*(9u)*(16u)*sizeof(float));
+        MH_MAXPOOL5(m9_cv1, m9_mp1, 128u, 9u, 16u);
+        MH_MAXPOOL5(m9_mp1, m9_mp2, 128u, 9u, 16u);
+        MH_MAXPOOL5(m9_mp2, m9_mp3, 128u, 9u, 16u);
 
         /* concat [m9_cv1, mp1, mp2, mp3] = 512 channels at 9x16 */
         MH_CONCAT4(concat, m9_cv1, m9_mp1, m9_mp2, m9_mp3, 128u * HW);
@@ -480,11 +480,11 @@ int main(uintptr_t arg_area)
     /* m.11: nearest-2x upsample of psa_out [256,9,16] -> [256,18,32]. */
     {
         float *up = (float *)(base + SCR_M11_UP);
-        H0_RUN(upsample_nearest_2x(psa_out,up,256u,9u,16u), up, (256u)*(9u*2u)*(16u*2u)*sizeof(float));
+        MH_UPSAMPLE_2x(psa_out, up, 256u, 9u, 16u);
 
         /* m.12: concat [up, c2f_m6] axis=1 -> [384,18,32] */
         float *cat = (float *)(base + SCR_M12_CONCAT);
-        H0_RUN(concat_c_chw(up,256u,c2f_m6,128u,cat,18u,32u), cat, ((256u)+(128u))*(18u)*(32u)*sizeof(float));
+        MH_CONCAT_C_CHW(up, 256u, c2f_m6, 128u, cat, 18u, 32u);
 
         /* m.13: C2f without shortcut.
          *   cv1: 384 -> 128, 1x1+SiLU; split -> y0(64)+y1(64)
@@ -516,9 +516,9 @@ int main(uintptr_t arg_area)
     /* m.14: nearest-2x upsample of m13 -> [128,36,64]; m.15: concat with c2f_m4 [64,36,64] = [192,36,64]. */
     {
         float *up = (float *)(base + SCR_M14_UP);
-        H0_RUN(upsample_nearest_2x(m13_cv2_out,up,128u,18u,32u), up, (128u)*(18u*2u)*(32u*2u)*sizeof(float));
+        MH_UPSAMPLE_2x(m13_cv2_out, up, 128u, 18u, 32u);
         float *cat = (float *)(base + SCR_M15_CONCAT);
-        H0_RUN(concat_c_chw(up,128u,c2f_m4,64u,cat,36u,64u), cat, ((128u)+(64u))*(36u)*(64u)*sizeof(float));
+        MH_CONCAT_C_CHW(up, 128u, c2f_m4, 64u, cat, 36u, 64u);
 
         /* m.16: C2f without shortcut.  cv1: 192 -> 64; split into y0(32)+y1(32);
          * m.0: 32 -> 32, 32 -> 32; concat [y0,y1,m0_cv2] = 96; cv2: 96 -> 64. */
@@ -546,7 +546,7 @@ int main(uintptr_t arg_area)
         CONV_3x3_S2_P1_VPU(p3_out, down, WP(WR_model_17_conv_Conv_W), WP(WR_model_17_conv_Conv_B),
                            64u, 36u, 64u, 64u, 18u, 32u, 1u);
         float *cat = (float *)(base + SCR_M18_CONCAT);
-        H0_RUN(concat_c_chw(down,64u,m13_cv2_out,128u,cat,18u,32u), cat, ((64u)+(128u))*(18u)*(32u)*sizeof(float));
+        MH_CONCAT_C_CHW(down, 64u, m13_cv2_out, 128u, cat, 18u, 32u);
 
         /* m.19: C2f w/o shortcut.  cv1 192->128; split 64+64; m.0 64->64, 64->64; concat 192->cv2 128. */
         float *cv1 = (float *)(base + SCR_M19_CV1);
@@ -576,7 +576,7 @@ int main(uintptr_t arg_area)
                        128u, 18u, 32u, 9u, 16u, 3u, 3u, 2u, 2u, 1u, 1u, 0u);
 
         float *cat = (float *)(base + SCR_M21_CONCAT);
-        H0_RUN(concat_c_chw(down,128u,psa_out,256u,cat,9u,16u), cat, ((128u)+(256u))*(9u)*(16u)*sizeof(float));
+        MH_CONCAT_C_CHW(down, 128u, psa_out, 256u, cat, 9u, 16u);
 
         /* m.22: C2fCIB block.
          *   cv1 384->256 (1x1+SiLU); split 128+128 (y0, y1)
@@ -683,68 +683,74 @@ int main(uintptr_t arg_area)
     const uint32_t HW0 = 36u * 64u;     /* 2304 */
     const uint32_t HW1 = 18u * 32u;     /* 576  */
 
-    /* DFL + box decode + class sigmoid (single-hart hart 0).
-     * The naive parallel-by-anchor version had a non-coherent-L1D race
-     * around the scattered writes to final_out (84 disjoint regions per
-     * hart), even with whole-buffer evicts.  Decode is only ~50 ms anyway. */
-    if (is_h0) {
-        for (uint32_t k = 0; k < 3u; k++) {
+    /* DFL + box decode + class sigmoid (Multi-Hart Cache-Aligned).
+     * By partitioning 3024 anchors into 189 chunks of 16 floats,
+     * each hart writes to perfectly 64-byte aligned boundaries.
+     * This avoids any non-coherent L1D cache false sharing! */
+    if (yolo_is_compute(hid)) {
+        const uint32_t cidx = yolo_compute_idx(hid);
+        /* 3024 = 189 * 16. Distribute 189 chunks across MH_NUM_T0 */
+        uint32_t num_blocks = 189u;
+        uint32_t blocks_lo = (num_blocks * cidx) / MH_NUM_T0;
+        uint32_t blocks_hi = (num_blocks * (cidx + 1u)) / MH_NUM_T0;
+        uint32_t a_lo = blocks_lo * 16u;
+        uint32_t a_hi = blocks_hi * 16u;
+        
+        for (uint32_t a = a_lo; a < a_hi; a++) {
             const float *reg_in;
             const float *cls_in;
-            uint32_t H, W;
+            uint32_t W;
             float stride;
-            uint32_t anchor_off;
-            if (k == 0u)      { reg_in = reg0; cls_in = cls0; H = 36u; W = 64u; stride = 8.0f;  anchor_off = 0u; }
-            else if (k == 1u) { reg_in = reg1; cls_in = cls1; H = 18u; W = 32u; stride = 16.0f; anchor_off = HW0; }
-            else              { reg_in = reg2; cls_in = cls2; H =  9u; W = 16u; stride = 32.0f; anchor_off = HW0 + HW1; }
-            const uint32_t HW = H * W;
-
+            uint32_t s;
+            uint32_t HW_cur;
+            if (a < 2304u) {
+                reg_in = reg0; cls_in = cls0; W = 64u; stride = 8.0f; s = a; HW_cur = 2304u;
+            } else if (a < 2880u) {
+                reg_in = reg1; cls_in = cls1; W = 32u; stride = 16.0f; s = a - 2304u; HW_cur = 576u;
+            } else {
+                reg_in = reg2; cls_in = cls2; W = 16u; stride = 32.0f; s = a - 2880u; HW_cur = 144u;
+            }
+            
+            float coords[4];
             for (uint32_t e = 0; e < 4u; e++) {
-                for (uint32_t s = 0; s < HW; s++) {
-                    float row[16];
-                    float m = -3.4e38f;
-                    for (uint32_t b = 0; b < 16u; b++) {
-                        row[b] = reg_in[(e*16u + b) * HW + s];
-                        if (row[b] > m) m = row[b];
-                    }
-                    float sumexp = 0.0f;
-                    for (uint32_t b = 0; b < 16u; b++) { row[b] = my_expf(row[b] - m); sumexp += row[b]; }
-                    const float inv = fast_recip(sumexp);
-                    float ev = 0.0f;
-                    for (uint32_t b = 0; b < 16u; b++) ev += row[b] * inv * (float)b;
-                    tb[e * HW + s] = ev;
+                float row[16];
+                float m = -3.4e38f;
+                for (uint32_t b = 0; b < 16u; b++) {
+                    row[b] = reg_in[(e*16u + b) * HW_cur + s];
+                    if (row[b] > m) m = row[b];
                 }
+                float sumexp = 0.0f;
+                for (uint32_t b = 0; b < 16u; b++) { row[b] = my_expf(row[b] - m); sumexp += row[b]; }
+                const float inv = fast_recip(sumexp);
+                float ev = 0.0f;
+                for (uint32_t b = 0; b < 16u; b++) ev += row[b] * inv * (float)b;
+                coords[e] = ev;
             }
-
-            for (uint32_t h = 0; h < H; h++) {
-                for (uint32_t w = 0; w < W; w++) {
-                    const uint32_t s = h * W + w;
-                    const float a_cx = (float)w + 0.5f;
-                    const float a_cy = (float)h + 0.5f;
-                    const float lt_x = tb[0u*HW + s];
-                    const float lt_y = tb[1u*HW + s];
-                    const float rb_x = tb[2u*HW + s];
-                    const float rb_y = tb[3u*HW + s];
-                    const float left   = (a_cx - lt_x) * stride;
-                    const float top    = (a_cy - lt_y) * stride;
-                    const float right  = (a_cx + rb_x) * stride;
-                    const float bottom = (a_cy + rb_y) * stride;
-                    const uint32_t a = anchor_off + s;
-                    final_out[0u * 3024u + a] = (left + right) * 0.5f;
-                    final_out[1u * 3024u + a] = (top + bottom) * 0.5f;
-                    final_out[2u * 3024u + a] = right - left;
-                    final_out[3u * 3024u + a] = bottom - top;
-                }
-            }
-
+            
+            uint32_t h = s / W;
+            uint32_t w = s % W;
+            const float a_cx = (float)w + 0.5f;
+            const float a_cy = (float)h + 0.5f;
+            const float left   = (a_cx - coords[0]) * stride;
+            const float top    = (a_cy - coords[1]) * stride;
+            const float right  = (a_cx + coords[2]) * stride;
+            const float bottom = (a_cy + coords[3]) * stride;
+            
+            final_out[0u * 3024u + a] = (left + right) * 0.5f;
+            final_out[1u * 3024u + a] = (top + bottom) * 0.5f;
+            final_out[2u * 3024u + a] = right - left;
+            final_out[3u * 3024u + a] = bottom - top;
+            
             for (uint32_t c = 0; c < 80u; c++) {
-                for (uint32_t s = 0; s < HW; s++) {
-                    const float v = cls_in[c * HW + s];
-                    final_out[(4u + c) * 3024u + (anchor_off + s)] = v;
-                }
+                final_out[(4u + c) * 3024u + a] = cls_in[c * HW_cur + s];
             }
         }
-        /* Skipped eviction of final_out to save memory bandwidth */
+        if (a_hi > a_lo) {
+            for (uint32_t f = 0; f < 84u; f++) {
+                evict((const void *)(final_out + f * 3024u + a_lo), (a_hi - a_lo) * sizeof(float));
+            }
+            WAIT_CACHEOPS; FENCE;
+        }
     }
     MH_BARRIER();
 
