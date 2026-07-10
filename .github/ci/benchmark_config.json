@@ -51,7 +51,7 @@
         "baseline_variant": "yolo_m30"
       },
       "build": {
-        "opt": "-O3",
+        "opt": "-Ofast",
         "defines": [
           "-funroll-loops",
           "-fno-tree-loop-distribute-patterns",

@@ -789,6 +789,7 @@ jobs:
         with:
           ref: main
           fetch-depth: 0
+          token: ${{ secrets.LEADERBOARD_PUSH_TOKEN }}
 
       - uses: actions/download-artifact@v4
         with:

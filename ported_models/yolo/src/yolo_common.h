@@ -77,16 +77,24 @@ static void conv2d_fp32(const float *in, float *out,
     for (uint32_t oc = 0; oc < OC; oc++) {
         const float bias = B[oc];
         for (uint32_t oh = 0; oh < OH; oh++) {
+            int32_t ih_base = (int32_t)(oh * SH) - (int32_t)PH;
+            uint32_t ky_start = (ih_base < 0) ? (uint32_t)(-ih_base) : 0u;
+            uint32_t ky_end = KH;
+            if (ih_base + (int32_t)KH > (int32_t)IH) ky_end = (uint32_t)((int32_t)IH - ih_base);
+            
             for (uint32_t ow = 0; ow < OW; ow++) {
+                int32_t iw_base = (int32_t)(ow * SW) - (int32_t)PW;
+                uint32_t kx_start = (iw_base < 0) ? (uint32_t)(-iw_base) : 0u;
+                uint32_t kx_end = KW;
+                if (iw_base + (int32_t)KW > (int32_t)IW) kx_end = (uint32_t)((int32_t)IW - iw_base);
+                
                 float acc = bias;
                 for (uint32_t ic = 0; ic < IC; ic++) {
-                    for (uint32_t ky = 0; ky < KH; ky++) {
-                        const int32_t ih = (int32_t)(oh * SH) - (int32_t)PH + (int32_t)ky;
-                        if (ih < 0 || ih >= (int32_t)IH) continue;
-                        for (uint32_t kx = 0; kx < KW; kx++) {
-                            const int32_t iw = (int32_t)(ow * SW) - (int32_t)PW + (int32_t)kx;
-                            if (iw < 0 || iw >= (int32_t)IW) continue;
-                            const float v = in[(ic * IH + (uint32_t)ih) * IW + (uint32_t)iw];
+                    for (uint32_t ky = ky_start; ky < ky_end; ky++) {
+                        const uint32_t ih = (uint32_t)(ih_base + (int32_t)ky);
+                        for (uint32_t kx = kx_start; kx < kx_end; kx++) {
+                            const uint32_t iw = (uint32_t)(iw_base + (int32_t)kx);
+                            const float v = in[(ic * IH + ih) * IW + iw];
                             const float w = W[((oc * IC + ic) * KH + ky) * KW + kx];
                             acc += w * v;
                         }
@@ -343,16 +351,24 @@ static void conv2d_fp32_mh(uint32_t hid,
     for (uint32_t oc = oc_lo; oc < oc_hi; oc++) {
         const float bias = B[oc];
         for (uint32_t oh = 0; oh < OH; oh++) {
+            int32_t ih_base = (int32_t)(oh * SH) - (int32_t)PH;
+            uint32_t ky_start = (ih_base < 0) ? (uint32_t)(-ih_base) : 0u;
+            uint32_t ky_end = KH;
+            if (ih_base + (int32_t)KH > (int32_t)IH) ky_end = (uint32_t)((int32_t)IH - ih_base);
+            
             for (uint32_t ow = 0; ow < OW; ow++) {
+                int32_t iw_base = (int32_t)(ow * SW) - (int32_t)PW;
+                uint32_t kx_start = (iw_base < 0) ? (uint32_t)(-iw_base) : 0u;
+                uint32_t kx_end = KW;
+                if (iw_base + (int32_t)KW > (int32_t)IW) kx_end = (uint32_t)((int32_t)IW - iw_base);
+                
                 float acc = bias;
                 for (uint32_t ic = 0; ic < IC; ic++) {
-                    for (uint32_t ky = 0; ky < KH; ky++) {
-                        const int32_t ih = (int32_t)(oh * SH) - (int32_t)PH + (int32_t)ky;
-                        if (ih < 0 || ih >= (int32_t)IH) continue;
-                        for (uint32_t kx = 0; kx < KW; kx++) {
-                            const int32_t iw = (int32_t)(ow * SW) - (int32_t)PW + (int32_t)kx;
-                            if (iw < 0 || iw >= (int32_t)IW) continue;
-                            const float v = in[(ic * IH + (uint32_t)ih) * IW + (uint32_t)iw];
+                    for (uint32_t ky = ky_start; ky < ky_end; ky++) {
+                        const uint32_t ih = (uint32_t)(ih_base + (int32_t)ky);
+                        for (uint32_t kx = kx_start; kx < kx_end; kx++) {
+                            const uint32_t iw = (uint32_t)(iw_base + (int32_t)kx);
+                            const float v = in[(ic * IH + ih) * IW + iw];
                             const float w = W[((oc * IC + ic) * KH + ky) * KW + kx];
                             acc += w * v;
                         }
@@ -406,8 +422,8 @@ static void conv2d_1x1_fp32_mh_vpu(uint32_t hid,
                 for (uint32_t ic = 0; ic < IC; ic++) {
                     const float w_scalar = W[oc * IC + ic];
                     union { float f; uint32_t u; } ww; ww.f = w_scalar;
-                    register float v_pkg asm("f1");
-                    register float w_pkg asm("f2");
+                    float v_pkg;
+                    float w_pkg;
                     const float *src = in + (ic * H + oh) * W_ + ow8;
                     __asm__ volatile("flq2 %0, 0(%1)\n" : "=f"(v_pkg) : "r"(src));
                     __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w_pkg) : "r"((uint64_t)ww.u));
@@ -474,7 +490,7 @@ static void conv2d_1x1_fp32_mh_vpu_oc8(uint32_t hid,
 #undef INIT_ACC
 
                 for (uint32_t ic = 0; ic < IC; ic++) {
-                    register float v_pkg asm("f8");
+                    float v_pkg;
                     register float w0 asm("f20"), w1 asm("f21"), w2 asm("f22"), w3 asm("f23");
                     register float w4 asm("f24"), w5 asm("f25"), w6 asm("f26"), w7 asm("f27");
                     const float *src = in + (ic * H + oh) * W_ + ow8;
@@ -572,7 +588,7 @@ static void conv2d_1x1_fp32_mh_vpu_oc16(uint32_t hid,
 #undef INIT_ACC
 
                 for (uint32_t ic = 0; ic < IC; ic++) {
-                    register float v_pkg asm("f8");
+                    float v_pkg;
                     register float w0 asm("f20"), w1 asm("f21"), w2 asm("f22"), w3 asm("f23");
                     register float w4 asm("f24"), w5 asm("f25"), w6 asm("f26"), w7 asm("f27");
                     const float *src = in + (ic * H + oh) * W_ + ow8;
@@ -698,37 +714,59 @@ static void conv2d_3x3_p1_fp32_mh_vpu(uint32_t hid,
         const float bias_v = B[oc];
         union { float f; uint32_t u; } bb; bb.f = bias_v;
         for (int32_t oh = 0; oh < (int32_t)H; oh++) {
+            int32_t is_h_edge = (oh == 0) || (oh == (int32_t)H - 1);
             for (int32_t ow8 = 0; ow8 < (int32_t)W_; ow8 += 8) {
+                int32_t is_w_edge = (ow8 == 0) || (ow8 + 8 > (int32_t)W_ - 1);
                 register float acc asm("f0");
                 __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(acc) : "r"((uint64_t)bb.u));
 
-                for (uint32_t ic = 0; ic < IC; ic++) {
-                    for (uint32_t ky = 0; ky < 3u; ky++) {
-                        const int32_t ih = oh + (int32_t)ky - 1;
-                        if (ih < 0 || ih >= (int32_t)H) continue;
-                        for (uint32_t kx = 0; kx < 3u; kx++) {
-                            const int32_t iw = ow8 + (int32_t)kx - 1;
-                            const float w_scalar = W[((oc * IC + ic) * 3u + ky) * 3u + kx];
-                            if (iw >= 0 && iw + 7 < (int32_t)W_) {
-                                register float v_pkg asm("f1");
-                                register float w_pkg asm("f2");
+                if (!is_h_edge && !is_w_edge) {
+                    for (uint32_t ic = 0; ic < IC; ic++) {
+                        for (uint32_t ky = 0; ky < 3u; ky++) {
+                            const int32_t ih = oh + (int32_t)ky - 1;
+                            for (uint32_t kx = 0; kx < 3u; kx++) {
+                                const int32_t iw = ow8 + (int32_t)kx - 1;
+                                const float w_scalar = W[((oc * IC + ic) * 3u + ky) * 3u + kx];
+                                float v_pkg;
+                                float w_pkg;
                                 union { float f; uint32_t u; } ww; ww.f = w_scalar;
                                 const float *src = in + (ic * H + (uint32_t)ih) * W_ + (uint32_t)iw;
                                 __asm__ volatile("flq2 %0, 0(%1)\n" : "=f"(v_pkg) : "r"(src));
                                 __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w_pkg) : "r"((uint64_t)ww.u));
                                 __asm__ volatile("fmadd.ps %0, %1, %2, %0\n"
                                                  : "+f"(acc) : "f"(v_pkg), "f"(w_pkg));
-                            } else {
-                                /* Edge: dump acc, scalar-update each of 8 lanes, reload */
-                                __asm__ volatile("fsq2 %1, 0(%0)\n" :: "r"(acc_buf), "f"(acc) : "memory");
-                                __asm__ volatile("fence rw, rw" ::: "memory");
-                                for (int lane = 0; lane < 8; lane++) {
-                                    const int32_t iw_l = ow8 + lane + (int32_t)kx - 1;
-                                    if (iw_l >= 0 && iw_l < (int32_t)W_) {
-                                        acc_buf[lane] += in[(ic * H + (uint32_t)ih) * W_ + (uint32_t)iw_l] * w_scalar;
+                            }
+                        }
+                    }
+                } else {
+                    for (uint32_t ic = 0; ic < IC; ic++) {
+                        for (uint32_t ky = 0; ky < 3u; ky++) {
+                            const int32_t ih = oh + (int32_t)ky - 1;
+                            if (ih < 0 || ih >= (int32_t)H) continue;
+                            for (uint32_t kx = 0; kx < 3u; kx++) {
+                                const int32_t iw = ow8 + (int32_t)kx - 1;
+                                const float w_scalar = W[((oc * IC + ic) * 3u + ky) * 3u + kx];
+                                if (iw >= 0 && iw + 7 < (int32_t)W_) {
+                                    float v_pkg;
+                                    float w_pkg;
+                                    union { float f; uint32_t u; } ww; ww.f = w_scalar;
+                                    const float *src = in + (ic * H + (uint32_t)ih) * W_ + (uint32_t)iw;
+                                    __asm__ volatile("flq2 %0, 0(%1)\n" : "=f"(v_pkg) : "r"(src));
+                                    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w_pkg) : "r"((uint64_t)ww.u));
+                                    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n"
+                                                     : "+f"(acc) : "f"(v_pkg), "f"(w_pkg));
+                                } else {
+                                    /* Edge: dump acc, scalar-update each of 8 lanes, reload */
+                                    __asm__ volatile("fsq2 %1, 0(%0)\n" :: "r"(acc_buf), "f"(acc) : "memory");
+                                    __asm__ volatile("fence rw, rw" ::: "memory");
+                                    for (int lane = 0; lane < 8; lane++) {
+                                        const int32_t iw_l = ow8 + lane + (int32_t)kx - 1;
+                                        if (iw_l >= 0 && iw_l < (int32_t)W_) {
+                                            acc_buf[lane] += in[(ic * H + (uint32_t)ih) * W_ + (uint32_t)iw_l] * w_scalar;
+                                        }
                                     }
+                                    __asm__ volatile("flq2 %0, 0(%1)\n" : "=f"(acc) : "r"(acc_buf));
                                 }
-                                __asm__ volatile("flq2 %0, 0(%1)\n" : "=f"(acc) : "r"(acc_buf));
                             }
                         }
                     }
@@ -793,8 +831,8 @@ static void conv2d_3x3_p1_fp32_mh_vpu_oc8(uint32_t hid,
                         if (ih < 0 || ih >= (int32_t)H) continue;
                         for (uint32_t kx = 0; kx < 3u; kx++) {
                             const int32_t iw = ow8 + (int32_t)kx - 1;
-                            register float v_pkg asm("f8");
-                            register float w_pkg asm("f9");
+                            float v_pkg;
+                            float w_pkg;
                             if (iw >= 0 && iw + 7 < (int32_t)W_) {
                                 const float *src = in + (ic * H + (uint32_t)ih) * W_ + (uint32_t)iw;
                                 register float w0 asm("f20"), w1 asm("f21"), w2 asm("f22"), w3 asm("f23");
@@ -897,39 +935,61 @@ static void conv2d_3x3_s2_p1_fp32_mh_vpu(uint32_t hid,
         const float bias_v = B[oc];
         union { float f; uint32_t u; } bb; bb.f = bias_v;
         for (int32_t oh = 0; oh < (int32_t)OH; oh++) {
+            int32_t is_h_edge = (oh == 0); // No bottom edge because stride 2 padding 1 never overshoots by 2
             for (int32_t ow4 = 0; ow4 < (int32_t)OW; ow4 += 4) {
+                int32_t is_w_edge = (ow4 == 0) || (ow4 * 2 + 8 > (int32_t)IW - 1);
                 register float acc asm("f0");
                 __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(acc) : "r"((uint64_t)bb.u));
 
-                for (uint32_t ic = 0; ic < IC; ic++) {
-                    for (uint32_t ky = 0; ky < 3u; ky++) {
-                        const int32_t ih = oh * 2 + (int32_t)ky - 1;
-                        if (ih < 0 || ih >= (int32_t)IH) continue;
-                        for (uint32_t kx = 0; kx < 3u; kx++) {
-                            const int32_t iw_base = ow4 * 2 + (int32_t)kx - 1;  /* lane-0 input col */
-                            const float w_scalar = W[((oc * IC + ic) * 3u + ky) * 3u + kx];
-                            if (iw_base >= 0 && iw_base + 7 < (int32_t)IW) {
-                                /* Fast path: 8 contiguous input cols loaded; only
-                                 * even lanes (0,2,4,6) contribute to valid output. */
-                                register float v_pkg asm("f1");
-                                register float w_pkg asm("f2");
+                if (!is_h_edge && !is_w_edge) {
+                    for (uint32_t ic = 0; ic < IC; ic++) {
+                        for (uint32_t ky = 0; ky < 3u; ky++) {
+                            const int32_t ih = oh * 2 + (int32_t)ky - 1;
+                            for (uint32_t kx = 0; kx < 3u; kx++) {
+                                const int32_t iw_base = ow4 * 2 + (int32_t)kx - 1;
+                                const float w_scalar = W[((oc * IC + ic) * 3u + ky) * 3u + kx];
+                                float v_pkg;
+                                float w_pkg;
                                 union { float f; uint32_t u; } ww; ww.f = w_scalar;
                                 const float *src = in + (ic * IH + (uint32_t)ih) * IW + (uint32_t)iw_base;
                                 __asm__ volatile("flq2 %0, 0(%1)\n" : "=f"(v_pkg) : "r"(src));
                                 __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w_pkg) : "r"((uint64_t)ww.u));
                                 __asm__ volatile("fmadd.ps %0, %1, %2, %0\n"
                                                  : "+f"(acc) : "f"(v_pkg), "f"(w_pkg));
-                            } else {
-                                /* Edge: scalar update of even lanes. */
-                                __asm__ volatile("fsq2 %1, 0(%0)\n" :: "r"(acc_buf), "f"(acc) : "memory");
-                                __asm__ volatile("fence rw, rw" ::: "memory");
-                                for (int lane = 0; lane < 4; lane++) {
-                                    const int32_t iw_l = iw_base + 2 * lane;
-                                    if (iw_l >= 0 && iw_l < (int32_t)IW) {
-                                        acc_buf[2 * lane] += in[(ic * IH + (uint32_t)ih) * IW + (uint32_t)iw_l] * w_scalar;
+                            }
+                        }
+                    }
+                } else {
+                    for (uint32_t ic = 0; ic < IC; ic++) {
+                        for (uint32_t ky = 0; ky < 3u; ky++) {
+                            const int32_t ih = oh * 2 + (int32_t)ky - 1;
+                            if (ih < 0 || ih >= (int32_t)IH) continue;
+                            for (uint32_t kx = 0; kx < 3u; kx++) {
+                                const int32_t iw_base = ow4 * 2 + (int32_t)kx - 1;  /* lane-0 input col */
+                                const float w_scalar = W[((oc * IC + ic) * 3u + ky) * 3u + kx];
+                                if (iw_base >= 0 && iw_base + 7 < (int32_t)IW) {
+                                    /* Fast path: 8 contiguous input cols loaded; only
+                                     * even lanes (0,2,4,6) contribute to valid output. */
+                                    float v_pkg;
+                                    float w_pkg;
+                                    union { float f; uint32_t u; } ww; ww.f = w_scalar;
+                                    const float *src = in + (ic * IH + (uint32_t)ih) * IW + (uint32_t)iw_base;
+                                    __asm__ volatile("flq2 %0, 0(%1)\n" : "=f"(v_pkg) : "r"(src));
+                                    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w_pkg) : "r"((uint64_t)ww.u));
+                                    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n"
+                                                     : "+f"(acc) : "f"(v_pkg), "f"(w_pkg));
+                                } else {
+                                    /* Edge: scalar update of even lanes. */
+                                    __asm__ volatile("fsq2 %1, 0(%0)\n" :: "r"(acc_buf), "f"(acc) : "memory");
+                                    __asm__ volatile("fence rw, rw" ::: "memory");
+                                    for (int lane = 0; lane < 4; lane++) {
+                                        const int32_t iw_l = iw_base + 2 * lane;
+                                        if (iw_l >= 0 && iw_l < (int32_t)IW) {
+                                            acc_buf[2 * lane] += in[(ic * IH + (uint32_t)ih) * IW + (uint32_t)iw_l] * w_scalar;
+                                        }
                                     }
+                                    __asm__ volatile("flq2 %0, 0(%1)\n" : "=f"(acc) : "r"(acc_buf));
                                 }
-                                __asm__ volatile("flq2 %0, 0(%1)\n" : "=f"(acc) : "r"(acc_buf));
                             }
                         }
                     }
@@ -992,8 +1052,8 @@ static void conv2d_3x3_p1_fp32_mh_vpu_oc4(uint32_t hid,
                         if (ih < 0 || ih >= (int32_t)H) continue;
                         for (uint32_t kx = 0; kx < 3u; kx++) {
                             const int32_t iw = ow8 + (int32_t)kx - 1;
-                            register float v_pkg asm("f8");
-                            register float w_pkg asm("f9");
+                            float v_pkg;
+                            float w_pkg;
                             if (iw >= 0 && iw + 7 < (int32_t)W_) {
                                 const float *src = in + (ic * H + (uint32_t)ih) * W_ + (uint32_t)iw;
                                 __asm__ volatile("flq2 %0, 0(%1)\n" : "=f"(v_pkg) : "r"(src));
@@ -1090,8 +1150,8 @@ static void conv2d_dw3x3_s1_p1_fp32_mh_vpu(uint32_t hid,
                         const int32_t iw = ow8 + (int32_t)kx - 1;
                         const float w_scalar = wp[ky * 3u + kx];
                         if (iw >= 0 && iw + 7 < (int32_t)W_) {
-                            register float v_pkg asm("f1");
-                            register float w_pkg asm("f2");
+                            float v_pkg;
+                            float w_pkg;
                             union { float f; uint32_t u; } ww; ww.f = w_scalar;
                             const float *src = in + (c * H + (uint32_t)ih) * W_ + (uint32_t)iw;
                             __asm__ volatile("flq2 %0, 0(%1)\n" : "=f"(v_pkg) : "r"(src));
