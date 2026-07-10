@@ -151,13 +151,12 @@ int main(uintptr_t arg_area)
     uint8_t *base = (uint8_t *)buffer_base_from_args(arg_area);
     mh_init_barrier(base);
 
-#ifdef YOLO_USE_TENSOR
-    /* Enable SCP scratchpad (hart 0 only). */
+    /* Enable SCP scratchpad for tensor unit (hart 0).
+     * If unavailable (simulator, no SCP), tensor convs fall through to VPU. */
     if (is_h0) {
         tensor_scp_enable();
     }
     MH_BARRIER();
-#endif
 
     /* === STAGE 0: PREPROCESS on silicon ===
      * Read raw uint8 RGB image at RAW_INPUT_OFFSET (HWC, [SRC_H, SRC_W, 3]).
