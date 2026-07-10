@@ -1,0 +1,869 @@
+{
+  "smolvlm_256m": {
+    "json:artifacts.json": {
+      "status": "PASS",
+      "note": "valid JSON"
+    },
+    "json:benchmark_config.json": {
+      "status": "PASS",
+      "note": "valid JSON"
+    },
+    "json:benchmarks/smolvlm_256m.json": {
+      "status": "PASS",
+      "note": "valid JSON"
+    },
+    "hf_reference": {
+      "status": "PASS",
+      "note": "| `smolvlm_256m` | `ggml-org/SmolVLM-256M-Instruct-GGUF` | `b9e4379657e1450d04d02eec8e345667265b0a00` | `apache-2.0` | `SmolVLM-256M-Instruct-Q8_0.gguf`, `mmpro"
+    },
+    "submission_recipe": {
+      "status": "PASS",
+      "note": "ported_models\\llama_cpp_et\\docs\\smolvlm_256m.md"
+    },
+    "no_model_blobs": {
+      "status": "PASS",
+      "note": "ok"
+    },
+    "ci_registered": {
+      "status": "PASS",
+      "note": "config=ported_models/llama_cpp_et/benchmarks/smolvlm_256m.json exists=True"
+    },
+    "artifacts_schema": {
+      "status": "PASS",
+      "note": "keys=['smolvlm_256m_q8_gguf', 'smolvlm_256m_mmproj_q8']"
+    },
+    "benchmark_config": {
+      "status": "PASS",
+      "note": "ok"
+    },
+    "port": {
+      "status": "PASS",
+      "note": "18100"
+    },
+    "mmproj": {
+      "status": "PASS",
+      "note": "keys=['smolvlm_256m_mmproj_q8']"
+    },
+    "hf_urls": {
+      "status": "PASS",
+      "note": "smolvlm_256m_q8_gguf:200; smolvlm_256m_mmproj_q8:200; smolvlm_256m_mmproj_q8:200"
+    },
+    "sha256_vs_hf": {
+      "status": "PASS",
+      "note": "smolvlm_256m_q8_gguf:match; smolvlm_256m_mmproj_q8:match; smolvlm_256m_mmproj_q8:match"
+    },
+    "config_expansion": {
+      "status": "PASS",
+      "note": "smolvlm_256m"
+    },
+    "ci_preflight": {
+      "status": "FAIL",
+      "note": "exit=2"
+    },
+    "ci_preflight_model": {
+      "status": "FAIL",
+      "note": "selector_exit=2"
+    },
+    "checkout": {
+      "status": "PASS",
+      "note": "origin/main"
+    }
+  },
+  "smolvlm_500m": {
+    "json:artifacts.json": {
+      "status": "PASS",
+      "note": "valid JSON"
+    },
+    "json:benchmark_config.json": {
+      "status": "PASS",
+      "note": "valid JSON"
+    },
+    "json:benchmarks/smolvlm_500m.json": {
+      "status": "PASS",
+      "note": "valid JSON"
+    },
+    "hf_reference": {
+      "status": "PASS",
+      "note": "| `smolvlm_500m` | `ggml-org/SmolVLM-500M-Instruct-GGUF` | `72e986006ef53e37cdd3f6d4241c90b0f01df376` | `apache-2.0` | `SmolVLM-500M-Instruct-Q8_0.gguf`, `mmpro"
+    },
+    "submission_recipe": {
+      "status": "PASS",
+      "note": "ported_models\\llama_cpp_et\\docs\\smolvlm_500m.md"
+    },
+    "no_model_blobs": {
+      "status": "PASS",
+      "note": "ok"
+    },
+    "ci_registered": {
+      "status": "PASS",
+      "note": "config=ported_models/llama_cpp_et/benchmarks/smolvlm_500m.json exists=True"
+    },
+    "artifacts_schema": {
+      "status": "PASS",
+      "note": "keys=['smolvlm_500m_q8_gguf', 'smolvlm_500m_mmproj_q8']"
+    },
+    "benchmark_config": {
+      "status": "PASS",
+      "note": "ok"
+    },
+    "port": {
+      "status": "PASS",
+      "note": "18103"
+    },
+    "mmproj": {
+      "status": "PASS",
+      "note": "keys=['smolvlm_500m_mmproj_q8']"
+    },
+    "hf_urls": {
+      "status": "PASS",
+      "note": "smolvlm_500m_q8_gguf:200; smolvlm_500m_mmproj_q8:200; smolvlm_500m_mmproj_q8:200"
+    },
+    "sha256_vs_hf": {
+      "status": "PASS",
+      "note": "smolvlm_500m_q8_gguf:match; smolvlm_500m_mmproj_q8:match; smolvlm_500m_mmproj_q8:match"
+    },
+    "config_expansion": {
+      "status": "PASS",
+      "note": "smolvlm_500m"
+    },
+    "ci_preflight": {
+      "status": "FAIL",
+      "note": "exit=2"
+    },
+    "ci_preflight_model": {
+      "status": "FAIL",
+      "note": "selector_exit=2"
+    },
+    "checkout": {
+      "status": "PASS",
+      "note": "fork/feat/smolvlm-500m"
+    }
+  },
+  "qwen35_08b": {
+    "json:artifacts.json": {
+      "status": "PASS",
+      "note": "valid JSON"
+    },
+    "json:benchmark_config.json": {
+      "status": "PASS",
+      "note": "valid JSON"
+    },
+    "json:benchmarks/qwen35_08b.json": {
+      "status": "PASS",
+      "note": "valid JSON"
+    },
+    "hf_reference": {
+      "status": "FAIL",
+      "note": "not found in HF_REFERENCES.md"
+    },
+    "submission_recipe": {
+      "status": "PASS",
+      "note": "ported_models\\llama_cpp_et\\docs\\qwen35_08b.md"
+    },
+    "no_model_blobs": {
+      "status": "PASS",
+      "note": "ok"
+    },
+    "ci_registered": {
+      "status": "FAIL",
+      "note": "qwen35_08b missing from benchmark_config.json models"
+    },
+    "artifacts_schema": {
+      "status": "FAIL",
+      "note": "missing keys ['qwen35_08b_q8_gguf', 'qwen35_08b_mmproj_q8']"
+    },
+    "benchmark_config": {
+      "status": "FAIL",
+      "note": "model_artifact qwen35_08b_q8_gguf not in artifacts"
+    },
+    "port": {
+      "status": "PASS",
+      "note": "18102"
+    },
+    "mmproj": {
+      "status": "FAIL",
+      "note": "missing ['qwen35_08b_mmproj_q8']"
+    },
+    "hf_urls": {
+      "status": "PASS",
+      "note": ""
+    },
+    "sha256_vs_hf": {
+      "status": "PASS",
+      "note": ""
+    },
+    "config_expansion": {
+      "status": "FAIL",
+      "note": "error: unknown benchmark model(s): qwen35_08b. configured models: yolo, lfm25, llama32_1b, gemma3n_e2b, tinyllama11b, rwkv7_15b, qwen25_05b, qwen3_06b, qwen3_17"
+    },
+    "ci_preflight": {
+      "status": "FAIL",
+      "note": "exit=2"
+    },
+    "ci_preflight_model": {
+      "status": "FAIL",
+      "note": "selector_exit=2"
+    },
+    "checkout": {
+      "status": "PASS",
+      "note": "fork/docs/vision-models-pr-tracker"
+    },
+    "feat_branch": {
+      "status": "WARN",
+      "note": "feat/qwen35-08b empty vs main; verified drafts/plans on fork/docs/vision-models-pr-tracker"
+    },
+    "readiness": {
+      "status": "WARN",
+      "note": "WIP / not PR-ready"
+    }
+  },
+  "smolvlm2_22b": {
+    "json:artifacts.json": {
+      "status": "PASS",
+      "note": "valid JSON"
+    },
+    "json:benchmark_config.json": {
+      "status": "PASS",
+      "note": "valid JSON"
+    },
+    "json:benchmarks/smolvlm2_22b.json": {
+      "status": "PASS",
+      "note": "valid JSON"
+    },
+    "hf_reference": {
+      "status": "PASS",
+      "note": "| `smolvlm2_22b` | `ggml-org/SmolVLM2-2.2B-Instruct-GGUF` | `1bc3c9f74ceafd4c8d4411cc9cf188bba3798f91` | `apache-2.0` | `SmolVLM2-2.2B-Instruct-Q4_K_M.gguf`, `m"
+    },
+    "submission_recipe": {
+      "status": "PASS",
+      "note": "ported_models\\llama_cpp_et\\docs\\smolvlm2_22b.md"
+    },
+    "no_model_blobs": {
+      "status": "PASS",
+      "note": "ok"
+    },
+    "ci_registered": {
+      "status": "PASS",
+      "note": "config=ported_models/llama_cpp_et/benchmarks/smolvlm2_22b.json exists=True"
+    },
+    "artifacts_schema": {
+      "status": "PASS",
+      "note": "keys=['smolvlm2_22b_q4_gguf', 'smolvlm2_22b_mmproj_q8']"
+    },
+    "benchmark_config": {
+      "status": "PASS",
+      "note": "ok"
+    },
+    "port": {
+      "status": "PASS",
+      "note": "18106"
+    },
+    "mmproj": {
+      "status": "PASS",
+      "note": "keys=['smolvlm2_22b_mmproj_q8']"
+    },
+    "hf_urls": {
+      "status": "PASS",
+      "note": "smolvlm2_22b_q4_gguf:200; smolvlm2_22b_mmproj_q8:200; smolvlm2_22b_mmproj_q8:200"
+    },
+    "sha256_vs_hf": {
+      "status": "PASS",
+      "note": "smolvlm2_22b_q4_gguf:match; smolvlm2_22b_mmproj_q8:match; smolvlm2_22b_mmproj_q8:match"
+    },
+    "config_expansion": {
+      "status": "PASS",
+      "note": "smolvlm2_22b"
+    },
+    "ci_preflight": {
+      "status": "FAIL",
+      "note": "exit=2"
+    },
+    "ci_preflight_model": {
+      "status": "FAIL",
+      "note": "selector_exit=2"
+    },
+    "checkout": {
+      "status": "PASS",
+      "note": "fork/feat/smolvlm2-2.2b"
+    }
+  },
+  "minicpm_v46": {
+    "json:artifacts.json": {
+      "status": "PASS",
+      "note": "valid JSON"
+    },
+    "json:benchmark_config.json": {
+      "status": "PASS",
+      "note": "valid JSON"
+    },
+    "json:benchmarks/minicpm_v46.json": {
+      "status": "PASS",
+      "note": "valid JSON"
+    },
+    "hf_reference": {
+      "status": "FAIL",
+      "note": "not found in HF_REFERENCES.md"
+    },
+    "submission_recipe": {
+      "status": "PASS",
+      "note": "ported_models\\llama_cpp_et\\docs\\minicpm_v46.md"
+    },
+    "no_model_blobs": {
+      "status": "PASS",
+      "note": "ok"
+    },
+    "ci_registered": {
+      "status": "FAIL",
+      "note": "minicpm_v46 missing from benchmark_config.json models"
+    },
+    "artifacts_schema": {
+      "status": "FAIL",
+      "note": "missing keys ['minicpm_v46_q8_gguf', 'minicpm_v46_mmproj_q8']"
+    },
+    "benchmark_config": {
+      "status": "FAIL",
+      "note": "model_artifact minicpm_v46_q8_gguf not in artifacts"
+    },
+    "port": {
+      "status": "PASS",
+      "note": "18101"
+    },
+    "mmproj": {
+      "status": "FAIL",
+      "note": "missing ['minicpm_v46_mmproj_q8']"
+    },
+    "hf_urls": {
+      "status": "PASS",
+      "note": ""
+    },
+    "sha256_vs_hf": {
+      "status": "PASS",
+      "note": ""
+    },
+    "config_expansion": {
+      "status": "FAIL",
+      "note": "error: unknown benchmark model(s): minicpm_v46. configured models: yolo, lfm25, llama32_1b, gemma3n_e2b, tinyllama11b, rwkv7_15b, qwen25_05b, qwen3_06b, qwen3_1"
+    },
+    "ci_preflight": {
+      "status": "FAIL",
+      "note": "exit=2"
+    },
+    "ci_preflight_model": {
+      "status": "FAIL",
+      "note": "selector_exit=2"
+    },
+    "checkout": {
+      "status": "PASS",
+      "note": "fork/docs/vision-models-pr-tracker"
+    },
+    "feat_branch": {
+      "status": "WARN",
+      "note": "feat/minicpm-v-4.6 empty vs main; verified drafts/plans on fork/docs/vision-models-pr-tracker"
+    },
+    "readiness": {
+      "status": "WARN",
+      "note": "WIP / not PR-ready"
+    }
+  },
+  "zwz_4b": {
+    "json:artifacts.json": {
+      "status": "PASS",
+      "note": "valid JSON"
+    },
+    "json:benchmark_config.json": {
+      "status": "PASS",
+      "note": "valid JSON"
+    },
+    "json:benchmarks/zwz_4b.json": {
+      "status": "PASS",
+      "note": "valid JSON"
+    },
+    "hf_reference": {
+      "status": "PASS",
+      "note": "| `zwz_4b` | `inclusionAI/ZwZ-4B-GGUF` | `af96680eb7d0978e4844e8395cb6fd727f0a1d84` | `apache-2.0` | `ZwZ-4B-Q4_K_M.gguf`, `mmproj-ZwZ-4B-Q8_0.gguf` |"
+    },
+    "submission_recipe": {
+      "status": "PASS",
+      "note": "ported_models\\llama_cpp_et\\docs\\zwz_4b.md"
+    },
+    "no_model_blobs": {
+      "status": "PASS",
+      "note": "ok"
+    },
+    "ci_registered": {
+      "status": "PASS",
+      "note": "config=ported_models/llama_cpp_et/benchmarks/zwz_4b.json exists=True"
+    },
+    "artifacts_schema": {
+      "status": "PASS",
+      "note": "keys=['zwz_4b_q4_gguf', 'zwz_4b_mmproj_q8']"
+    },
+    "benchmark_config": {
+      "status": "PASS",
+      "note": "ok"
+    },
+    "port": {
+      "status": "PASS",
+      "note": "18105"
+    },
+    "mmproj": {
+      "status": "PASS",
+      "note": "keys=['zwz_4b_mmproj_q8']"
+    },
+    "hf_urls": {
+      "status": "PASS",
+      "note": "zwz_4b_q4_gguf:200; zwz_4b_mmproj_q8:200; zwz_4b_mmproj_q8:200"
+    },
+    "sha256_vs_hf": {
+      "status": "PASS",
+      "note": "zwz_4b_q4_gguf:match; zwz_4b_mmproj_q8:match; zwz_4b_mmproj_q8:match"
+    },
+    "config_expansion": {
+      "status": "PASS",
+      "note": "zwz_4b"
+    },
+    "ci_preflight": {
+      "status": "FAIL",
+      "note": "exit=2"
+    },
+    "ci_preflight_model": {
+      "status": "FAIL",
+      "note": "selector_exit=2"
+    },
+    "checkout": {
+      "status": "PASS",
+      "note": "fork/feat/zwz-4b"
+    }
+  },
+  "ministral_3b": {
+    "json:artifacts.json": {
+      "status": "PASS",
+      "note": "valid JSON"
+    },
+    "json:benchmark_config.json": {
+      "status": "PASS",
+      "note": "valid JSON"
+    },
+    "json:benchmarks/ministral_3b.json": {
+      "status": "PASS",
+      "note": "valid JSON"
+    },
+    "hf_reference": {
+      "status": "FAIL",
+      "note": "not found in HF_REFERENCES.md"
+    },
+    "submission_recipe": {
+      "status": "PASS",
+      "note": "ported_models\\llama_cpp_et\\docs\\ministral_3b.md"
+    },
+    "no_model_blobs": {
+      "status": "PASS",
+      "note": "ok"
+    },
+    "ci_registered": {
+      "status": "FAIL",
+      "note": "ministral_3b missing from benchmark_config.json models"
+    },
+    "artifacts_schema": {
+      "status": "FAIL",
+      "note": "missing keys ['ministral_3b_q8_gguf', 'ministral_3b_mmproj_q8']"
+    },
+    "benchmark_config": {
+      "status": "FAIL",
+      "note": "model_artifact ministral_3b_q8_gguf not in artifacts"
+    },
+    "port": {
+      "status": "PASS",
+      "note": "18104"
+    },
+    "mmproj": {
+      "status": "FAIL",
+      "note": "missing ['ministral_3b_mmproj_q8']"
+    },
+    "hf_urls": {
+      "status": "PASS",
+      "note": ""
+    },
+    "sha256_vs_hf": {
+      "status": "PASS",
+      "note": ""
+    },
+    "config_expansion": {
+      "status": "FAIL",
+      "note": "error: unknown benchmark model(s): ministral_3b. configured models: yolo, lfm25, llama32_1b, gemma3n_e2b, tinyllama11b, rwkv7_15b, qwen25_05b, qwen3_06b, qwen3_"
+    },
+    "ci_preflight": {
+      "status": "FAIL",
+      "note": "exit=2"
+    },
+    "ci_preflight_model": {
+      "status": "FAIL",
+      "note": "selector_exit=2"
+    },
+    "checkout": {
+      "status": "PASS",
+      "note": "fork/docs/vision-models-pr-tracker"
+    },
+    "feat_branch": {
+      "status": "WARN",
+      "note": "feat/ministral-3-3b empty vs main; verified drafts/plans on fork/docs/vision-models-pr-tracker"
+    },
+    "readiness": {
+      "status": "WARN",
+      "note": "WIP / not PR-ready"
+    }
+  },
+  "tinyvit": {
+    "json:artifacts.json": {
+      "status": "PASS",
+      "note": "valid JSON"
+    },
+    "hf_reference": {
+      "status": "WARN",
+      "note": "no HF_REFERENCES row (may be OK if recipe pins source)"
+    },
+    "submission_recipe": {
+      "status": "WARN",
+      "note": "plan only (D:/Github/ai-foundry-hf-hackathon/docs/vision_models/tinyvit.md); missing ported_models/ggonnx/docs/tinyvit.md"
+    },
+    "no_model_blobs": {
+      "status": "PASS",
+      "note": "ok"
+    },
+    "ci_registered": {
+      "status": "WARN",
+      "note": "not in benchmark_config.json (expected: ggonnx CI not wired)"
+    },
+    "artifacts_schema": {
+      "status": "FAIL",
+      "note": "missing tinyvit_21m"
+    },
+    "onnx_availability": {
+      "status": "FAIL",
+      "note": "no artifact entries; export/registration pending"
+    },
+    "onnx_ops": {
+      "status": "PASS",
+      "note": "see plan/recipe; no hard blockers flagged in quick scan"
+    },
+    "license": {
+      "status": "PASS",
+      "note": "open license mentioned"
+    },
+    "ci_preflight": {
+      "status": "FAIL",
+      "note": "exit=2"
+    },
+    "ci_preflight_model": {
+      "status": "SKIP",
+      "note": "ONNX path"
+    },
+    "config_expansion": {
+      "status": "SKIP",
+      "note": "not CI-registered"
+    },
+    "mmproj": {
+      "status": "N/A",
+      "note": "ONNX"
+    },
+    "benchmark_config": {
+      "status": "N/A",
+      "note": "ggonnx runner not wired"
+    },
+    "port": {
+      "status": "N/A",
+      "note": "ONNX"
+    },
+    "sha256_vs_hf": {
+      "status": "N/A",
+      "note": "ONNX"
+    },
+    "hf_urls": {
+      "status": "FAIL",
+      "note": "no artifact entries; export/registration pending"
+    },
+    "checkout": {
+      "status": "PASS",
+      "note": "fork/docs/vision-models-pr-tracker"
+    },
+    "feat_branch": {
+      "status": "WARN",
+      "note": "feat/tinyvit empty vs main; verified drafts/plans on fork/docs/vision-models-pr-tracker"
+    },
+    "readiness": {
+      "status": "WARN",
+      "note": "WIP / not PR-ready"
+    }
+  },
+  "dfine_nano": {
+    "json:artifacts.json": {
+      "status": "PASS",
+      "note": "valid JSON"
+    },
+    "hf_reference": {
+      "status": "WARN",
+      "note": "no HF_REFERENCES row (may be OK if recipe pins source)"
+    },
+    "submission_recipe": {
+      "status": "WARN",
+      "note": "plan only (D:/Github/ai-foundry-hf-hackathon/docs/vision_models/dfine-nano.md); missing ported_models/ggonnx/docs/dfine_nano.md"
+    },
+    "no_model_blobs": {
+      "status": "PASS",
+      "note": "ok"
+    },
+    "ci_registered": {
+      "status": "WARN",
+      "note": "not in benchmark_config.json (expected: ggonnx CI not wired)"
+    },
+    "artifacts_schema": {
+      "status": "FAIL",
+      "note": "missing dfine_nano; missing dfine_small"
+    },
+    "onnx_availability": {
+      "status": "FAIL",
+      "note": "no artifact entries; export/registration pending"
+    },
+    "onnx_ops": {
+      "status": "WARN",
+      "note": "docs flag potentially unsupported ops"
+    },
+    "license": {
+      "status": "PASS",
+      "note": "open license mentioned"
+    },
+    "ci_preflight": {
+      "status": "FAIL",
+      "note": "exit=2"
+    },
+    "ci_preflight_model": {
+      "status": "SKIP",
+      "note": "ONNX path"
+    },
+    "config_expansion": {
+      "status": "SKIP",
+      "note": "not CI-registered"
+    },
+    "mmproj": {
+      "status": "N/A",
+      "note": "ONNX"
+    },
+    "benchmark_config": {
+      "status": "N/A",
+      "note": "ggonnx runner not wired"
+    },
+    "port": {
+      "status": "N/A",
+      "note": "ONNX"
+    },
+    "sha256_vs_hf": {
+      "status": "N/A",
+      "note": "ONNX"
+    },
+    "hf_urls": {
+      "status": "FAIL",
+      "note": "no artifact entries; export/registration pending"
+    },
+    "checkout": {
+      "status": "PASS",
+      "note": "fork/docs/vision-models-pr-tracker"
+    },
+    "feat_branch": {
+      "status": "WARN",
+      "note": "feat/dfine-nano empty vs main; verified drafts/plans on fork/docs/vision-models-pr-tracker"
+    },
+    "readiness": {
+      "status": "WARN",
+      "note": "WIP / not PR-ready"
+    }
+  },
+  "efficientvit": {
+    "json:artifacts.json": {
+      "status": "PASS",
+      "note": "valid JSON"
+    },
+    "hf_reference": {
+      "status": "WARN",
+      "note": "no HF_REFERENCES row (may be OK if recipe pins source)"
+    },
+    "submission_recipe": {
+      "status": "WARN",
+      "note": "plan only (D:/Github/ai-foundry-hf-hackathon/docs/vision_models/efficientvit.md); missing ported_models/ggonnx/docs/efficientvit.md"
+    },
+    "no_model_blobs": {
+      "status": "PASS",
+      "note": "ok"
+    },
+    "ci_registered": {
+      "status": "WARN",
+      "note": "not in benchmark_config.json (expected: ggonnx CI not wired)"
+    },
+    "artifacts_schema": {
+      "status": "FAIL",
+      "note": "missing efficientvit_m0"
+    },
+    "onnx_availability": {
+      "status": "FAIL",
+      "note": "no artifact entries; export/registration pending"
+    },
+    "onnx_ops": {
+      "status": "PASS",
+      "note": "see plan/recipe; no hard blockers flagged in quick scan"
+    },
+    "license": {
+      "status": "PASS",
+      "note": "open license mentioned"
+    },
+    "ci_preflight": {
+      "status": "FAIL",
+      "note": "exit=2"
+    },
+    "ci_preflight_model": {
+      "status": "SKIP",
+      "note": "ONNX path"
+    },
+    "config_expansion": {
+      "status": "SKIP",
+      "note": "not CI-registered"
+    },
+    "mmproj": {
+      "status": "N/A",
+      "note": "ONNX"
+    },
+    "benchmark_config": {
+      "status": "N/A",
+      "note": "ggonnx runner not wired"
+    },
+    "port": {
+      "status": "N/A",
+      "note": "ONNX"
+    },
+    "sha256_vs_hf": {
+      "status": "N/A",
+      "note": "ONNX"
+    },
+    "hf_urls": {
+      "status": "FAIL",
+      "note": "no artifact entries; export/registration pending"
+    },
+    "checkout": {
+      "status": "PASS",
+      "note": "fork/docs/vision-models-pr-tracker"
+    },
+    "feat_branch": {
+      "status": "WARN",
+      "note": "feat/efficientvit empty vs main; verified drafts/plans on fork/docs/vision-models-pr-tracker"
+    },
+    "readiness": {
+      "status": "WARN",
+      "note": "WIP / not PR-ready"
+    }
+  },
+  "rf_detr_small": {
+    "json:artifacts.json": {
+      "status": "PASS",
+      "note": "valid JSON"
+    },
+    "hf_reference": {
+      "status": "WARN",
+      "note": "no HF_REFERENCES row (may be OK if recipe pins source)"
+    },
+    "submission_recipe": {
+      "status": "WARN",
+      "note": "plan only (D:/Github/ai-foundry-hf-hackathon/docs/vision_models/rf-detr-small.md); missing ported_models/ggonnx/docs/rf_detr_small.md"
+    },
+    "no_model_blobs": {
+      "status": "PASS",
+      "note": "ok"
+    },
+    "ci_registered": {
+      "status": "WARN",
+      "note": "not in benchmark_config.json (expected: ggonnx CI not wired)"
+    },
+    "artifacts_schema": {
+      "status": "FAIL",
+      "note": "missing rf_detr_small"
+    },
+    "onnx_availability": {
+      "status": "FAIL",
+      "note": "no artifact entries; export/registration pending"
+    },
+    "onnx_ops": {
+      "status": "WARN",
+      "note": "docs flag potentially unsupported ops"
+    },
+    "license": {
+      "status": "PASS",
+      "note": "open license mentioned"
+    },
+    "ci_preflight": {
+      "status": "FAIL",
+      "note": "exit=2"
+    },
+    "ci_preflight_model": {
+      "status": "SKIP",
+      "note": "ONNX path"
+    },
+    "config_expansion": {
+      "status": "SKIP",
+      "note": "not CI-registered"
+    },
+    "mmproj": {
+      "status": "N/A",
+      "note": "ONNX"
+    },
+    "benchmark_config": {
+      "status": "N/A",
+      "note": "ggonnx runner not wired"
+    },
+    "port": {
+      "status": "N/A",
+      "note": "ONNX"
+    },
+    "sha256_vs_hf": {
+      "status": "N/A",
+      "note": "ONNX"
+    },
+    "hf_urls": {
+      "status": "FAIL",
+      "note": "no artifact entries; export/registration pending"
+    },
+    "checkout": {
+      "status": "PASS",
+      "note": "fork/docs/vision-models-pr-tracker"
+    },
+    "feat_branch": {
+      "status": "WARN",
+      "note": "feat/rf-detr-small empty vs main; verified drafts/plans on fork/docs/vision-models-pr-tracker"
+    },
+    "readiness": {
+      "status": "WARN",
+      "note": "WIP / not PR-ready"
+    }
+  },
+  "_port_conflicts": {
+    "18081": [
+      "smolvlm_256m:deepseek_r1_15b",
+      "smolvlm_256m:llama32_1b",
+      "smolvlm_256m:qwen25_05b",
+      "smolvlm_500m:deepseek_r1_15b",
+      "smolvlm_500m:llama32_1b",
+      "smolvlm_500m:qwen25_05b",
+      "qwen35_08b:deepseek_r1_15b",
+      "qwen35_08b:llama32_1b",
+      "qwen35_08b:qwen25_05b",
+      "smolvlm2_22b:deepseek_r1_15b",
+      "smolvlm2_22b:llama32_1b",
+      "smolvlm2_22b:qwen25_05b",
+      "minicpm_v46:deepseek_r1_15b",
+      "minicpm_v46:llama32_1b",
+      "minicpm_v46:qwen25_05b",
+      "zwz_4b:deepseek_r1_15b",
+      "zwz_4b:llama32_1b",
+      "zwz_4b:qwen25_05b",
+      "ministral_3b:deepseek_r1_15b",
+      "ministral_3b:llama32_1b",
+      "ministral_3b:qwen25_05b"
+    ]
+  }
+}
