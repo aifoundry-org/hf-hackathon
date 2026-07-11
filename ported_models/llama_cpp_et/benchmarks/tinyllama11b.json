@@ -48,6 +48,5 @@
       "max_ppl": 1000.0,
       "chunks": 4
     }
-  },
-  "benchmark_default": true
+  }
 }
