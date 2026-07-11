@@ -10,7 +10,7 @@
 #include <stdint.h>
 #include "erbium/isa/atomic.h"
 #include "erbium/isa/hart.h"
-#include "erbium/isa/cacheops-umode.h"
+#include "erbium/isa/cacheops.h"
 #include "erbium/isa/utils.h"
 
 extern char heap0_end[];
