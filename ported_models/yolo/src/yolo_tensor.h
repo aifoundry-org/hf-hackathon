@@ -21,8 +21,10 @@ static inline int tensor_scp_enable(void)
 {
     if (get_l1d_mode() == l1d_scp)
         return 0;
-    int64_t ret = set_l1_cache_control(/*d1_split=*/1, /*scp_en=*/1);
-    if (ret != 0) return (int)ret;
+    /* M-mode direct CSR (0x7e0); set_l1_cache_control() was the
+     * removed U-mode syscall wrapper. cacheop_rate/max left at 0
+     * (also set by the ucache_control call below). */
+    mcache_control(/*d1_split=*/1, /*scp_en=*/1, /*cacheop_rate=*/0, /*cacheop_max=*/0);
     ucache_control(/*scp_en=*/1, /*cacheop_rate=*/0, /*cacheop_max=*/0);
     return (get_l1d_mode() == l1d_scp) ? 0 : -1;
 }
