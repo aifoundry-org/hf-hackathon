@@ -149,10 +149,13 @@ static inline void add_chw(const float *a, const float *b, float *y, uint32_t n)
 static inline void concat_c_chw(const float *a, uint32_t Ca,
                                 const float *b, uint32_t Cb,
                                 float *out, uint32_t H, uint32_t W) {
-    const uint32_t bytes_a = Ca * H * W;
-    const uint32_t bytes_b = Cb * H * W;
-    for (uint32_t i = 0; i < bytes_a; i++) out[i] = a[i];
-    for (uint32_t i = 0; i < bytes_b; i++) out[bytes_a + i] = b[i];
+    const uint32_t words_a = (Ca * H * W) / 2u;
+    const uint32_t words_b = (Cb * H * W) / 2u;
+    uint64_t *d64 = (uint64_t *)out;
+    const uint64_t *a64 = (const uint64_t *)a;
+    const uint64_t *b64 = (const uint64_t *)b;
+    for (uint32_t i = 0; i < words_a; i++) d64[i] = a64[i];
+    for (uint32_t i = 0; i < words_b; i++) d64[words_a + i] = b64[i];
 }
 
 /* Split along channel axis: a = in[c=0..Ca,*,*], b = in[c=Ca..,*,*]. */
@@ -161,11 +164,13 @@ static inline void split_c_chw(const float *in, uint32_t Cin,
                                float *b, uint32_t Cb,
                                uint32_t H, uint32_t W) {
     (void)Cin;
-    const uint32_t hw = H * W;
-    for (uint32_t c = 0; c < Ca; c++)
-        for (uint32_t i = 0; i < hw; i++) a[c*hw + i] = in[c*hw + i];
-    for (uint32_t c = 0; c < Cb; c++)
-        for (uint32_t i = 0; i < hw; i++) b[c*hw + i] = in[(Ca+c)*hw + i];
+    const uint32_t words_a = (Ca * H * W) / 2u;
+    const uint32_t words_b = (Cb * H * W) / 2u;
+    const uint64_t *in64 = (const uint64_t *)in;
+    uint64_t *a64 = (uint64_t *)a;
+    uint64_t *b64 = (uint64_t *)b;
+    for (uint32_t i = 0; i < words_a; i++) a64[i] = in64[i];
+    for (uint32_t i = 0; i < words_b; i++) b64[i] = in64[words_a + i];
 }
 
 /* MaxPool 2D NCHW. */
@@ -1348,9 +1353,13 @@ static inline void matmul_2d_fp32(const float *A, const float *B, float *C,
 {
     for (uint32_t i = 0; i < M; i++) {
         for (uint32_t j = 0; j < N; j++) {
-            float acc = 0.0f;
-            for (uint32_t k = 0; k < K; k++) acc += A[i*K + k] * B[k*N + j];
-            C[i*N + j] = acc;
+            C[i*N + j] = 0.0f;
+        }
+        for (uint32_t k = 0; k < K; k++) {
+            float a = A[i*K + k];
+            for (uint32_t j = 0; j < N; j++) {
+                C[i*N + j] += a * B[k*N + j];
+            }
         }
     }
 }
@@ -1373,13 +1382,19 @@ static inline void softmax_rows(float *x, uint32_t M, uint32_t N) {
 static inline void upsample_nearest_2x(const float *in, float *out,
                                        uint32_t C, uint32_t H, uint32_t W)
 {
-    const uint32_t OH = H * 2u, OW = W * 2u;
+    const uint32_t OH = H * 2u;
+    const uint32_t OW = W * 2u;
     for (uint32_t c = 0; c < C; c++) {
-        for (uint32_t oh = 0; oh < OH; oh++) {
-            const uint32_t ih = oh / 2u;
-            for (uint32_t ow = 0; ow < OW; ow++) {
-                const uint32_t iw = ow / 2u;
-                out[(c * OH + oh) * OW + ow] = in[(c * H + ih) * W + iw];
+        for (uint32_t ih = 0; ih < H; ih++) {
+            uint64_t *out_row0 = (uint64_t *)&out[(c * OH + ih * 2u) * OW];
+            uint64_t *out_row1 = (uint64_t *)&out[(c * OH + ih * 2u + 1u) * OW];
+            const float *in_row = &in[(c * H + ih) * W];
+            for (uint32_t iw = 0; iw < W; iw++) {
+                float val = in_row[iw];
+                uint32_t bits = *(uint32_t*)&val;
+                uint64_t v64 = ((uint64_t)bits << 32) | bits;
+                out_row0[iw] = v64;
+                out_row1[iw] = v64;
             }
         }
     }
