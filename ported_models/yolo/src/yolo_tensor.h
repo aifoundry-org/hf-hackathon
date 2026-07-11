@@ -12,7 +12,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include "erbium/isa/tensors.h"
-#include "erbium/isa/cacheops-umode.h"
+#include "erbium/isa/cacheops.h"
 
 /* ------------------------------------------------------------------ */
 /* SCP init — call once at startup                                     */
