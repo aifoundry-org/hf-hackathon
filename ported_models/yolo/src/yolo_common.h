@@ -169,6 +169,11 @@ static inline void split_c_chw(const float *in, uint32_t Cin,
 }
 
 /* Multi-hart MaxPool 2D NCHW: split channels across compute harts. */
+/* Forward declarations: the yolo_* helpers are defined further below (after the
+ * YOLO_USE_16HART / MH_NUM_T0 selection), but are first used in this function. */
+static inline uint32_t yolo_compute_idx(uint32_t hid);
+static inline int      yolo_is_compute(uint32_t hid);
+static inline void     yolo_range(uint32_t N, uint32_t idx, uint32_t *lo, uint32_t *hi);
 static void maxpool_fp32_mh(uint32_t hid,
                             const float *in, float *out,
                             uint32_t C, uint32_t IH, uint32_t IW,
@@ -1412,7 +1417,7 @@ static void mh_maxpool5_s1_p2(uint32_t hid, const float *in, float *out,
     }
     if (c_hi > c_lo) evict((const void *)(out + c_lo * H * W), (c_hi - c_lo) * H * W * sizeof(float));
 }
-#define MH_MAXPOOL5(IN, OUT, C, H, W) do { mh_maxpool5_s1_p2(hid, (IN), (OUT), (C), (H), (W)); MH_BARRIER(); } while (0)
+#define MH_MAXPOOL5_VPU(IN, OUT, C, H, W) do { mh_maxpool5_s1_p2(hid, (IN), (OUT), (C), (H), (W)); MH_BARRIER(); } while (0)
 
 /* Multi-hart depthwise Conv2d (groups=C). */
 static void conv2d_dw_fp32_mh(uint32_t hid,
