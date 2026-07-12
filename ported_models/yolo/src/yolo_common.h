@@ -1172,13 +1172,22 @@ static void conv2d_3x3_p1_fp32_mh_vpu_oc4(uint32_t hid,
                             if (iw >= 0 && iw + 7 < (int32_t)W_) {
                                 const float *src = in + (ic * H + (uint32_t)ih) * W_ + (uint32_t)iw;
                                 __asm__ volatile("flq2 %0, 0(%1)\n" : "=f"(v_pkg) : "r"(src));
-#define FMADD_ONE(REG, OO) do { \
+                                /* Broadcast all 4 OC-tile weights into distinct
+                                 * registers first, then issue the 4 independent
+                                 * fmadds, so the broadcasts pipeline instead of
+                                 * serializing through one reused register. */
+                                float w0p, w1p, w2p, w3p;
+#define BC_ONE(WREG, OO) do { \
     union { float f; uint32_t u; } _ww; _ww.f = W[((oc0 + OO) * IC + ic) * 9u + ky * 3u + kx]; \
-    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w_pkg) : "r"((uint64_t)_ww.u)); \
-    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(REG) : "f"(v_pkg), "f"(w_pkg)); \
+    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(WREG) : "r"((uint64_t)_ww.u)); \
 } while (0)
-                                FMADD_ONE(a0, 0); FMADD_ONE(a1, 1); FMADD_ONE(a2, 2); FMADD_ONE(a3, 3);
-#undef FMADD_ONE
+                                BC_ONE(w0p, 0); BC_ONE(w1p, 1); BC_ONE(w2p, 2); BC_ONE(w3p, 3);
+#undef BC_ONE
+                                (void)w_pkg;
+                                __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a0) : "f"(v_pkg), "f"(w0p));
+                                __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a1) : "f"(v_pkg), "f"(w1p));
+                                __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a2) : "f"(v_pkg), "f"(w2p));
+                                __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a3) : "f"(v_pkg), "f"(w3p));
                             } else {
 #define EDGE_ONE(REG, OO) do { \
     __asm__ volatile("fsq2 %1, 0(%0)\n" :: "r"(acc_buf), "f"(REG) : "memory"); \
