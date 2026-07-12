@@ -1162,7 +1162,8 @@ static void conv2d_3x3_s2_p1_fp32_mh_vpu(uint32_t hid,
         evict((const void *)(out + oc_lo * OH * OW), bytes);
     }
 }
-#define CONV_3x3_S2_P1_VPU(...) do { conv2d_3x3_s2_p1_fp32_mh_vpu(hid, __VA_ARGS__); MH_BARRIER(); } while (0)
+/* CONV_3x3_S2_P1_VPU is defined further below, after the CONV_3x3_P1 repack
+ * machinery (WR3X3 scratch / repack_3x3_oc4_weights) that its OC4 path uses. */
 
 /* OC4-blocked VPU 3x3 stride=1 pad=1.  4 OC accumulated simultaneously per
  * (oh, ow8) tile.  Lower register pressure than OC8 to avoid the M18 hang. */
@@ -1220,9 +1221,10 @@ static void conv2d_3x3_p1_fp32_mh_vpu_oc4(uint32_t hid,
                                  * registers first, then issue the 4 independent
                                  * fmadds, so the broadcasts pipeline instead of
                                  * serializing through one reused register. */
+                                const float *wr_p = &WR[((tile * IC + ic) * 9u + ky * 3u + kx) * 4u];
                                 float w0p, w1p, w2p, w3p;
 #define BC_ONE(WREG, OO) do { \
-    union { float f; uint32_t u; } _ww; _ww.f = WR[((tile * IC + ic) * 9u + ky * 3u + kx) * 4u + OO]; \
+    union { float f; uint32_t u; } _ww; _ww.f = wr_p[OO]; \
     __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(WREG) : "r"((uint64_t)_ww.u)); \
 } while (0)
                                 BC_ONE(w0p, 0); BC_ONE(w1p, 1); BC_ONE(w2p, 2); BC_ONE(w3p, 3);
@@ -1233,10 +1235,11 @@ static void conv2d_3x3_p1_fp32_mh_vpu_oc4(uint32_t hid,
                                 __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a2) : "f"(v_pkg), "f"(w2p));
                                 __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a3) : "f"(v_pkg), "f"(w3p));
                             } else {
+                                const float *wr_edge_p = &WR[((tile * IC + ic) * 9u + ky * 3u + kx) * 4u];
 #define EDGE_ONE(REG, OO) do { \
     __asm__ volatile("fsq2 %1, 0(%0)\n" :: "r"(acc_buf), "f"(REG) : "memory"); \
     __asm__ volatile("fence rw, rw" ::: "memory"); \
-    const float w_scalar = WR[((tile * IC + ic) * 9u + ky * 3u + kx) * 4u + OO]; \
+    const float w_scalar = wr_edge_p[OO]; \
     for (int lane = 0; lane < 8; lane++) { \
         const int32_t iw_l = ow8 + lane + (int32_t)kx - 1; \
         if (iw_l >= 0 && iw_l < (int32_t)W_) { \
@@ -1339,6 +1342,208 @@ static inline void conv2d_3x3_p1_disp(uint32_t hid, float *wr_scratch,
 }
 #define CONV_3x3_P1(...) do { \
     conv2d_3x3_p1_disp(hid, (float *)(base + WR3X3_SCRATCH_OFFSET), __VA_ARGS__); \
+    MH_BARRIER(); \
+} while (0)
+
+/* OC4-blocked VPU 3x3 stride=2 pad=1. 4 OC accumulated per (oh, ow4) tile,
+ * sharing one 8-lane input load (even lanes valid). Weights arrive pre-repacked
+ * via repack_3x3_oc4_weights into the WR3X3 (tile,IC,KY,KX,4) scratch. */
+static void conv2d_3x3_s2_p1_fp32_mh_vpu_oc4(uint32_t hid,
+                                             const float *in, float *out,
+                                             const float *WR, const float *B,
+                                             uint32_t IC, uint32_t IH, uint32_t IW,
+                                             uint32_t OC, uint32_t OH, uint32_t OW,
+                                             uint32_t act)
+{
+    if (!VPU_ACTIVE(hid)) return;
+    const uint32_t cidx = VPU_IDX(hid);
+    const uint32_t oc_tiles = OC / 4u;
+    uint32_t tile_lo, tile_hi;
+    *(volatile uint32_t *)&tile_lo = (oc_tiles * cidx) / VPU_N;
+    *(volatile uint32_t *)&tile_hi = (oc_tiles * (cidx + 1u)) / VPU_N;
+
+    float acc_buf[8] __attribute__((aligned(32)));
+
+    /* Vectorized SiLU constants (see CONV_3x3_P1 OC4 for detail). */
+    float vsilu_zero, vsilu_one, vsilu_log2e;
+    {
+        union { float f; uint32_t u; } _z; _z.f = 0.0f;
+        union { float f; uint32_t u; } _o; _o.f = 1.0f;
+        union { float f; uint32_t u; } _l; _l.f = 1.4426950408889634f;
+        __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(vsilu_zero) : "r"((uint64_t)_z.u));
+        __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(vsilu_one) : "r"((uint64_t)_o.u));
+        __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(vsilu_log2e) : "r"((uint64_t)_l.u));
+    }
+
+    for (uint32_t tile = tile_lo; tile < tile_hi; tile++) {
+        const uint32_t oc0 = tile * 4u;
+        for (int32_t oh = 0; oh < (int32_t)OH; oh++) {
+            int32_t is_h_edge = (oh == 0);
+            for (int32_t ow4 = 0; ow4 < (int32_t)OW; ow4 += 4) {
+                int32_t is_w_edge = (ow4 == 0) || (ow4 * 2 + 8 > (int32_t)IW - 1);
+                float a0, a1, a2, a3;
+#define INIT_ACC(REG, OO) do { \
+    union { float f; uint32_t u; } _bb; _bb.f = B[oc0 + OO]; \
+    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(REG) : "r"((uint64_t)_bb.u)); \
+} while (0)
+                INIT_ACC(a0, 0); INIT_ACC(a1, 1); INIT_ACC(a2, 2); INIT_ACC(a3, 3);
+#undef INIT_ACC
+
+                if (!is_h_edge && !is_w_edge) {
+#define BC_ONE(WREG, OO) do { \
+    union { float f; uint32_t u; } _ww; _ww.f = wr_p[OO]; \
+    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(WREG) : "r"((uint64_t)_ww.u)); \
+} while (0)
+#define APPLY_TAP(VREG) do { \
+    float w0p, w1p, w2p, w3p; \
+    BC_ONE(w0p, 0); BC_ONE(w1p, 1); BC_ONE(w2p, 2); BC_ONE(w3p, 3); \
+    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a0) : "f"(VREG), "f"(w0p)); \
+    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a1) : "f"(VREG), "f"(w1p)); \
+    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a2) : "f"(VREG), "f"(w2p)); \
+    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a3) : "f"(VREG), "f"(w3p)); \
+} while (0)
+                    for (uint32_t ic = 0; ic < IC; ic++) {
+                        for (uint32_t ky = 0; ky < 3u; ky++) {
+                            const int32_t ih = oh * 2 + (int32_t)ky - 1;
+
+                            /* kx=0: real load. */
+                            float v0;
+                            {
+                                const int32_t iw_base = ow4 * 2 + 0 - 1;
+                                const float *src = in + (ic * IH + (uint32_t)ih) * IW + (uint32_t)iw_base;
+                                __asm__ volatile("flq2 %0, 0(%1)\n" : "=f"(v0) : "r"(src));
+                                const float *wr_p = &WR[((tile * IC + ic) * 9u + ky * 3u + 0u) * 4u];
+                                APPLY_TAP(v0);
+                            }
+                            /* kx=1: derived from kx=0's load via fswizz.ps instead
+                             * of a second flq2. For a stride-2 3x3 tap, the odd lanes
+                             * of the kx=0 load hold exactly the even-lane inputs kx=1
+                             * needs (both read input col (ow4+j)*2+kx). fswizz.ps
+                             * permutes within each 128-bit half only; the remap
+                             * (d0<-s1, d2<-s3, d4<-s5, d6<-s7; imm=0x31) stays within
+                             * that boundary, so one instruction replaces one flq2. */
+                            {
+                                float v1;
+                                __asm__ volatile("fswizz.ps %0, %1, 0x31\n" : "=f"(v1) : "f"(v0));
+                                const float *wr_p = &WR[((tile * IC + ic) * 9u + ky * 3u + 1u) * 4u];
+                                APPLY_TAP(v1);
+                            }
+                            /* kx=2: needs data outside kx=0's load window, real load. */
+                            {
+                                const int32_t iw_base = ow4 * 2 + 2 - 1;
+                                float v2;
+                                const float *src = in + (ic * IH + (uint32_t)ih) * IW + (uint32_t)iw_base;
+                                __asm__ volatile("flq2 %0, 0(%1)\n" : "=f"(v2) : "r"(src));
+                                const float *wr_p = &WR[((tile * IC + ic) * 9u + ky * 3u + 2u) * 4u];
+                                APPLY_TAP(v2);
+                            }
+                        }
+                    }
+#undef APPLY_TAP
+#undef BC_ONE
+                } else {
+                    for (uint32_t ic = 0; ic < IC; ic++) {
+                        for (uint32_t ky = 0; ky < 3u; ky++) {
+                            const int32_t ih = oh * 2 + (int32_t)ky - 1;
+                            if (ih < 0 || ih >= (int32_t)IH) continue;
+                            for (uint32_t kx = 0; kx < 3u; kx++) {
+                                const int32_t iw_base = ow4 * 2 + (int32_t)kx - 1;
+                                float v_pkg;
+                                if (iw_base >= 0 && iw_base + 7 < (int32_t)IW) {
+                                    const float *src = in + (ic * IH + (uint32_t)ih) * IW + (uint32_t)iw_base;
+                                    __asm__ volatile("flq2 %0, 0(%1)\n" : "=f"(v_pkg) : "r"(src));
+                                    const float *wr_p = &WR[((tile * IC + ic) * 9u + ky * 3u + kx) * 4u];
+                                    float w0p, w1p, w2p, w3p;
+#define BC_ONE(WREG, OO) do { \
+    union { float f; uint32_t u; } _ww; _ww.f = wr_p[OO]; \
+    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(WREG) : "r"((uint64_t)_ww.u)); \
+} while (0)
+                                    BC_ONE(w0p, 0); BC_ONE(w1p, 1); BC_ONE(w2p, 2); BC_ONE(w3p, 3);
+#undef BC_ONE
+                                    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a0) : "f"(v_pkg), "f"(w0p));
+                                    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a1) : "f"(v_pkg), "f"(w1p));
+                                    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a2) : "f"(v_pkg), "f"(w2p));
+                                    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a3) : "f"(v_pkg), "f"(w3p));
+                                } else {
+                                    const float *wr_edge_p = &WR[((tile * IC + ic) * 9u + ky * 3u + kx) * 4u];
+#define EDGE_ONE(REG, OO) do { \
+    __asm__ volatile("fsq2 %1, 0(%0)\n" :: "r"(acc_buf), "f"(REG) : "memory"); \
+    __asm__ volatile("fence rw, rw" ::: "memory"); \
+    const float w_scalar = wr_edge_p[OO]; \
+    for (int lane = 0; lane < 4; lane++) { \
+        const int32_t iw_l = iw_base + 2 * lane; \
+        if (iw_l >= 0 && iw_l < (int32_t)IW) { \
+            acc_buf[2 * lane] += in[(ic * IH + (uint32_t)ih) * IW + (uint32_t)iw_l] * w_scalar; \
+        } \
+    } \
+    __asm__ volatile("flq2 %0, 0(%1)\n" : "=f"(REG) : "r"(acc_buf)); \
+} while (0)
+                                    EDGE_ONE(a0, 0); EDGE_ONE(a1, 1); EDGE_ONE(a2, 2); EDGE_ONE(a3, 3);
+#undef EDGE_ONE
+                                }
+                            }
+                        }
+                    }
+                }
+
+#define STORE_ACC(REG, OO) do { \
+    float *dst = out + ((oc0 + OO) * OH + (uint32_t)oh) * OW + (uint32_t)ow4; \
+    if (act == 1u) { \
+        float _t; \
+        __asm__ volatile( \
+            "fsub.ps %[t], %[z], %[x]\n" \
+            "fmul.ps %[t], %[t], %[l2e]\n" \
+            "fexp.ps %[t], %[t]\n" \
+            "fadd.ps %[t], %[t], %[o]\n" \
+            "frcp.ps %[t], %[t]\n" \
+            "fmul.ps %[t], %[t], %[x]\n" \
+            : [t] "=&f"(_t) \
+            : [x] "f"(REG), [z] "f"(vsilu_zero), [o] "f"(vsilu_one), [l2e] "f"(vsilu_log2e) \
+        ); \
+        __asm__ volatile("fsq2 %1, 0(%0)\n" :: "r"(acc_buf), "f"(_t) : "memory"); \
+        __asm__ volatile("fence rw, rw" ::: "memory"); \
+        dst[0] = acc_buf[0]; dst[1] = acc_buf[2]; \
+        dst[2] = acc_buf[4]; dst[3] = acc_buf[6]; \
+    } else { \
+        __asm__ volatile("fsq2 %1, 0(%0)\n" :: "r"(acc_buf), "f"(REG) : "memory"); \
+        __asm__ volatile("fence rw, rw" ::: "memory"); \
+        dst[0] = acc_buf[0]; dst[1] = acc_buf[2]; \
+        dst[2] = acc_buf[4]; dst[3] = acc_buf[6]; \
+    } \
+} while (0)
+                STORE_ACC(a0, 0); STORE_ACC(a1, 1); STORE_ACC(a2, 2); STORE_ACC(a3, 3);
+#undef STORE_ACC
+            }
+        }
+    }
+    if (tile_hi > tile_lo) {
+        const uint32_t oc_lo = tile_lo * 4u;
+        const uint32_t bytes = (tile_hi - tile_lo) * 4u * OH * OW * sizeof(float);
+        evict((const void *)(out + oc_lo * OH * OW), bytes);
+    }
+}
+
+/* Reuses the CONV_3x3_P1 (tile,IC,KY,KX,4) repack (repack_3x3_oc4_weights is
+ * shape-agnostic in IC/OC) and the same WR3X3 scratch address -- convs run
+ * one at a time, so no S2/P1/1x1 overlap. Max S2 OC4 IC*OC*9 is well under
+ * the 3x3-P1 scratch capacity. */
+static inline void conv2d_3x3_s2_p1_disp(uint32_t hid, float *wr_scratch,
+                                         const float *in, float *out,
+                                         const float *W, const float *B,
+                                         uint32_t IC, uint32_t IH, uint32_t IW,
+                                         uint32_t OC, uint32_t OH, uint32_t OW,
+                                         uint32_t act)
+{
+    if (OC >= 32u) {
+        repack_3x3_oc4_weights(hid, W, wr_scratch, IC, OC);
+        MH_BARRIER();
+        conv2d_3x3_s2_p1_fp32_mh_vpu_oc4(hid, in, out, wr_scratch, B, IC, IH, IW, OC, OH, OW, act);
+    } else {
+        conv2d_3x3_s2_p1_fp32_mh_vpu(hid, in, out, W, B, IC, IH, IW, OC, OH, OW, act);
+    }
+}
+#define CONV_3x3_S2_P1_VPU(...) do { \
+    conv2d_3x3_s2_p1_disp(hid, (float *)(base + WR3X3_SCRATCH_OFFSET), __VA_ARGS__); \
     MH_BARRIER(); \
 } while (0)
 
