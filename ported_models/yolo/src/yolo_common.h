@@ -479,7 +479,7 @@ static void conv2d_1x1_fp32_mh_vpu(uint32_t hid,
  * Constraints: OC % 8 == 0, OW % 8 == 0. */
 static void conv2d_1x1_fp32_mh_vpu_oc8(uint32_t hid,
                                        const float *in, float *out,
-                                       const float *W, const float *B,
+                                       const float *WR, const float *B,
                                        uint32_t IC, uint32_t H, uint32_t W_,
                                        uint32_t OC,
                                        uint32_t act)
@@ -526,18 +526,18 @@ static void conv2d_1x1_fp32_mh_vpu_oc8(uint32_t hid,
                     register float w0 asm("f20"), w1 asm("f21"), w2 asm("f22"), w3 asm("f23");
                     register float w4 asm("f24"), w5 asm("f25"), w6 asm("f26"), w7 asm("f27");
                     const float *src = in + (ic * H + oh) * W_ + ow8;
-                    
-                    union { float f; uint32_t u; } w0_u; w0_u.f = W[(oc0 + 0) * IC + ic];
-                    union { float f; uint32_t u; } w1_u; w1_u.f = W[(oc0 + 1) * IC + ic];
-                    union { float f; uint32_t u; } w2_u; w2_u.f = W[(oc0 + 2) * IC + ic];
-                    union { float f; uint32_t u; } w3_u; w3_u.f = W[(oc0 + 3) * IC + ic];
-                    union { float f; uint32_t u; } w4_u; w4_u.f = W[(oc0 + 4) * IC + ic];
-                    union { float f; uint32_t u; } w5_u; w5_u.f = W[(oc0 + 5) * IC + ic];
-                    union { float f; uint32_t u; } w6_u; w6_u.f = W[(oc0 + 6) * IC + ic];
-                    union { float f; uint32_t u; } w7_u; w7_u.f = W[(oc0 + 7) * IC + ic];
-                    
+                    const float *wr8 = WR + (tile * IC + ic) * 8u;
+                    union { float f; uint32_t u; } w0_u; w0_u.f = wr8[0];
+                    union { float f; uint32_t u; } w1_u; w1_u.f = wr8[1];
+                    union { float f; uint32_t u; } w2_u; w2_u.f = wr8[2];
+                    union { float f; uint32_t u; } w3_u; w3_u.f = wr8[3];
+                    union { float f; uint32_t u; } w4_u; w4_u.f = wr8[4];
+                    union { float f; uint32_t u; } w5_u; w5_u.f = wr8[5];
+                    union { float f; uint32_t u; } w6_u; w6_u.f = wr8[6];
+                    union { float f; uint32_t u; } w7_u; w7_u.f = wr8[7];
+
                     __asm__ volatile("flq2 %0, 0(%1)\n" : "=f"(v_pkg) : "r"(src));
-                    
+
                     __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w0) : "r"((uint64_t)w0_u.u));
                     __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w1) : "r"((uint64_t)w1_u.u));
                     __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w2) : "r"((uint64_t)w2_u.u));
@@ -596,7 +596,7 @@ static void conv2d_1x1_fp32_mh_vpu_oc8(uint32_t hid,
  * AND OC large enough for all 8 T0 harts to get at least one tile (OC>=128). */
 static void conv2d_1x1_fp32_mh_vpu_oc16(uint32_t hid,
                                         const float *in, float *out,
-                                        const float *W, const float *B,
+                                        const float *WR, const float *B,
                                         uint32_t IC, uint32_t H, uint32_t W_,
                                         uint32_t OC,
                                         uint32_t act)
@@ -648,14 +648,15 @@ static void conv2d_1x1_fp32_mh_vpu_oc16(uint32_t hid,
                     __asm__ volatile("flq2 %0, 0(%1)\n" : "=f"(v_pkg) : "r"(src));
                     
                     // Batch 1 (0-7)
-                    union { float f; uint32_t u; } w0_u; w0_u.f = W[(oc0 + 0) * IC + ic];
-                    union { float f; uint32_t u; } w1_u; w1_u.f = W[(oc0 + 1) * IC + ic];
-                    union { float f; uint32_t u; } w2_u; w2_u.f = W[(oc0 + 2) * IC + ic];
-                    union { float f; uint32_t u; } w3_u; w3_u.f = W[(oc0 + 3) * IC + ic];
-                    union { float f; uint32_t u; } w4_u; w4_u.f = W[(oc0 + 4) * IC + ic];
-                    union { float f; uint32_t u; } w5_u; w5_u.f = W[(oc0 + 5) * IC + ic];
-                    union { float f; uint32_t u; } w6_u; w6_u.f = W[(oc0 + 6) * IC + ic];
-                    union { float f; uint32_t u; } w7_u; w7_u.f = W[(oc0 + 7) * IC + ic];
+                    const float *wr16 = WR + (tile * IC + ic) * 16u;
+                    union { float f; uint32_t u; } w0_u; w0_u.f = wr16[0];
+                    union { float f; uint32_t u; } w1_u; w1_u.f = wr16[1];
+                    union { float f; uint32_t u; } w2_u; w2_u.f = wr16[2];
+                    union { float f; uint32_t u; } w3_u; w3_u.f = wr16[3];
+                    union { float f; uint32_t u; } w4_u; w4_u.f = wr16[4];
+                    union { float f; uint32_t u; } w5_u; w5_u.f = wr16[5];
+                    union { float f; uint32_t u; } w6_u; w6_u.f = wr16[6];
+                    union { float f; uint32_t u; } w7_u; w7_u.f = wr16[7];
                     
                     __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w0) : "r"((uint64_t)w0_u.u));
                     __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w1) : "r"((uint64_t)w1_u.u));
@@ -676,14 +677,14 @@ static void conv2d_1x1_fp32_mh_vpu_oc16(uint32_t hid,
                     __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(a7) : "f"(v_pkg), "f"(w7));
 
                     // Batch 2 (8-15)
-                    w0_u.f = W[(oc0 + 8) * IC + ic];
-                    w1_u.f = W[(oc0 + 9) * IC + ic];
-                    w2_u.f = W[(oc0 + 10) * IC + ic];
-                    w3_u.f = W[(oc0 + 11) * IC + ic];
-                    w4_u.f = W[(oc0 + 12) * IC + ic];
-                    w5_u.f = W[(oc0 + 13) * IC + ic];
-                    w6_u.f = W[(oc0 + 14) * IC + ic];
-                    w7_u.f = W[(oc0 + 15) * IC + ic];
+                    w0_u.f = wr16[8];
+                    w1_u.f = wr16[9];
+                    w2_u.f = wr16[10];
+                    w3_u.f = wr16[11];
+                    w4_u.f = wr16[12];
+                    w5_u.f = wr16[13];
+                    w6_u.f = wr16[14];
+                    w7_u.f = wr16[15];
                     
                     __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w0) : "r"((uint64_t)w0_u.u));
                     __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(w1) : "r"((uint64_t)w1_u.u));
@@ -738,8 +739,40 @@ static void conv2d_1x1_fp32_mh_vpu_oc16(uint32_t hid,
     }
 }
 
+/* Repack (OC,IC)-major 1x1 weights into (tile,IC,TILE)-major so a tile's
+ * TILE (8 or 16) weights for a fixed ic are contiguous instead of IC*4
+ * bytes apart. T0-only, same tile boundaries as the compute kernel. */
+static void repack_1x1_weights(uint32_t hid, const float *W, float *WR,
+                               uint32_t IC, uint32_t OC, uint32_t TILE)
+{
+    if (!mh_is_t0(hid)) return;
+    const uint32_t cidx = mh_t0_idx(hid);
+    const uint32_t oc_tiles = OC / TILE;
+    uint32_t tile_lo, tile_hi;
+    *(volatile uint32_t *)&tile_lo = (oc_tiles * cidx) / MH_NUM_T0;
+    *(volatile uint32_t *)&tile_hi = (oc_tiles * (cidx + 1u)) / MH_NUM_T0;
+
+    for (uint32_t tile = tile_lo; tile < tile_hi; tile++) {
+        const uint32_t oc0 = tile * TILE;
+        float *dst_tile = WR + (uint64_t)tile * IC * TILE;
+        for (uint32_t ic = 0; ic < IC; ic++) {
+            float *dst = dst_tile + ic * TILE;
+            for (uint32_t o = 0; o < TILE; o++) dst[o] = W[(oc0 + o) * IC + ic];
+        }
+    }
+    if (tile_hi > tile_lo) {
+        const uint64_t bytes = (uint64_t)(tile_hi - tile_lo) * IC * TILE * sizeof(float);
+        evict((const void *)(WR + (uint64_t)tile_lo * IC * TILE), bytes);
+    }
+}
+
+/* Scratch for the 1x1 repack: placed right after the 3x3-P1 repack scratch,
+ * leaving headroom before BUFFER_SIZE (80MB). */
+#define WR1X1_SCRATCH_OFFSET (WR3X3_SCRATCH_OFFSET + WR3X3_SCRATCH_BYTES)
+#define WR1X1_SCRATCH_BYTES  (512u * 256u * 4u)
+
 /* Dispatcher: OC>=128 -> OC16, OC>=64 -> OC8, else per-OC. */
-static inline void conv2d_1x1_disp(uint32_t hid,
+static inline void conv2d_1x1_disp(uint32_t hid, float *wr_scratch,
                                    const float *in, float *out,
                                    const float *W, const float *B,
                                    uint32_t IC, uint32_t H, uint32_t W_,
@@ -747,11 +780,22 @@ static inline void conv2d_1x1_disp(uint32_t hid,
                                    uint32_t act)
 {
     /* Fixed OC16 RAW pipeline hazard! Safe to use for OC>=128 */
-    if   (OC >= 128u) conv2d_1x1_fp32_mh_vpu_oc16(hid, in, out, W, B, IC, H, W_, OC, act);
-    else if(OC >= 64u)conv2d_1x1_fp32_mh_vpu_oc8 (hid, in, out, W, B, IC, H, W_, OC, act);
-    else              conv2d_1x1_fp32_mh_vpu    (hid, in, out, W, B, IC, H, W_, OC, act);
+    if (OC >= 128u) {
+        repack_1x1_weights(hid, W, wr_scratch, IC, OC, 16u);
+        MH_BARRIER();
+        conv2d_1x1_fp32_mh_vpu_oc16(hid, in, out, wr_scratch, B, IC, H, W_, OC, act);
+    } else if (OC >= 64u) {
+        repack_1x1_weights(hid, W, wr_scratch, IC, OC, 8u);
+        MH_BARRIER();
+        conv2d_1x1_fp32_mh_vpu_oc8(hid, in, out, wr_scratch, B, IC, H, W_, OC, act);
+    } else {
+        conv2d_1x1_fp32_mh_vpu(hid, in, out, W, B, IC, H, W_, OC, act);
+    }
 }
-#define CONV_1x1(...) do { conv2d_1x1_disp(hid, __VA_ARGS__); MH_BARRIER(); } while (0)
+#define CONV_1x1(...) do { \
+    conv2d_1x1_disp(hid, (float *)(base + WR1X1_SCRATCH_OFFSET), __VA_ARGS__); \
+    MH_BARRIER(); \
+} while (0)
 
 /* VPU-vectorized 3x3 Conv2d (stride=1, pad=1, OW % 8 == 0).
  * Adapted from depth-anything M10 conv3x3_pad1_fp32_vpu, multi-hart by OC.
@@ -1124,7 +1168,7 @@ static void conv2d_3x3_s2_p1_fp32_mh_vpu(uint32_t hid,
  * (oh, ow8) tile.  Lower register pressure than OC8 to avoid the M18 hang. */
 static void conv2d_3x3_p1_fp32_mh_vpu_oc4(uint32_t hid,
                                           const float *in, float *out,
-                                          const float *W, const float *B,
+                                          const float *WR, const float *B,
                                           uint32_t IC, uint32_t H, uint32_t W_,
                                           uint32_t OC,
                                           uint32_t act)
@@ -1178,7 +1222,7 @@ static void conv2d_3x3_p1_fp32_mh_vpu_oc4(uint32_t hid,
                                  * serializing through one reused register. */
                                 float w0p, w1p, w2p, w3p;
 #define BC_ONE(WREG, OO) do { \
-    union { float f; uint32_t u; } _ww; _ww.f = W[((oc0 + OO) * IC + ic) * 9u + ky * 3u + kx]; \
+    union { float f; uint32_t u; } _ww; _ww.f = WR[((tile * IC + ic) * 9u + ky * 3u + kx) * 4u + OO]; \
     __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(WREG) : "r"((uint64_t)_ww.u)); \
 } while (0)
                                 BC_ONE(w0p, 0); BC_ONE(w1p, 1); BC_ONE(w2p, 2); BC_ONE(w3p, 3);
@@ -1192,7 +1236,7 @@ static void conv2d_3x3_p1_fp32_mh_vpu_oc4(uint32_t hid,
 #define EDGE_ONE(REG, OO) do { \
     __asm__ volatile("fsq2 %1, 0(%0)\n" :: "r"(acc_buf), "f"(REG) : "memory"); \
     __asm__ volatile("fence rw, rw" ::: "memory"); \
-    const float w_scalar = W[((oc0 + OO) * IC + ic) * 9u + ky * 3u + kx]; \
+    const float w_scalar = WR[((tile * IC + ic) * 9u + ky * 3u + kx) * 4u + OO]; \
     for (int lane = 0; lane < 8; lane++) { \
         const int32_t iw_l = ow8 + lane + (int32_t)kx - 1; \
         if (iw_l >= 0 && iw_l < (int32_t)W_) { \
@@ -1239,7 +1283,45 @@ static void conv2d_3x3_p1_fp32_mh_vpu_oc4(uint32_t hid,
     }
 }
 
-static inline void conv2d_3x3_p1_disp(uint32_t hid,
+/* Repack (OC,IC,KY,KX)-major weights into (tile,IC,KY,KX,4)-major so an OC4
+ * tile's 4 weights for a fixed (ic,ky,kx) are contiguous (16B) instead of
+ * IC*9*4 bytes apart. T0-only, same tile boundaries as the compute kernel. */
+static void repack_3x3_oc4_weights(uint32_t hid, const float *W, float *WR,
+                                   uint32_t IC, uint32_t OC)
+{
+    if (!mh_is_t0(hid)) return;
+    const uint32_t cidx = mh_t0_idx(hid);
+    const uint32_t oc_tiles = OC / 4u;
+    uint32_t tile_lo, tile_hi;
+    *(volatile uint32_t *)&tile_lo = (oc_tiles * cidx) / MH_NUM_T0;
+    *(volatile uint32_t *)&tile_hi = (oc_tiles * (cidx + 1u)) / MH_NUM_T0;
+
+    for (uint32_t tile = tile_lo; tile < tile_hi; tile++) {
+        const uint32_t oc0 = tile * 4u;
+        float *dst_tile = WR + (uint64_t)tile * IC * 9u * 4u;
+        for (uint32_t ic = 0; ic < IC; ic++) {
+            for (uint32_t k = 0; k < 9u; k++) {
+                float *dst = dst_tile + (ic * 9u + k) * 4u;
+                dst[0] = W[((oc0 + 0u) * IC + ic) * 9u + k];
+                dst[1] = W[((oc0 + 1u) * IC + ic) * 9u + k];
+                dst[2] = W[((oc0 + 2u) * IC + ic) * 9u + k];
+                dst[3] = W[((oc0 + 3u) * IC + ic) * 9u + k];
+            }
+        }
+    }
+    if (tile_hi > tile_lo) {
+        const uint64_t bytes = (uint64_t)(tile_hi - tile_lo) * IC * 9u * 4u * sizeof(float);
+        evict((const void *)(WR + (uint64_t)tile_lo * IC * 9u * 4u), bytes);
+    }
+}
+
+/* Scratch for the repack above, placed past the highest scratch slot
+ * (SCR_HEAD_D ends 0x4D80000) with headroom before BUFFER_SIZE (80MB).
+ * Reused sequentially across all OC>=32 3x3-P1 calls; never live across calls. */
+#define WR3X3_SCRATCH_OFFSET 0x04D80000u
+#define WR3X3_SCRATCH_BYTES  (256u * 64u * 9u * 4u)
+
+static inline void conv2d_3x3_p1_disp(uint32_t hid, float *wr_scratch,
                                       const float *in, float *out,
                                       const float *W, const float *B,
                                       uint32_t IC, uint32_t H, uint32_t W_,
@@ -1247,10 +1329,18 @@ static inline void conv2d_3x3_p1_disp(uint32_t hid,
                                       uint32_t act)
 {
     /* OC8 hangs the silicon (M18); use OC4 for OC>=32, per-OC for smaller. */
-    if (OC >= 32u) conv2d_3x3_p1_fp32_mh_vpu_oc4(hid, in, out, W, B, IC, H, W_, OC, act);
-    else           conv2d_3x3_p1_fp32_mh_vpu    (hid, in, out, W, B, IC, H, W_, OC, act);
+    if (OC >= 32u) {
+        repack_3x3_oc4_weights(hid, W, wr_scratch, IC, OC);
+        MH_BARRIER();
+        conv2d_3x3_p1_fp32_mh_vpu_oc4(hid, in, out, wr_scratch, B, IC, H, W_, OC, act);
+    } else {
+        conv2d_3x3_p1_fp32_mh_vpu(hid, in, out, W, B, IC, H, W_, OC, act);
+    }
 }
-#define CONV_3x3_P1(...) do { conv2d_3x3_p1_disp(hid, __VA_ARGS__); MH_BARRIER(); } while (0)
+#define CONV_3x3_P1(...) do { \
+    conv2d_3x3_p1_disp(hid, (float *)(base + WR3X3_SCRATCH_OFFSET), __VA_ARGS__); \
+    MH_BARRIER(); \
+} while (0)
 
 /* VPU-vectorized depthwise 3x3 (stride=1 pad=1, OW % 8 == 0). */
 static void conv2d_dw3x3_s1_p1_fp32_mh_vpu(uint32_t hid,
