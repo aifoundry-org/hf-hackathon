@@ -1,43 +1,47 @@
 {
-  "runner": "llama_server",
+  "runner": "smolvlm2_video",
   "board": true,
   "benchmark_default": false,
   "framework": {
     "name": "llama.cpp-et",
-    "runner": "llama_server",
+    "runner": "smolvlm2_video",
     "source_artifact": "llama_cpp_source"
   },
   "artifacts_file": "../artifacts.json",
-  "canonical_variant": "Qwen3-VL-2B-Instruct-Q8_0",
+  "reference_contract": ".github/ci/reference/qwen3vl_2b.json",
+  "canonical_variant": "Qwen3-VL-2B-Instruct",
   "score": {
-    "metric": "tokens_per_second",
-    "label": "Decode tokens/s",
-    "higher_is_better": true
+    "metric": "pmc_cycles",
+    "label": "ET firmware cycles",
+    "higher_is_better": false,
+    "baseline_variant": "Qwen3-VL-2B-Instruct"
   },
-  "note": "Qwen3-VL-2B-Instruct VLM (qwen3vl arch, same family as ZwZ-4B and Qwen3-8B, both already ported). Q8_0 LLM (~1.83 GB) + Q8_0 mmproj (~445 MB) fit board DRAM.",
+  "note": "Qwen3-VL-2B-Instruct VLM (qwen3vl arch). Exercises real vision via the main-owned smolvlm2_video harness: loads mmproj, runs pinned COCO fixtures, ET visual-answer/oracle gate. Requires identity-arch-prefix fix (#112) on main.",
   "llama_server": {
     "source_artifact": "llama_cpp_source",
     "model_artifact": "qwen3vl_2b_q8_gguf",
+    "mmproj_artifact": "qwen3vl_2b_mmproj_q8",
     "server_artifact": "llama_server",
     "workdir_artifact": "llama_cpp_build",
     "host": "127.0.0.1",
-    "port": 18107,
+    "port": 18108,
     "device": "ET",
     "gpu_layers": 99,
     "ctx_size": 4096,
-    "batch_size": 512,
-    "ubatch_size": 256,
+    "batch_size": 256,
+    "ubatch_size": 128,
     "parallel": 1,
     "cache_ram_mib": 0,
     "ready_timeout_s": 600,
     "request_timeout_s": 900,
     "flash_attn": false,
-    "api": "completion",
-    "prompt": "Repeat this token sequence without commentary: OK OK OK OK OK OK OK OK OK OK",
-    "max_tokens": 96,
+    "max_tokens": 12,
     "temperature": 0,
-    "ignore_eos": true,
-    "min_completion_tokens": 32,
+    "top_k": 1,
+    "require_full_offload": true,
+    "require_zero_vision_fallbacks": true,
+    "allowed_vision_fallback_ops": [],
+    "extra_args": ["--image-min-tokens", "1024"],
     "perplexity": {
       "enabled": true,
       "perplexity_artifact": "llama_perplexity",
@@ -47,8 +51,39 @@
       "ubatch_size": 128,
       "timeout_s": 900,
       "min_ppl": 1.0,
-      "max_ppl": 1000.0,
+      "max_ppl": 16.812,
       "chunks": 4
     }
+  },
+  "multimodal": {
+    "frames_per_second": 1.0,
+    "prompt_template": "<|im_start|>user\n{media_markers}\n{question}<|im_end|>\n<|im_start|>assistant\n",
+    "cases": [
+      {
+        "name": "coco_cat",
+        "fixtures": ["coco_cat"],
+        "question": "What animal is shown? Answer one word.",
+        "accepted_answers": ["cat", "tabby"]
+      },
+      {
+        "name": "coco_giraffes",
+        "fixtures": ["coco_giraffes"],
+        "question": "What animal is shown? Answer one word.",
+        "accepted_answers": ["giraffe", "giraffes"]
+      },
+      {
+        "name": "cat_then_giraffes",
+        "fixtures": ["coco_cat", "coco_giraffes"],
+        "question": "Name the animal in the second image in one word.",
+        "accepted_answers": ["giraffe", "giraffes"]
+      },
+      {
+        "name": "giraffes_then_cat",
+        "fixtures": ["coco_giraffes", "coco_cat"],
+        "question": "Name the animal in the second image in one word.",
+        "accepted_answers": ["cat", "tabby"]
+      }
+    ],
+    "order_pair": ["cat_then_giraffes", "giraffes_then_cat"]
   }
 }

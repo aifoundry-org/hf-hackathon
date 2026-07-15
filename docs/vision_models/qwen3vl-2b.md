@@ -1,8 +1,8 @@
 # Porting Plan: Qwen3-VL-2B-Instruct
 
 **Path:** GGUF (llama.cpp-et) — VLM (text + image → text)
-**Model ID:** `qwen3vl_2b` · **Port:** 18107
-**Status:** Implemented — PR open
+**Model ID:** `qwen3vl_2b` · **Port:** 18108
+**Status:** Vision harness wired — PR open (#73); depends on identity fix (#112)
 
 > Chosen as the small-Qwen VLM after the originally-planned **Qwen3.5-0.8B** was
 > found to publish **no `mmproj`** on `ggml-org` (LLM-only GGUFs), which blocks
@@ -39,13 +39,16 @@
 
 1. Pinned HF refs in `docs/HF_REFERENCES.md`.
 2. Added `qwen3vl_2b_q8_gguf` + `qwen3vl_2b_mmproj_q8` to `ported_models/llama_cpp_et/artifacts.json`.
-3. Created `ported_models/llama_cpp_et/benchmarks/qwen3vl_2b.json` (port 18107).
+3. Created `ported_models/llama_cpp_et/benchmarks/qwen3vl_2b.json` (port 18108).
 4. Registered `qwen3vl_2b` in `.github/ci/benchmark_config.json`.
 5. Wrote submission recipe `ported_models/llama_cpp_et/docs/qwen3vl_2b.md`.
+6. Switched board path to main-owned `smolvlm2_video` + `.github/ci/reference/qwen3vl_2b.json` (COCO oracle, `pmc_cycles`).
+7. Opened companion [#112](https://github.com/aifoundry-org/hf-hackathon/pull/112) so identity accepts `qwen3vl.*` GGUF keys.
 
 ## Risks / follow-ups
 
 | Risk | Mitigation |
 |------|------------|
-| `llama_server` board runner is text-only (no `--mmproj` image path yet) | mmproj pinned; full vision gate lands with shared VLM runner extension |
-| ET backend kernel coverage for Qwen3-VL vision ops | Text decode + PPL proven via Qwen3 decoder; vision path validated once runner extended |
+| Identity gate hard-coded `llama.*` keys | Companion PR #112 generalizes to `{arch}.*` |
+| ET vision kernel coverage / fallbacks | Same `require_zero_vision_fallbacks` gate as SmolVLM-500M; board will surface gaps |
+| Port clash with `smolvlm2_500m_video` (18107) | Qwen uses **18108** |
