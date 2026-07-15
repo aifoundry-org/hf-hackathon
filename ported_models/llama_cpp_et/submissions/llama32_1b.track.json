@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "track": "llama_3_2_1b_fastest",
+  "model": "llama32_1b",
+  "submission_id": "afonso-llama32-graph-uber-v1",
+  "runtime_revision": "a62ad34bf0e297697fad45c065e9ce35d46cf2f0"
+}
