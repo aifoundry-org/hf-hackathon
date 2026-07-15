@@ -4,7 +4,9 @@ set -euo pipefail
 ref="${1:-HEAD}"
 paths=(
   .github/ci/reference/llama32_1b.json
+  .github/ci/reference/llama32_1b_track.json
   .github/ci/reference/rwkv7_15b.json
+  .github/workflows/trusted-llama32-pr.yml
   .github/ci/scripts/prepare_trusted_llama32_candidate.py
   .github/ci/scripts/run_llama_server_benchmark.py
   .github/ci/scripts/run_trusted_llama_benchmark.py
@@ -20,6 +22,7 @@ paths=(
   ported_models/llama_cpp_et/benchmarks/qwen3_8b.json
   ported_models/llama_cpp_et/benchmarks/deepseek_r1_15b.json
   ported_models/llama_cpp_et/submissions/llama32_1b.json
+  ported_models/llama_cpp_et/submissions/llama32_1b.track.json
   ported_models/llama_cpp_et/artifacts.json
   ported_models/llama_cpp_et/src/llama.cpp-et
   data/llama32_1b.json

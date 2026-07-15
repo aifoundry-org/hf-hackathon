@@ -18,6 +18,7 @@ from benchmark_config_helpers import load_config
 REPO_ROOT = Path(__file__).resolve().parents[3]
 MAIN_CONFIG = REPO_ROOT / ".github" / "ci" / "benchmark_config.json"
 CONTRACT_PATH = REPO_ROOT / ".github" / "ci" / "reference" / "llama32_1b.json"
+TRACK_POLICY_PATH = REPO_ROOT / ".github" / "ci" / "reference" / "llama32_1b_track.json"
 MODEL = "llama32_1b"
 
 
@@ -82,6 +83,44 @@ def require_hex(value: Any, length: int, field: str) -> str:
     if not re.fullmatch(rf"[0-9a-f]{{{length}}}", text):
         raise RuntimeError(f"{field} must be {length} lowercase hexadecimal characters")
     return text
+
+
+def validate_track_claim(
+    claim: dict[str, Any], policy: dict[str, Any], runtime_revision: str
+) -> None:
+    if claim.get("schema_version") != 1:
+        raise RuntimeError("track claim must declare schema_version 1")
+    if claim.get("track") != policy["track"] or claim.get("model") != MODEL:
+        raise RuntimeError(
+            f"track claim must declare track {policy['track']} and model {MODEL}"
+        )
+    if claim.get("runtime_revision") != runtime_revision:
+        raise RuntimeError(
+            "track claim runtime_revision must equal the candidate llama.cpp-et gitlink"
+        )
+    submission_id = str(claim.get("submission_id") or "")
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}", submission_id):
+        raise RuntimeError(
+            "track claim submission_id must be 1-80 safe identifier characters"
+        )
+
+
+def evaluation_mode(
+    *, runtime_changed: bool, manifest_changed: bool, claim_changed: bool
+) -> str:
+    if manifest_changed and not claim_changed:
+        raise RuntimeError(
+            "a Llama 3.2 1B candidate manifest change requires an explicit track claim"
+        )
+    if claim_changed:
+        if not runtime_changed and not manifest_changed:
+            raise RuntimeError(
+                "a track claim must accompany a candidate runtime or manifest change"
+            )
+        return "competition"
+    if runtime_changed:
+        return "regression"
+    return "none"
 
 
 def candidate_artifact(manifest: dict[str, Any], contract: dict[str, Any]) -> tuple[str, dict[str, Any]]:
@@ -191,8 +230,12 @@ def main() -> int:
     args = parser.parse_args()
 
     contract = json.loads(CONTRACT_PATH.read_text())
+    track_policy = json.loads(TRACK_POLICY_PATH.read_text())
+    if track_policy.get("schema_version") != 1 or track_policy.get("model") != MODEL:
+        raise RuntimeError("trusted Llama track policy has an unsupported schema or model")
     runtime_path = str(contract["runtime"]["submodule_path"])
     manifest_path = str(contract["candidate_manifest"])
+    claim_path = str(track_policy["candidate_claim"])
     paths = changed_paths(args.base, args.head)
     try:
         base_runtime_revision, base_runtime_url = submodule_entry(args.base, runtime_path)
@@ -205,7 +248,21 @@ def main() -> int:
         or runtime_url != base_runtime_url
     )
     manifest_changed = manifest_path in paths
-    targeted = runtime_changed or manifest_changed
+    claim_changed = claim_path in paths
+    mode = evaluation_mode(
+        runtime_changed=runtime_changed,
+        manifest_changed=manifest_changed,
+        claim_changed=claim_changed,
+    )
+    targeted = mode != "none"
+
+    claim: dict[str, Any] | None = None
+    if claim_changed:
+        raw_claim = blob(args.head, claim_path)
+        claim = json.loads(raw_claim or "{}")
+        if not isinstance(claim, dict):
+            raise RuntimeError("track claim must contain a JSON object")
+        validate_track_claim(claim, track_policy, runtime_revision)
 
     cfg = load_config(MAIN_CONFIG)
     model_cfg = cfg["models"][MODEL]
@@ -236,9 +293,14 @@ def main() -> int:
     output_config.write_text(json.dumps(cfg, indent=2) + "\n")
     metadata = {
         "targeted": targeted,
+        "mode": mode,
+        "competitive": mode == "competition",
         "changed_paths": paths,
         "runtime_changed": runtime_changed,
         "manifest_changed": manifest_changed,
+        "claim_changed": claim_changed,
+        "claim_path": claim_path,
+        "submission_id": claim.get("submission_id") if claim else None,
         "runtime_path": runtime_path,
         "runtime_revision": runtime_revision,
         "runtime_url": runtime_url,

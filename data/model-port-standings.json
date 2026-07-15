@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "activation_mode": "shadow",
+  "metric": "active_unique_model_port_credits",
+  "tie_break": "earliest_final_qualifying_merge",
+  "standings": []
+}

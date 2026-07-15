@@ -253,6 +253,14 @@ def sysemu_timeouts(cfg: dict) -> tuple[int, int]:
         board = cfg.get("board", {})
         launcher = int(board.get("launcher_timeout_s", 600))
         outer = int(board.get("outer_timeout_s", launcher + 60))
+        launcher_cap = int(os.environ.get("TRUSTED_BOARD_LAUNCHER_TIMEOUT_CAP", "0"))
+        outer_cap = int(os.environ.get("TRUSTED_BOARD_OUTER_TIMEOUT_CAP", "0"))
+        if launcher_cap > 0:
+            launcher = min(launcher, launcher_cap)
+        if outer_cap > 0:
+            outer = min(outer, outer_cap)
+        if outer <= launcher:
+            launcher = max(1, outer - 10)
         return outer, launcher
     smoke = cfg.get("ci_smoke", {})
     launcher = int(smoke.get("launcher_timeout_s", 5400))

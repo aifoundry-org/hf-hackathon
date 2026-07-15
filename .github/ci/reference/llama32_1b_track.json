@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "track": "llama_3_2_1b_fastest",
+  "model": "llama32_1b",
+  "candidate_claim": "ported_models/llama_cpp_et/submissions/llama32_1b.track.json",
+  "shared_runtime": {
+    "max_relative_throughput_regression": 0.01
+  }
+}

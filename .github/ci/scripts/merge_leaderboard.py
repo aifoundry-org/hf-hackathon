@@ -100,7 +100,9 @@ def save_board(model: str, entries: list) -> None:
     path.write_text(json.dumps(payload, indent=2) + "\n")
 
 
-def merge_entry(entries: list, score: dict) -> list:
+def merge_entry(
+    entries: list, score: dict, *, participant_login: str | None = None
+) -> list:
     if not score.get("passed"):
         return entries
 
@@ -108,11 +110,13 @@ def merge_entry(entries: list, score: dict) -> list:
     metric_value = score.get(metric)
     if metric_value is None:
         return entries
-    team = score.get("team") or "unknown"
+    team = participant_login or score.get("team") or "unknown"
+    participant_login = participant_login or team
     sha = score.get("sha") or ""
 
     new = {
         "team": team,
+        "participant_login": participant_login,
         "variant": score.get("variant"),
         "kernel_wait_s": score.get("kernel_wait_s"),
         "kernel_wait_per_image_s": score.get("kernel_wait_per_image_s"),
@@ -134,8 +138,12 @@ def merge_entry(entries: list, score: dict) -> list:
     if metric not in new:
         new[metric] = score.get(metric)
 
-    # Replace same team's prior entry, then sort.
-    entries = [e for e in entries if e.get("team") != team]
+    # Replace the same canonical participant's prior entry, then sort.
+    entries = [
+        e
+        for e in entries
+        if (e.get("participant_login") or e.get("team")) != participant_login
+    ]
     entries.append(new)
     entries.sort(
         key=lambda e: e.get(metric) if e.get(metric) is not None else (-1e99 if higher_is_better else 1e99),
@@ -148,6 +156,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--scores-dir", required=True)
     parser.add_argument("--models", default="")
+    parser.add_argument("--participant-login", default="")
     args = parser.parse_args()
 
     scores_dir = Path(args.scores_dir)
@@ -158,7 +167,11 @@ def main() -> int:
             continue
         score = json.loads(score_path.read_text())
         before = load_board(model)
-        after = merge_entry(before, score)
+        after = merge_entry(
+            before,
+            score,
+            participant_login=args.participant_login or None,
+        )
         if after != before:
             save_board(model, after)
             changed = True

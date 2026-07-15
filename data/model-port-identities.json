@@ -1,0 +1,123 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "baseline_port_roots": [
+    "ported_models/dncnn",
+    "ported_models/ggonnx",
+    "ported_models/llama_cpp_et",
+    "ported_models/whisper",
+    "ported_models/yolo"
+  ],
+  "identities": [
+    {
+      "identity_id": "dncnn",
+      "execution_family": "dncnn",
+      "benchmark_models": [
+        "dncnn"
+      ],
+      "aliases": [],
+      "eligible": false,
+      "ineligible_reason": "seed port root present at the frozen baseline"
+    },
+    {
+      "identity_id": "ggonnx",
+      "execution_family": "ggonnx",
+      "benchmark_models": [
+        "ggonnx"
+      ],
+      "aliases": [],
+      "eligible": false,
+      "ineligible_reason": "seed port root present at the frozen baseline"
+    },
+    {
+      "identity_id": "whisper",
+      "execution_family": "whisper",
+      "benchmark_models": [
+        "whisper"
+      ],
+      "aliases": [],
+      "eligible": false,
+      "ineligible_reason": "seed port root present at the frozen baseline"
+    },
+    {
+      "identity_id": "yolo-m30",
+      "execution_family": "yolo",
+      "benchmark_models": ["yolo"],
+      "aliases": [],
+      "eligible": false,
+      "ineligible_reason": "seed port root present at the frozen baseline"
+    },
+    {
+      "identity_id": "lfm2",
+      "execution_family": "lfm2",
+      "benchmark_models": ["lfm25"],
+      "aliases": [],
+      "eligible": false,
+      "ineligible_reason": "seed llama.cpp-et execution family present at the frozen baseline"
+    },
+    {
+      "identity_id": "llama",
+      "execution_family": "llama",
+      "benchmark_models": ["llama32_1b", "llama32_3b", "llama31_8b", "tinyllama11b"],
+      "aliases": [],
+      "eligible": false,
+      "ineligible_reason": "seed execution family; sizes and quantizations are one port unit"
+    },
+    {
+      "identity_id": "gemma3n",
+      "execution_family": "gemma3n",
+      "benchmark_models": ["gemma3n_e2b"],
+      "aliases": [],
+      "eligible": false,
+      "ineligible_reason": "seed llama.cpp-et execution family present at the frozen baseline"
+    },
+    {
+      "identity_id": "rwkv7",
+      "execution_family": "rwkv7",
+      "benchmark_models": ["rwkv7_15b"],
+      "aliases": [],
+      "eligible": false,
+      "ineligible_reason": "seed llama.cpp-et execution family present at the frozen baseline"
+    },
+    {
+      "identity_id": "qwen2",
+      "execution_family": "qwen2",
+      "benchmark_models": ["qwen25_05b", "deepseek_r1_15b"],
+      "aliases": [],
+      "eligible": false,
+      "ineligible_reason": "checkpoint variants reuse the seed llama.cpp-et qwen2 execution family"
+    },
+    {
+      "identity_id": "qwen3",
+      "execution_family": "qwen3",
+      "benchmark_models": ["qwen3_06b", "qwen3_17b", "qwen3_4b", "qwen3_8b"],
+      "aliases": [],
+      "eligible": false,
+      "ineligible_reason": "seed execution family; sizes and quantizations are one port unit"
+    },
+    {
+      "identity_id": "smollm2",
+      "execution_family": "smollm2",
+      "benchmark_models": ["smollm2_135m", "smollm2_360m", "smollm2_17b"],
+      "aliases": [],
+      "eligible": false,
+      "ineligible_reason": "seed execution family; sizes and quantizations are one port unit"
+    },
+    {
+      "identity_id": "smolvlm",
+      "execution_family": "idefics3",
+      "benchmark_models": ["smolvlm_256m"],
+      "aliases": [],
+      "eligible": false,
+      "ineligible_reason": "historical contest submission pending trusted artifact and identity review"
+    },
+    {
+      "identity_id": "smolvlm2-video",
+      "execution_family": "idefics3-video",
+      "benchmark_models": ["smolvlm2_500m_video"],
+      "aliases": [],
+      "eligible": false,
+      "ineligible_reason": "organizer-owned validation baseline"
+    }
+  ]
+}

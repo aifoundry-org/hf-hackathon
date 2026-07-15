@@ -83,6 +83,11 @@ YOLO_REFERENCE_INFRA_PATHS = {
 SMOLVLM2_REFERENCE_INFRA_PATHS = {
     ".github/ci/reference/smolvlm2_500m_video.json",
 }
+LLAMA32_SUBMISSION_PATHS = {
+    "ported_models/llama_cpp_et/submissions/llama32_1b.json",
+    "ported_models/llama_cpp_et/submissions/llama32_1b.track.json",
+}
+MODEL_PORT_CLAIM_ROOT = "ported_models/submissions/model_ports"
 ZERO_BLOB_PRIMARY = "zero2m.bin"
 
 
@@ -663,6 +668,15 @@ def main() -> int:
             continue
         if path in SMOLVLM2_REFERENCE_INFRA_PATHS:
             selected.add("smolvlm2_500m_video")
+            continue
+        if path in LLAMA32_SUBMISSION_PATHS:
+            selected.add("llama32_1b")
+            continue
+        if is_under(path, MODEL_PORT_CLAIM_ROOT) and path.endswith(".json"):
+            claim = read_json(path)
+            model = str((claim or {}).get("benchmark_model") or "")
+            if model in cfg.get("models", {}) and model_supports_target(cfg, model, args.target):
+                selected.add(model)
             continue
         if path in GENERIC_BOARD_INFRA_PATHS or is_under(path, ".github/ci/platform/"):
             if honor_global:

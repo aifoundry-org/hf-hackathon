@@ -62,7 +62,14 @@ def desired_labels(files, new_roots=(), week2_prefixes=WEEK2_PREFIXES):
             bool(new_roots)
             or any(
                 status == "added"
-                and re.fullmatch(r"ported_models/llama_cpp_et/benchmarks/[^/]+\.json", path, re.I)
+                and (
+                    re.fullmatch(r"ported_models/llama_cpp_et/benchmarks/[^/]+\.json", path, re.I)
+                    or re.fullmatch(
+                        r"ported_models/submissions/model_ports/[a-z0-9][a-z0-9_-]+\.json",
+                        path,
+                        re.I,
+                    )
+                )
                 for path, status in changed
             ),
         ),

@@ -867,11 +867,14 @@ jobs:
     if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main' && needs.select-board-models.outputs.has_models == '1' && needs.board-benchmark.result == 'success'
     runs-on: ubuntu-latest
     permissions:
+      actions: write
       contents: write
+      pull-requests: read
+      statuses: write
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: main
+          ref: ${{ github.sha }}
           fetch-depth: 0
           token: ${{ secrets.LEADERBOARD_PUSH_TOKEN }}
 
@@ -880,10 +883,70 @@ jobs:
           name: board-benchmark-scores
           path: board-scores
 
+      - name: Resolve merged pull request and canonical participant
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          payload="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/pulls")"
+          pr="$(jq -c 'map(select(.merged_at != null and .base.ref == "main")) | sort_by(.merged_at) | last // empty' <<< "$payload")"
+          if [[ -n "$pr" ]]; then
+            participant_login="$(jq -r .user.login <<< "$pr")"
+            pr_number="$(jq -r .number <<< "$pr")"
+            participant_head_sha="$(jq -r .head.sha <<< "$pr")"
+            merged_at="$(jq -r .merged_at <<< "$pr")"
+            gh api --paginate "repos/${GITHUB_REPOSITORY}/pulls/${pr_number}/files?per_page=100" \
+              --jq '.[].filename' \
+              | grep -E '^ported_models/submissions/model_ports/[a-z0-9][a-z0-9_-]+\.json$' \
+              | sort -u > "$RUNNER_TEMP/model-port-pr-claims.txt" || true
+          else
+            participant_login="$(.github/ci/scripts/resolve_leaderboard_team.sh "$GITHUB_SHA")"
+            pr_number=0
+            participant_head_sha="$GITHUB_SHA"
+            merged_at="$(git show -s --format=%cI "$GITHUB_SHA")"
+            : > "$RUNNER_TEMP/model-port-pr-claims.txt"
+          fi
+          [[ -n "$participant_login" ]]
+          {
+            echo "PARTICIPANT_LOGIN=$participant_login"
+            echo "PARTICIPANT_PR_NUMBER=$pr_number"
+            echo "PARTICIPANT_HEAD_SHA=$participant_head_sha"
+            echo "PARTICIPANT_MERGED_AT=$merged_at"
+          } >> "$GITHUB_ENV"
+
+      - name: Synchronize mutable leaderboard state
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
+          git switch --detach origin/main
+
       - name: Merge board scores into leaderboard
         env:
           SELECTED_MODELS: ${{ needs.select-board-models.outputs.models }}
-        run: python3 .github/ci/scripts/merge_leaderboard.py --scores-dir board-scores --models "$SELECTED_MODELS"
+        run: |
+          python3 .github/ci/scripts/merge_leaderboard.py \
+            --scores-dir board-scores \
+            --models "$SELECTED_MODELS" \
+            --participant-login "$PARTICIPANT_LOGIN"
+
+      - name: Validate and issue model-port credits
+        env:
+          BEFORE_SHA: ${{ github.event.before }}
+          EXPECTED_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          python3 .github/ci/scripts/model_port_credit.py \
+            --before "$BEFORE_SHA" \
+            --head "$GITHUB_SHA" \
+            --actor "$PARTICIPANT_LOGIN" \
+            --pr-number "$PARTICIPANT_PR_NUMBER" \
+            --participant-head-sha "$PARTICIPANT_HEAD_SHA" \
+            --merged-at "$PARTICIPANT_MERGED_AT" \
+            --expected-run-url "$EXPECTED_RUN_URL" \
+            --scores-dir board-scores \
+            --expected-claim-paths "$RUNNER_TEMP/model-port-pr-claims.txt" \
+            --report "$RUNNER_TEMP/model-port-credit-report.json" \
+            | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Commit leaderboard
         run: |
@@ -896,8 +959,12 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/*.json README.md
           git commit -m "chore(leaderboard): update ET-SoC1 board scores [skip ci]"
-          git pull --rebase origin main
-          git push origin HEAD:main
+          git push origin HEAD:main || {
+            echo "Main advanced during credit processing; refusing a stale ledger push. Re-run this workflow." >&2
+            exit 1
+          }
+          GH_TOKEN="${{ github.token }}" \
+            .github/ci/scripts/refresh_model_port_prs.sh "$GITHUB_SHA" HEAD
 
   invalidate-trusted-yolo-prs:
     name: Invalidate stale trusted YOLO checks
@@ -1024,3 +1091,45 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: .github/ci/scripts/refresh_trusted_smolvlm2_prs.sh "${{ github.event.before }}" HEAD
+
+  invalidate-trusted-model-port-prs:
+    name: Invalidate stale trusted model-port checks
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      statuses: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Mark open model-port PRs pending when trusted inputs changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/ci/scripts/refresh_model_port_prs.sh "${{ github.event.before }}" HEAD pending-only
+
+  refresh-trusted-model-port-prs:
+    name: Refresh open trusted model-port checks
+    needs: [select-board-models, board-benchmark, update-leaderboard]
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+      pull-requests: read
+      statuses: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Re-run open model-port PRs when trusted inputs changed
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/ci/scripts/refresh_model_port_prs.sh "${{ github.event.before }}" HEAD

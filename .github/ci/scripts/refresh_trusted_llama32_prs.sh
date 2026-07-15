@@ -22,7 +22,7 @@ count=0
 while IFS=$'\t' read -r pr head_sha; do
   [[ -n "$pr" && -n "$head_sha" ]] || continue
   files="$(gh api --paginate "repos/${repo}/pulls/${pr}/files?per_page=100" --jq '.[].filename')"
-  if ! grep -qxE '\.gitmodules|ported_models/llama_cpp_et/src/llama\.cpp-et|ported_models/llama_cpp_et/submissions/llama32_1b\.json' <<< "$files"; then
+  if ! grep -qxE '\.gitmodules|ported_models/llama_cpp_et/src/llama\.cpp-et|ported_models/llama_cpp_et/submissions/llama32_1b(\.track)?\.json' <<< "$files"; then
     continue
   fi
   gh api --method POST "repos/${repo}/statuses/${head_sha}" \

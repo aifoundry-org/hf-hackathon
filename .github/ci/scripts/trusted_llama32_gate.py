@@ -46,32 +46,52 @@ def cell(value: Any, limit: int = 180) -> str:
     return text
 
 
+def regression_floor(reference: float, max_relative_regression: float) -> float:
+    return reference * (1.0 - max_relative_regression)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--contract", required=True)
+    parser.add_argument("--track-policy", required=True)
+    parser.add_argument("--mode", choices=("competition", "regression"), required=True)
     parser.add_argument("--baseline-score", required=True)
     parser.add_argument("--candidate-scores-dir", required=True)
     parser.add_argument("--regression-models", default="")
+    parser.add_argument("--participant", required=True)
+    parser.add_argument("--head-sha", required=True)
+    parser.add_argument("--candidate-metadata", default="")
     parser.add_argument("--output", default="")
+    parser.add_argument("--result-output", default="")
     args = parser.parse_args()
 
     contract_path = Path(args.contract)
     contract = load_json(contract_path)
     contract_sha = hashlib.sha256(contract_path.read_bytes()).hexdigest()
+    policy_path = Path(args.track_policy)
+    policy = load_json(policy_path)
+    policy_sha = hashlib.sha256(policy_path.read_bytes()).hexdigest()
+    if policy.get("model") != contract.get("model"):
+        raise RuntimeError("track policy and validation contract model do not match")
     model = str(contract["model"])
     baseline = load_json(Path(args.baseline_score))
     scores_dir = Path(args.candidate_scores_dir)
     candidate = load_json(scores_dir / f"score-{model}.json")
     min_relative = float(contract["performance"]["min_relative_improvement"])
+    max_speed_regression = float(
+        policy["shared_runtime"]["max_relative_throughput_regression"]
+    )
     max_ppl_regression = float(contract["quality"]["max_ppl_regression"])
     failures: list[str] = []
+    result_rows: list[dict[str, Any]] = []
 
     lines = [
         "## Trusted Llama 3.2 1B Gate",
         "",
         (
-            "The candidate uses the main-owned model contract, CPU reference, ET quality check, "
-            "PP256/TG128 benchmark, and shared-runtime regression set."
+            f"Mode: **{args.mode}**. The candidate uses the main-owned model contract, CPU "
+            "reference, ET quality check, PP256/TG128 benchmark, and shared-runtime "
+            "regression set."
         ),
         "",
         "| Model | Decode tok/s | Baseline/best | PPL | Verdict | Notes |",
@@ -107,17 +127,29 @@ def main() -> int:
     if candidate.get("validation_contract_sha256") != contract_sha:
         target_ok = False
         target_notes.append("candidate score contract hash is stale or missing")
+    if candidate.get("team") != args.participant:
+        target_ok = False
+        target_notes.append("candidate score is not attributed to the canonical PR login")
+    if candidate.get("sha") != args.head_sha:
+        target_ok = False
+        target_notes.append("candidate score does not identify the exact PR head commit")
     if not isinstance(baseline_speed, (int, float)) or not isinstance(candidate_speed, (int, float)):
         target_ok = False
         target_notes.append("paired baseline or candidate has no decode throughput")
     else:
-        required = float(baseline_speed) * (1.0 + min_relative)
-        if float(candidate_speed) <= required:
-            target_ok = False
-            target_notes.append(f"requires paired decode > {required:.4f}")
-        if historical_speed is not None and float(candidate_speed) <= historical_speed:
-            target_ok = False
-            target_notes.append(f"requires leaderboard decode > {historical_speed:.4f}")
+        if args.mode == "competition":
+            required = float(baseline_speed) * (1.0 + min_relative)
+            if float(candidate_speed) <= required:
+                target_ok = False
+                target_notes.append(f"requires paired decode > {required:.4f}")
+            if historical_speed is not None and float(candidate_speed) <= historical_speed:
+                target_ok = False
+                target_notes.append(f"requires leaderboard decode > {historical_speed:.4f}")
+        else:
+            required = regression_floor(float(baseline_speed), max_speed_regression)
+            if float(candidate_speed) < required:
+                target_ok = False
+                target_notes.append(f"requires paired decode >= {required:.4f}")
     if not isinstance(candidate_ppl, (int, float)):
         target_ok = False
         target_notes.append("candidate has no PPL")
@@ -140,6 +172,17 @@ def main() -> int:
         f"| {reference_text} | {fmt(float(candidate_ppl) if isinstance(candidate_ppl, (int, float)) else None)} "
         f"| {'pass' if target_ok else 'fail'} | {cell('; '.join(target_notes) or 'passed')} |"
     )
+    result_rows.append(
+        {
+            "model": model,
+            "passed": target_ok,
+            "tokens_per_second": candidate_speed,
+            "reference_tokens_per_second": baseline_speed,
+            "historical_best_tokens_per_second": historical_speed,
+            "perplexity": candidate_ppl,
+            "notes": target_notes,
+        }
+    )
 
     regression_models = [item for item in args.regression_models.replace(",", " ").split() if item]
     for regression_model in regression_models:
@@ -158,9 +201,14 @@ def main() -> int:
         if current_speed is None:
             ok = False
             notes.append("main has no trusted speed baseline")
-        elif not isinstance(speed, (int, float)) or float(speed) <= current_speed:
+        elif not isinstance(speed, (int, float)):
             ok = False
-            notes.append(f"requires decode > {current_speed:.4f}")
+            notes.append("candidate has no decode throughput")
+        else:
+            minimum_speed = regression_floor(current_speed, max_speed_regression)
+            if float(speed) < minimum_speed:
+                ok = False
+                notes.append(f"requires decode >= {minimum_speed:.4f}")
         if current_ppl is not None:
             max_ppl = current_ppl * (1.0 + max_ppl_regression)
             if not isinstance(ppl, (int, float)) or float(ppl) > max_ppl:
@@ -172,6 +220,16 @@ def main() -> int:
             f"| {regression_model} | {fmt(float(speed) if isinstance(speed, (int, float)) else None)} "
             f"| {fmt(current_speed)} | {fmt(float(ppl) if isinstance(ppl, (int, float)) else None)} "
             f"| {'pass' if ok else 'fail'} | {cell('; '.join(notes) or 'passed')} |"
+        )
+        result_rows.append(
+            {
+                "model": regression_model,
+                "passed": ok,
+                "tokens_per_second": speed,
+                "reference_tokens_per_second": current_speed,
+                "perplexity": ppl,
+                "notes": notes,
+            }
         )
 
     lines.extend(
@@ -187,6 +245,30 @@ def main() -> int:
     text = "\n".join(lines) + "\n"
     if args.output:
         Path(args.output).write_text(text)
+    if args.result_output:
+        metadata = (
+            load_json(Path(args.candidate_metadata)) if args.candidate_metadata else {}
+        )
+        result = {
+            "schema_version": 1,
+            "track": policy["track"],
+            "mode": args.mode,
+            "passed": not failures,
+            "eligible_for_standings": args.mode == "competition" and not failures,
+            "participant_login": args.participant,
+            "participant_head_sha": args.head_sha,
+            "submission_id": metadata.get("submission_id"),
+            "runtime_revision": metadata.get("runtime_revision"),
+            "runtime_url": metadata.get("runtime_url"),
+            "candidate_variant": metadata.get("candidate_variant") or candidate.get("variant"),
+            "candidate_quantization": metadata.get("candidate_quantization"),
+            "validation_contract_sha256": contract_sha,
+            "track_policy_sha256": policy_sha,
+            "run_url": candidate.get("run_url"),
+            "score_sha": candidate.get("sha"),
+            "results": result_rows,
+        }
+        Path(args.result_output).write_text(json.dumps(result, indent=2) + "\n")
     print(text)
     return 1 if failures else 0
 

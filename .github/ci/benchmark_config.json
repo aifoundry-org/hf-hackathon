@@ -16,6 +16,19 @@
           "-DACTIVE_HARTS=8u",
           "-DBENCH_THREAD0_ONLY=1"
         ]
+      },
+      "dncnn": {
+        "defines": [
+          "-fno-tree-loop-distribute-patterns",
+          "-fno-strict-aliasing",
+          "-DBENCH_THREAD0_ONLY=1",
+          "-DDNCNN_CH=64u",
+          "-DDNCNN_HIDDEN=18u",
+          "-DDNCNN_IMG=64u",
+          "-DDNCNN_REAL=1",
+          "-DNUM_HARTS=16",
+          "-DACTIVE_HARTS=8"
+        ]
       }
     }
   },
@@ -31,6 +44,18 @@
           "-DNUM_HARTS=16",
           "-DACTIVE_HARTS=8u",
           "-DBENCH_THREAD0_ONLY=1"
+        ]
+      },
+      "dncnn": {
+        "defines": [
+          "-fno-tree-loop-distribute-patterns",
+          "-fno-strict-aliasing",
+          "-DBENCH_THREAD0_ONLY=1",
+          "-DDNCNN_CH=64u",
+          "-DDNCNN_HIDDEN=18u",
+          "-DDNCNN_IMG=64u",
+          "-DDNCNN_REAL=1",
+          "-DACTIVE_HARTS=1"
         ]
       }
     }
@@ -169,6 +194,58 @@
           }
         }
       ]
+    },
+    "dncnn": {
+      "canonical_variant": "dncnn20l64",
+      "source": "ported_models/dncnn/src/dncnn_gen_int8.c",
+      "bench_dir": "dncnn-bench",
+      "manifest": "dncnn_variants.txt",
+      "score": {
+        "metric": "kernel_wait_s",
+        "label": "Denoise kernel wait (64x64 tile)",
+        "higher_is_better": false,
+        "baseline_variant": "dncnn20l64"
+      },
+      "build": {
+        "opt": "-O3",
+        "defines": [
+          "-fno-tree-loop-distribute-patterns",
+          "-fno-strict-aliasing",
+          "-DBENCH_THREAD0_ONLY=1",
+          "-DDNCNN_CH=64u",
+          "-DDNCNN_HIDDEN=18u",
+          "-DDNCNN_IMG=64u",
+          "-DDNCNN_REAL=1",
+          "-DACTIVE_HARTS=8"
+        ]
+      },
+      "file_loads": [
+        {
+          "address": "0x0",
+          "paths": ["zero2m.bin", "common/zero2m.bin"],
+          "required": true
+        },
+        {
+          "address": "0x2000",
+          "paths": ["dncnn/dncnn20l64_input.bin"],
+          "required": true
+        },
+        {
+          "address": "0x14000",
+          "paths": ["dncnn/dncnn20l64_weights.bin"],
+          "required": true
+        }
+      ],
+      "dump_magic": "0xD3C11003",
+      "dump_size": "0x11000",
+      "accuracy": {
+        "kind": "uint8_npy",
+        "offset": "0x10000",
+        "shape": [64, 64],
+        "max_abs": 2,
+        "reference_path": "ported_models/dncnn/refs/dncnn20l64_reference.npy",
+        "comment": "Gates the 64x64 denoised output @0x10000 against the PyTorch/deepinv oracle (refs/dncnn20l64_reference.npy, produced by scripts/gen_dncnn_oracle.py running deepinv.models.DnCNN on the pinned weights). Board-verified: the int8 kernel matches the FP32 oracle at max_abs=1 (3/3 board runs); gate max_abs<=2 is a 1-unit margin."
+      }
     },
     "lfm25": {
       "config": "ported_models/llama_cpp_et/benchmarks/lfm25.json"

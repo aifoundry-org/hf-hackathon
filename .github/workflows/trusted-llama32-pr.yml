@@ -32,6 +32,7 @@ jobs:
       association: ${{ steps.pr.outputs.association }}
       merge_base: ${{ steps.candidate.outputs.merge_base }}
       targeted: ${{ steps.candidate.outputs.targeted }}
+      mode: ${{ steps.candidate.outputs.mode }}
       needs_approval: ${{ steps.pr.outputs.needs_approval }}
     steps:
       - name: Resolve pull request
@@ -86,9 +87,11 @@ jobs:
             --output-config /tmp/candidate-config.json \
             --metadata /tmp/candidate-metadata.json
           targeted="$(jq -r 'if .targeted then 1 else 0 end' /tmp/candidate-metadata.json)"
+          mode="$(jq -r .mode /tmp/candidate-metadata.json)"
           {
             echo "merge_base=$merge_base"
             echo "targeted=$targeted"
+            echo "mode=$mode"
           } >> "$GITHUB_OUTPUT"
 
       - name: Publish pending status
@@ -99,6 +102,9 @@ jobs:
           NEEDS_APPROVAL: ${{ steps.pr.outputs.needs_approval }}
         run: |
           description='Queued against the main-owned Llama contract.'
+          if [[ "${{ steps.candidate.outputs.mode }}" == "regression" ]]; then
+            description='Queued for shared llama.cpp-et regression checks.'
+          fi
           if [[ "$NEEDS_APPROVAL" == "1" ]]; then
             description='First-time contributor: maintainer approval is required.'
           fi
@@ -175,7 +181,7 @@ jobs:
         with:
           name: trusted-llama32-pr-${{ needs.resolve.outputs.pr }}
           path: ${{ runner.temp }}/trusted-llama32/
-          retention-days: 14
+          retention-days: 90
           if-no-files-found: warn
 
   publish:
@@ -187,13 +193,18 @@ jobs:
       - name: Publish final status
         env:
           GH_TOKEN: ${{ github.token }}
+          RESOLVE_RESULT: ${{ needs.resolve.result }}
           HEAD_SHA: ${{ needs.resolve.outputs.head_sha }}
           TARGETED: ${{ needs.resolve.outputs.targeted }}
+          MODE: ${{ needs.resolve.outputs.mode }}
           NEEDS_APPROVAL: ${{ needs.resolve.outputs.needs_approval }}
           BOARD_RESULT: ${{ needs.board.result }}
           VERDICT_KIND: ${{ needs.board.outputs.verdict_kind }}
         run: |
-          if [[ "$TARGETED" != "1" ]]; then
+          if [[ "$RESOLVE_RESULT" != "success" ]]; then
+            state=error
+            description='Trusted Llama candidate declaration is invalid.'
+          elif [[ "$TARGETED" != "1" ]]; then
             state=success
             description='No Llama 3.2 1B implementation change.'
           elif [[ "$NEEDS_APPROVAL" == "1" ]]; then
@@ -201,13 +212,17 @@ jobs:
             description='First-time contributor: maintainer approval is required.'
           elif [[ "$BOARD_RESULT" == "success" ]]; then
             state=success
-            description='Trusted Llama quality, speed, and regressions passed.'
+            if [[ "$MODE" == "competition" ]]; then
+              description='Eligible Llama track result: quality, speed, and regressions passed.'
+            else
+              description='Shared llama.cpp-et regression checks passed.'
+            fi
           elif [[ "$VERDICT_KIND" == "infrastructure-error" ]]; then
             state=error
             description='Current-main baseline failed; no candidate verdict was produced.'
           elif [[ "$VERDICT_KIND" == "candidate-failure" ]]; then
             state=failure
-            description='Candidate failed trusted Llama quality, speed, or regressions.'
+            description='Candidate failed trusted Llama quality, speed, or regression limits.'
           else
             state=error
             description="Trusted Llama workflow result: ${BOARD_RESULT}."

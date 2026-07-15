@@ -1,7 +1,7 @@
 {
   "runner": "llama_server",
   "board": true,
-  "benchmark_default": false,
+  "benchmark_default": true,
   "framework": {
     "name": "llama.cpp-et",
     "runner": "llama_server",

@@ -9,6 +9,12 @@ set -uo pipefail
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null)"
 [[ -n "$ROOT" ]] || ROOT="$(cd "$(dirname "$0")/../../.." && pwd)"
 cd "$ROOT"
+# Git exports repository-local GIT_* variables to hooks. Drop them after
+# resolving this worktree so temporary repositories created by the tests do
+# not accidentally commit into or move the caller's branch.
+while IFS= read -r variable; do
+  unset "$variable"
+done < <(git rev-parse --local-env-vars)
 fail=0
 note() { printf '  %s\n' "$*"; }
 step() { printf '==> %s\n' "$*"; }
@@ -22,8 +28,14 @@ python3 -m unittest discover -s .github/ci/scripts -p 'test_track_labels.py' \
   || bad "track label classifier tests failed"
 python3 -m unittest discover -s .github/ci/scripts -p 'test_smolvlm2_video_benchmark.py' \
   || bad "SmolVLM2 video benchmark tests failed"
+python3 -m unittest discover -s .github/ci/scripts -p 'test_prepare_trusted_smolvlm2_candidate.py' \
+  || bad "trusted SmolVLM2 candidate scope tests failed"
 python3 -m unittest discover -s .github/ci/scripts -p 'test_trusted_smolvlm2_gate.py' \
   || bad "trusted SmolVLM2 gate tests failed"
+python3 -m unittest discover -s .github/ci/scripts -p 'test_trusted_llama32_policy.py' \
+  || bad "trusted Llama track policy tests failed"
+python3 -m unittest discover -s .github/ci/scripts -p 'test_model_port_track.py' \
+  || bad "trusted model-port track tests failed"
 python3 -m py_compile ported_models/yolo/tools/host_reference.py \
   || bad "YOLO host-reference compile errors"
 
@@ -52,6 +64,59 @@ if ! grep -qF 'context=trusted-model/smolvlm2_500m_video' \
 fi
 if grep -qE '^[[:space:]]+paths:' .github/workflows/trusted-smolvlm2-pr.yml; then
   bad "trusted SmolVLM2 final check must run on every PR so it can be required"
+fi
+if ! grep -qF 'pull_request_target:' .github/workflows/trusted-llama32-pr.yml; then
+  bad "trusted Llama workflow must be loaded from the default branch"
+fi
+if ! grep -qF 'context=trusted-model/llama32_1b' \
+  .github/workflows/trusted-llama32-pr.yml; then
+  bad "trusted Llama workflow does not publish its merge status on the participant commit"
+fi
+if grep -qE '^[[:space:]]+paths:' .github/workflows/trusted-llama32-pr.yml; then
+  bad "trusted Llama final check must run on every PR so it can be required"
+fi
+if ! grep -qF 'pull_request_target:' .github/workflows/trusted-model-port-pr.yml; then
+  bad "trusted model-port workflow must be loaded from the default branch"
+fi
+if ! grep -qF 'context=trusted-track/model-port-credit' \
+  .github/workflows/trusted-model-port-pr.yml; then
+  bad "trusted model-port workflow does not publish its status on the participant commit"
+fi
+if grep -qE '^[[:space:]]+paths:' .github/workflows/trusted-model-port-pr.yml; then
+  bad "trusted model-port final check must run on every PR so it can be required"
+fi
+if ! grep -qF 'persist-credentials: false' .github/workflows/trusted-model-port-pr.yml; then
+  bad "trusted model-port board checkout must not retain repository credentials"
+fi
+if ! grep -qF 'approve_board_execution' .github/workflows/trusted-model-port-pr.yml; then
+  bad "external model-port code must require explicit per-head maintainer approval"
+fi
+if ! grep -qF 'timeout-minutes: 10' .github/workflows/trusted-model-port-pr.yml \
+  || ! grep -qF 'TRUSTED_BOARD_OUTER_TIMEOUT_CAP: "120"' \
+    .github/workflows/trusted-model-port-pr.yml; then
+  bad "trusted model-port smoke must retain its bounded execution budget"
+fi
+if ! grep -qF 'Remove participant workspace' .github/workflows/trusted-model-port-pr.yml; then
+  bad "trusted model-port workflow must clean the persistent board workspace"
+fi
+if grep -qE '^ {6}SOC3_DEST: \$\{\{ runner\.temp \}\}/trusted-model-port-board$' \
+  .github/workflows/trusted-model-port-pr.yml; then
+  bad "runner.temp is unavailable in job-level env; scope SOC3_DEST to board steps"
+fi
+if [[ "$(grep -cF 'SOC3_DEST: ${{ runner.temp }}/trusted-model-port-board' \
+  .github/workflows/trusted-model-port-pr.yml)" -ne 2 ]]; then
+  bad "trusted model-port board and cleanup steps must share the runner-temp workspace"
+fi
+if ! grep -qF 'et_platform_src_complete' .github/ci/platform/deploy/soc3-benchmark.sh \
+  || ! grep -qF '_launcher_lib_dir' .github/ci/platform/deploy/soc3-benchmark.sh; then
+  bad "board deployment must bind a complete platform tree and matching launcher libraries"
+fi
+if grep -qF '.removeprefix(' .github/ci/scripts/score_results.py; then
+  bad "board scorer must remain compatible with the Python 3.8 board host"
+fi
+if ! grep -qF -- '--expected-claim-paths' .github/workflows/benchmark-board.yml \
+  || ! grep -qF 'git switch --detach origin/main' .github/workflows/benchmark-board.yml; then
+  bad "merge-time model-port credit must bind to PR files and current ledger state"
 fi
 if ! grep -qF 'run-name: "Trusted YOLO PR #' .github/workflows/trusted-yolo-pr.yml; then
   bad "trusted YOLO run name must retain the PR number and head SHA"
@@ -240,6 +305,8 @@ from pathlib import Path
 paths = [
     Path(".github/ci/benchmark_config.json"),
     Path(".github/ci/reference/llama32_1b.json"),
+    Path(".github/ci/reference/llama32_1b_track.json"),
+    Path(".github/ci/reference/model_ports_track.json"),
     Path(".github/ci/reference/rwkv7_15b.json"),
     Path(".github/ci/reference/yolo.json"),
 ]
@@ -248,6 +315,11 @@ for m in cfg.get("models", {}).values():
     if "config" in m:
         paths.append(Path(m["config"]))
 paths += list(Path("ported_models").glob("*/artifacts.json"))
+paths += [
+    Path("data/model-port-identities.json"),
+    Path("data/model-port-credits.json"),
+    Path("data/model-port-standings.json"),
+]
 bad = False
 for p in paths:
     try:
@@ -260,11 +332,12 @@ PY
 step "Trusted Llama contract covers the shared leaderboard runtime"
 python3 - <<'PY' || bad "trusted Llama contract or build definition is incomplete"
 import json
+import subprocess
 import sys
 from pathlib import Path
 
 sys.path.insert(0, ".github/ci/scripts")
-from benchmark_config_helpers import load_config
+from benchmark_config_helpers import load_config, model_runner
 
 contract = json.loads(Path(".github/ci/reference/llama32_1b.json").read_text())
 cfg = load_config(Path(".github/ci/benchmark_config.json"))
@@ -275,6 +348,8 @@ for model, model_cfg in cfg["models"].items():
     if model == contract["model"]:
         continue
     if model_cfg.get("framework", {}).get("source_artifact") != source_artifact:
+        continue
+    if model_runner(cfg, model) != "llama_server":
         continue
     data = Path("data") / f"{model}.json"
     if not data.is_file():
@@ -294,6 +369,42 @@ assert rwkv["llama_server"]["gpu_layers"] == 99
 assert rwkv["llama_server"].get("require_full_offload", True)
 assert "-nkvo" in rwkv["llama_server"]["extra_args"]
 assert "-nkvo" in rwkv["llama_server"]["perplexity"]["extra_args"]
+PY
+
+step "Trusted model-port policy, identity registry, ledger, and standings"
+python3 - <<'PY' || bad "trusted model-port policy data is inconsistent"
+import json
+import subprocess
+import sys
+from pathlib import Path
+
+sys.path.insert(0, ".github/ci/scripts")
+from model_port_claim import active_credits, validate_policy, validate_registry
+from render_model_port_standings import readme_section, standings
+
+policy = json.loads(Path(".github/ci/reference/model_ports_track.json").read_text())
+registry = json.loads(Path("data/model-port-identities.json").read_text())
+ledger = json.loads(Path("data/model-port-credits.json").read_text())
+rendered = json.loads(Path("data/model-port-standings.json").read_text())
+validate_policy(policy)
+identities = validate_registry(registry, policy)
+assert identities
+baseline_roots = subprocess.check_output(
+    ["git", "ls-tree", "-d", "--name-only", f"{policy['baseline_sha']}:ported_models"],
+    text=True,
+).splitlines()
+assert sorted(registry["baseline_port_roots"]) == sorted(
+    f"ported_models/{root}" for root in baseline_roots
+)
+credits = active_credits(ledger, policy)
+assert standings(policy, ledger) == rendered
+assert readme_section(rendered, credits) in Path("README.md").read_text()
+assert "AFOliveira" in policy["excluded_logins"]
+for script in (
+    ".github/ci/scripts/run_llama_server_benchmark.py",
+    ".github/ci/scripts/score_results.py",
+):
+    assert "benchmark_device" in Path(script).read_text()
 PY
 
 step "YOLO reference contract and public COCO fixtures"
@@ -517,9 +628,23 @@ yolo_det_extra_score = run_score(
     ),
     "yolo-extra",
 )
+runtime_error_dir = write_case_results(
+    "yolo", "yolo_m30", yolo_det_good_cases
+)
+runtime_error_log = next(runtime_error_dir.glob("jobs/*/run.log"))
+runtime_error_log.write_text(
+    "Kernel wait seconds: 0.002000\n"
+    "Stream error (event 33): code 7\n"
+    "Kernel completed successfully\n"
+)
+runtime_error_score = run_score("yolo", runtime_error_dir, "yolo-runtime-error")
 assert yolo_det_good_score["passed"] and yolo_det_good_score["valid_accuracy"]
 assert not yolo_det_bad_score["passed"] and not yolo_det_bad_score["valid_accuracy"]
 assert not yolo_det_extra_score["passed"] and not yolo_det_extra_score["valid_accuracy"]
+assert not runtime_error_score["passed"]
+assert not runtime_error_score["valid_dump"]
+assert not runtime_error_score["valid_accuracy"]
+assert "runtime log rejected: Stream error" in runtime_error_score["valid_note"]
 assert yolo_det_good_score["accuracy_precision"] == 1.0
 assert yolo_det_good_score["accuracy_recall"] == 1.0
 assert "5/5 YOLO COCO cases valid" in yolo_det_good_score["valid_note"]
@@ -709,6 +834,9 @@ baseline_path.write_text(json.dumps({
 (scores_dir / f"score-{model}.json").write_text(json.dumps({
     "model": model,
     "passed": True,
+    "team": "ci-fixture",
+    "sha": "f" * 40,
+    "run_url": "https://github.com/aifoundry-org/hf-hackathon/actions/runs/1",
     "tokens_per_second": target_speed * 1.02,
     "perplexity": target_ppl * 1.10,
     "validation_contract_sha256": contract_sha,
@@ -726,11 +854,26 @@ PY
 trusted_regressions="$(jq -r '.runtime.regression_models | join(" ")' .github/ci/reference/llama32_1b.json)"
 python3 .github/ci/scripts/trusted_llama32_gate.py \
   --contract .github/ci/reference/llama32_1b.json \
+  --track-policy .github/ci/reference/llama32_1b_track.json \
+  --mode competition \
   --baseline-score "$tmp/trusted-llama-baseline.json" \
   --candidate-scores-dir "$trusted_scores" \
   --regression-models "$trusted_regressions" \
-  --output "$tmp/trusted-llama-pass.md" >/dev/null \
+  --participant ci-fixture \
+  --head-sha ffffffffffffffffffffffffffffffffffffffff \
+  --output "$tmp/trusted-llama-pass.md" \
+  --result-output "$tmp/trusted-llama-result.json" >/dev/null \
   || bad "trusted Llama gate rejected a valid improvement fixture"
+python3 - "$tmp/trusted-llama-result.json" <<'PY' \
+  || bad "trusted Llama result did not preserve canonical standing metadata"
+import json
+import sys
+
+result = json.load(open(sys.argv[1]))
+assert result["eligible_for_standings"] is True
+assert result["participant_login"] == "ci-fixture"
+assert result["participant_head_sha"] == "f" * 40
+PY
 python3 - "$trusted_scores/score-tinyllama11b.json" <<'PY'
 import json
 import sys
@@ -738,18 +881,51 @@ from pathlib import Path
 
 path = Path(sys.argv[1])
 score = json.loads(path.read_text())
-baseline = json.loads(Path("data/tinyllama11b.json").read_text())["entries"][0]
-score["tokens_per_second"] = baseline["tokens_per_second"]
+entries = json.loads(Path("data/tinyllama11b.json").read_text())["entries"]
+baseline = max(float(entry["tokens_per_second"]) for entry in entries)
+score["tokens_per_second"] = baseline * 0.98
 path.write_text(json.dumps(score) + "\n")
 PY
 if python3 .github/ci/scripts/trusted_llama32_gate.py \
   --contract .github/ci/reference/llama32_1b.json \
+  --track-policy .github/ci/reference/llama32_1b_track.json \
+  --mode competition \
   --baseline-score "$tmp/trusted-llama-baseline.json" \
   --candidate-scores-dir "$trusted_scores" \
   --regression-models "$trusted_regressions" \
+  --participant ci-fixture \
+  --head-sha ffffffffffffffffffffffffffffffffffffffff \
   --output "$tmp/trusted-llama-fail.md" >/dev/null; then
   bad "trusted Llama gate accepted a shared-runtime regression"
 fi
+python3 - "$tmp/trusted-llama-baseline.json" "$trusted_scores" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+baseline = json.load(open(sys.argv[1]))
+scores = Path(sys.argv[2])
+target = scores / "score-llama32_1b.json"
+score = json.loads(target.read_text())
+score["tokens_per_second"] = baseline["tokens_per_second"] * 0.995
+target.write_text(json.dumps(score) + "\n")
+tiny = scores / "score-tinyllama11b.json"
+score = json.loads(tiny.read_text())
+entries = json.loads(Path("data/tinyllama11b.json").read_text())["entries"]
+score["tokens_per_second"] = max(float(e["tokens_per_second"]) for e in entries) * 0.995
+tiny.write_text(json.dumps(score) + "\n")
+PY
+python3 .github/ci/scripts/trusted_llama32_gate.py \
+  --contract .github/ci/reference/llama32_1b.json \
+  --track-policy .github/ci/reference/llama32_1b_track.json \
+  --mode regression \
+  --baseline-score "$tmp/trusted-llama-baseline.json" \
+  --candidate-scores-dir "$trusted_scores" \
+  --regression-models "$trusted_regressions" \
+  --participant ci-fixture \
+  --head-sha ffffffffffffffffffffffffffffffffffffffff \
+  --output "$tmp/trusted-llama-regression-pass.md" >/dev/null \
+  || bad "trusted Llama gate rejected throughput inside the 1% regression tolerance"
 python3 - <<'PY' || bad "leaderboard_gate.py YOLO validation-only classification failed"
 import copy
 import importlib.util
@@ -782,7 +958,12 @@ PY
 rm -rf "$tmp"
 
 step "Leaderboard team resolver"
-expected_author="$(git show -s --format=%an HEAD)"
+fallback_sha=HEAD
+read -r -a fallback_parents <<< "$(git show -s --format=%P HEAD)"
+if (( ${#fallback_parents[@]} >= 2 )); then
+  fallback_sha="${fallback_parents[1]}"
+fi
+expected_author="$(git show -s --format=%an "$fallback_sha")"
 resolved_push="$(GITHUB_EVENT_NAME=push GITHUB_REF=refs/heads/main GITHUB_ACTOR=ci-actor GH_TOKEN= GITHUB_TOKEN= \
   .github/ci/scripts/resolve_leaderboard_team.sh HEAD)"
 if [[ "$resolved_push" != "$expected_author" ]]; then
@@ -792,6 +973,19 @@ resolved_pr="$(GITHUB_EVENT_NAME=pull_request GITHUB_REF=refs/pull/1/merge GITHU
   .github/ci/scripts/resolve_leaderboard_team.sh HEAD)"
 if [[ "$resolved_pr" != "ci-actor" ]]; then
   bad "resolve_leaderboard_team.sh PR fallback returned '$resolved_pr'"
+fi
+resolver_mock="$(mktemp -d)"
+cat > "$resolver_mock/gh" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' canonical-pr-login
+EOF
+chmod +x "$resolver_mock/gh"
+resolved_api="$(PATH="$resolver_mock:$PATH" GITHUB_EVENT_NAME=push GITHUB_REF=refs/heads/main \
+  GITHUB_ACTOR=ci-actor GH_TOKEN=test-token GITHUB_REPOSITORY=org/repo \
+  .github/ci/scripts/resolve_leaderboard_team.sh HEAD)"
+rm -rf "$resolver_mock"
+if [[ "$resolved_api" != "canonical-pr-login" ]]; then
+  bad "resolve_leaderboard_team.sh API lookup returned '$resolved_api'"
 fi
 merge_sha="$(git rev-list --merges --max-count=1 HEAD)"
 if [[ -n "$merge_sha" ]]; then
@@ -811,6 +1005,16 @@ if [[ -n "$base" ]]; then
     || bad "changed_benchmark_models.py failed"
 else
   note "no merge-base found; skipping selector run"
+fi
+
+step "Selector scopes Llama track declarations to Llama 3.2 1B"
+llama_submission_selection="$(python3 .github/ci/scripts/changed_benchmark_models.py \
+  --target board \
+  --changed-file ported_models/llama_cpp_et/submissions/llama32_1b.json \
+  --changed-file ported_models/llama_cpp_et/submissions/llama32_1b.track.json \
+  --format space 2>/dev/null)"
+if [[ "$llama_submission_selection" != "llama32_1b" ]]; then
+  bad "Llama track declarations selected '$llama_submission_selection', expected only llama32_1b"
 fi
 
 step "Selector detects uncovered runtime code"

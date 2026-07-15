@@ -7,6 +7,7 @@ output_dir="${3:?usage: run_trusted_llama32_candidate.sh BASE HEAD OUTPUT_DIR}"
 
 repo_root="$(cd "$(dirname "$0")/../../.." && pwd)"
 contract="$repo_root/.github/ci/reference/llama32_1b.json"
+track_policy="$repo_root/.github/ci/reference/llama32_1b_track.json"
 config="$repo_root/.github/ci/benchmark_config.json"
 runtime_path="ported_models/llama_cpp_et/src/llama.cpp-et"
 work="$(mktemp -d)"
@@ -35,6 +36,7 @@ python3 "$repo_root/.github/ci/scripts/prepare_trusted_llama32_candidate.py" \
   --baseline-config "$baseline_config" \
   --output-config "$candidate_config" \
   --metadata "$metadata"
+cp "$metadata" "$output_dir/candidate-metadata.json"
 
 if [[ "$(python3 -c 'import json,sys; print(1 if json.load(open(sys.argv[1]))["targeted"] else 0)' "$metadata")" != "1" ]]; then
   echo "PR does not change the trusted Llama 3.2 1B implementation or candidate manifest." >&2
@@ -78,6 +80,7 @@ fi
 candidate_runtime_sha="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["runtime_revision"])' "$metadata")"
 candidate_runtime_url="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["runtime_url"])' "$metadata")"
 regression_models="$(python3 -c 'import json,sys; print(" ".join(json.load(open(sys.argv[1]))["regression_models"]))' "$metadata")"
+evaluation_mode="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["mode"])' "$metadata")"
 
 echo "==> Trusted Llama candidate runtime: $candidate_runtime_url@$candidate_runtime_sha"
 git -C "$repo_root/$runtime_path" remote remove trusted-candidate >/dev/null 2>&1 || true
@@ -98,7 +101,13 @@ pull_outputs "$output_dir/candidate"
 
 python3 "$repo_root/.github/ci/scripts/trusted_llama32_gate.py" \
   --contract "$contract" \
+  --track-policy "$track_policy" \
+  --mode "$evaluation_mode" \
   --baseline-score "$output_dir/baseline/score-llama32_1b.json" \
   --candidate-scores-dir "$output_dir/candidate" \
   --regression-models "$regression_models" \
-  --output "$output_dir/verdict.md"
+  --participant "${LEADERBOARD_TEAM:?LEADERBOARD_TEAM is required}" \
+  --head-sha "$head" \
+  --candidate-metadata "$output_dir/candidate-metadata.json" \
+  --output "$output_dir/verdict.md" \
+  --result-output "$output_dir/track-result.json"

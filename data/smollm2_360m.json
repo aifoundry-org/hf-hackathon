@@ -1,0 +1,29 @@
+{
+  "model": "smollm2_360m",
+  "metric": "tokens_per_second",
+  "lower_is_better": false,
+  "updated_at": "2026-07-15T11:46:35.603556+00:00",
+  "entries": [
+    {
+      "team": "VenuAditya",
+      "participant_login": "VenuAditya",
+      "variant": "SmolLM2-360M-Instruct-Q8_0",
+      "kernel_wait_s": null,
+      "kernel_wait_per_image_s": null,
+      "tokens_per_second": 10.053270815951734,
+      "prompt_tokens_per_second": 63.38057049969987,
+      "prompt_tokens": 17,
+      "completion_tokens": 96,
+      "total_tokens": 113,
+      "perplexity": 18.3065,
+      "perplexity_error": 3.82726,
+      "perplexity_tokens": 512,
+      "perplexity_prompt_tokens_per_second": 113.23,
+      "validation_contract_sha256": null,
+      "sha": "5e193cf7b91788cbef69ae2ad124f0b397280c8d",
+      "ref": "refs/heads/main",
+      "run_url": "https://github.com/aifoundry-org/hf-hackathon/actions/runs/29412732448",
+      "scored_at": "2026-07-15T11:46:05.358672+00:00"
+    }
+  ]
+}

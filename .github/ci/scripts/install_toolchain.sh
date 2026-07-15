@@ -13,7 +13,11 @@ _toolchain_ok() {
   echo 'csrr x0, flb' | "${gcc}" -c -x assembler - -o /dev/null 2>/dev/null
 }
 
-for _tc_root in "${ET_INSTALL}" "${HOME}/et" /opt/et /opt/temp "${REPO_ROOT}/.ci-work/et"; do
+# The board deploy path may expose a shadow SDK through ET_PLATFORM. Its bin/
+# contains Docker-backed compiler wrappers when the real /opt/et toolchain needs
+# a newer host glibc, while the remaining SDK paths mirror ET_INSTALL.
+for _tc_root in "${ET_PLATFORM:-}" "${ET_INSTALL}" "${HOME}/et" /opt/et /opt/temp "${REPO_ROOT}/.ci-work/et"; do
+  [[ -n "${_tc_root}" ]] || continue
   if _toolchain_ok "${_tc_root}"; then
     export ET_INSTALL="${_tc_root}"
     export PATH="${ET_INSTALL}/bin:${PATH}"

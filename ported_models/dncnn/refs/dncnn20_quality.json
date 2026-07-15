@@ -1,0 +1,38 @@
+{
+  "model": "dncnn20l64",
+  "source": "deepinv/dncnn @ 3bb1f2a95321781343331069776c3eba98707a56",
+  "runtime": "deepinv==0.4.1 / torch (CPU)",
+  "operating_point": "sigma=2 on [0,1] (as trained)",
+  "image": "64x64",
+  "noisy_psnr_vs_clean": 41.925,
+  "results": [
+    {
+      "name": "torch_oracle_fp32",
+      "psnr_vs_clean": 51.034,
+      "ssim_vs_clean": 0.9981,
+      "denoise_gain_db": 9.11
+    },
+    {
+      "name": "host_int8_debug",
+      "psnr_vs_clean": 50.611,
+      "ssim_vs_clean": 0.9979,
+      "denoise_gain_db": 8.686,
+      "vs_oracle": {
+        "max_abs": 1,
+        "mean_abs": 0.116,
+        "rmse": 0.341
+      }
+    },
+    {
+      "name": "board_int8",
+      "psnr_vs_clean": 50.592,
+      "ssim_vs_clean": 0.9979,
+      "denoise_gain_db": 8.667,
+      "vs_oracle": {
+        "max_abs": 1,
+        "mean_abs": 0.116,
+        "rmse": 0.341
+      }
+    }
+  ]
+}

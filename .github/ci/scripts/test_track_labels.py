@@ -15,6 +15,7 @@ class TrackLabelTests(unittest.TestCase):
             ([{"filename": "ported_models/yolo/src/kernel.c"}], ["track: yolo-performance"]),
             ([{"filename": "ported_models/llama_cpp_et/benchmarks/llama32_1b.json"}], ["track: llama-3.2-1b-performance"]),
             ([{"filename": "ported_models/llama_cpp_et/benchmarks/new.json", "status": "added"}], ["track: model-ports"]),
+            ([{"filename": "ported_models/submissions/model_ports/new_model.json", "status": "added"}], ["track: model-ports"]),
             ([{"filename": "docs/BOARD_ACCESS.md"}], ["track: community"]),
             ([{"filename": "LICENSE"}], ["misc"]),
             (

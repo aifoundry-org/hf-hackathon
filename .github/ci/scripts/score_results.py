@@ -24,6 +24,12 @@ CONFIG_PATH = REPO_ROOT / ".github" / "ci" / "benchmark_config.json"
 YOLO_MAGIC = 0x10500001
 SUMMARY = struct.Struct("<16I")
 YOLO_DETECTION = struct.Struct("<I5f")
+RUNTIME_FAILURE_MARKERS = (
+    "Stream error (event",
+    "Kernel aborted (event",
+    "Error on kernel launch:",
+    "FATAL SIGNAL RECEIVED",
+)
 
 
 def int_cfg(value: int | str) -> int:
@@ -40,6 +46,13 @@ def wait_seconds(log_path: Path) -> float | None:
     text = log_path.read_text(errors="ignore")
     match = re.search(r"Kernel wait seconds:\s*([0-9.]+)", text)
     return float(match.group(1)) if match else None
+
+
+def runtime_failure_marker(log_path: Path | None) -> str | None:
+    if log_path is None or not log_path.is_file():
+        return None
+    text = log_path.read_text(errors="ignore")
+    return next((marker for marker in RUNTIME_FAILURE_MARKERS if marker in text), None)
 
 
 def dump_summary(path: Path, model: str = "") -> dict:
@@ -191,6 +204,18 @@ def load_yolo_contract(mcfg: dict) -> tuple[Path, dict]:
     return contract_path, json.loads(contract_path.read_text())
 
 
+def validation_contract_sha256(mcfg: dict) -> str | None:
+    contract_value = mcfg.get("reference_contract") or mcfg.get("validation", {}).get(
+        "reference_contract"
+    )
+    if not contract_value:
+        return None
+    contract_path = Path(contract_value)
+    if not contract_path.is_absolute():
+        contract_path = REPO_ROOT / contract_path
+    return hashlib.sha256(contract_path.read_bytes()).hexdigest()
+
+
 def yolo_benchmark_contract_error(mcfg: dict, cases: list[dict], contract: dict) -> str | None:
     if mcfg.get("runner", "elf") != "elf":
         return "YOLO benchmark runner must remain elf"
@@ -220,7 +245,10 @@ def yolo_benchmark_contract_error(mcfg: dict, cases: list[dict], contract: dict)
             or int(accuracy.get("max_detections", 0)) != max_detections
         ):
             return f"{name}: accuracy ABI does not match the YOLO reference contract"
-        expected_asset = str(fixture["asset"]).removeprefix("ported_models/yolo/assets/")
+        expected_asset = str(fixture["asset"])
+        asset_prefix = "ported_models/yolo/assets/"
+        if expected_asset.startswith(asset_prefix):
+            expected_asset = expected_asset[len(asset_prefix) :]
         input_loads = [
             load
             for load in case.get("file_loads", [])
@@ -585,9 +613,20 @@ def evaluate_row(
         parsed_summary,
         accuracy_cfg=accuracy_cfg,
     )
-    combined_note = valid_note
-    if accuracy_note:
-        combined_note = f"{valid_note}; {accuracy_note}"
+    runtime_failure = runtime_failure_marker(log_path)
+    if runtime_failure:
+        status = "fail"
+        valid_dump = False
+        valid_accuracy = False
+        accuracy_metrics = {
+            key: (False if key == "valid_accuracy" else value if key == "accuracy_kind" else None)
+            for key, value in accuracy_metrics.items()
+        }
+        combined_note = f"runtime log rejected: {runtime_failure}"
+    else:
+        combined_note = valid_note
+        if accuracy_note:
+            combined_note = f"{valid_note}; {accuracy_note}"
     passed = status == "pass" and bool(kernel_wait) and valid_dump and valid_accuracy
     return {
         "case": row.get("case") or "",
@@ -776,11 +815,7 @@ def score_benchmark_cases(
         "accuracy_recall": true_positives / reference_count if reference_count else None,
         "accuracy_mean_iou": mean_iou,
         "accuracy_score_mae": score_mae,
-        "validation_contract_sha256": (
-            hashlib.sha256(contract_path.read_bytes()).hexdigest()
-            if model == "yolo"
-            else None
-        ),
+        "validation_contract_sha256": validation_contract_sha256(mcfg),
         "case_results": [
             {
                 **{key: value for key, value in result.items() if key != "accuracy_metrics"},
@@ -794,6 +829,7 @@ def score_benchmark_cases(
         "sha": sha,
         "ref": ref,
         "team": actor,
+        "benchmark_device": os.environ.get("BENCHMARK_DEVICE", "unknown"),
         "run_url": run_url,
         "scored_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -875,13 +911,14 @@ def score_from_results(
         "valid_dump": evaluated["valid_dump"],
         "valid_note": evaluated["valid_note"],
         **evaluated["accuracy_metrics"],
-        "validation_contract_sha256": None,
+        "validation_contract_sha256": validation_contract_sha256(mcfg),
         "emu_cycle_last": evaluated["emu_cycle_last"],
         "elapsed_s": evaluated["elapsed_s"],
         "note": evaluated["note"],
         "sha": sha,
         "ref": ref,
         "team": actor,
+        "benchmark_device": os.environ.get("BENCHMARK_DEVICE", "unknown"),
         "run_url": run_url,
         "scored_at": datetime.now(timezone.utc).isoformat(),
     }
@@ -934,6 +971,7 @@ def fail_payload(
         "sha": sha,
         "ref": ref,
         "team": actor,
+        "benchmark_device": os.environ.get("BENCHMARK_DEVICE", "unknown"),
         "run_url": run_url,
         "scored_at": datetime.now(timezone.utc).isoformat(),
     }

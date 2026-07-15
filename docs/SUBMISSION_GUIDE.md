@@ -123,13 +123,33 @@ leaderboard baselines under main-branch control. A passing result requires:
 - three stable PP256/TG128 runs, with decode throughput at least 1% faster than
   paired current main and strictly faster than the best score made under the
   same measurement contract;
-- for a shared runtime change, passing PPL and strictly better decode
-  throughput for every existing `llama.cpp-et` leaderboard model.
+- for a shared runtime change, passing PPL and decode throughput no more than
+  1% below the trusted baseline for every existing `llama.cpp-et` leaderboard
+  text model. SmolVLM2 runtime compatibility is covered by its separate paired
+  trusted gate.
 
 Runtime optimizations repin
 `ported_models/llama_cpp_et/src/llama.cpp-et`. A different quantized GGUF is
-declared in `ported_models/llama_cpp_et/submissions/llama32_1b.json`; do not
-replace the trusted benchmark or CI files. The manifest format is:
+declared in `ported_models/llama_cpp_et/submissions/llama32_1b.json`. A shared
+runtime change without an explicit claim is a regression check only and is not
+eligible for the fastest-model standings. To enter the track, add or update
+`ported_models/llama_cpp_et/submissions/llama32_1b.track.json` in the same PR:
+
+```json
+{
+  "schema_version": 1,
+  "track": "llama_3_2_1b_fastest",
+  "model": "llama32_1b",
+  "submission_id": "your-login-v1",
+  "runtime_revision": "40-character-llama.cpp-et-gitlink-sha"
+}
+```
+
+`submission_id` identifies this attempt and must change for a later attempt
+that reuses the same runtime revision. `runtime_revision` must exactly match the
+submodule gitlink in the PR. Candidate-manifest changes are rejected unless the
+PR also changes this track claim. Do not replace the trusted benchmark or CI
+files. The optional GGUF manifest format is:
 
 ```json
 {
@@ -164,11 +184,54 @@ have already participated are queued automatically. Main-owned contract or
 leaderboard updates automatically invalidate and re-run open affected PRs, so
 a rebase is only needed for a real source conflict.
 
+The trusted result artifact records the canonical PR author's GitHub login,
+exact participant commit, runtime revision, contract hashes, run URL, and
+metrics. Only a passing result in `competition` mode has
+`eligible_for_standings: true`; the `team` string in a participant-controlled
+file is never used to decide ownership.
+
 A new model using an existing main-owned runner and scorer can be exercised by
 branch CI from a declarative benchmark entry. A submission that introduces a
 new evaluator, host oracle, or workflow is provisional: maintainers review and
 merge that measurement method before its results become a trusted leaderboard
 baseline.
+
+For the “most models ported by one individual” track, first ask a maintainer to
+register the model identity, pinned upstream source, validation contract, and
+exact benchmark-configuration hash on `main`. This measurement-approval PR does
+not earn credit. The implementation PR must then add a new standalone
+`ported_models/<model>` root and
+`ported_models/submissions/model_ports/<model>.json`:
+
+```json
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "new_model",
+  "identity_id": "approved-identity-id",
+  "source": {
+    "repo": "upstream-owner/upstream-model",
+    "revision": "40-character-hugging-face-commit",
+    "license": "upstream-license-id"
+  },
+  "implementation_paths": ["ported_models/new_model"],
+  "benchmark_config": ".github/ci/benchmark_config.json",
+  "recipe": "ported_models/new_model/docs/RECIPE.md"
+}
+```
+
+The claim must be newly added. The implementation root must also be new and may
+only contain added regular files, with at most 500 files and 50 MB committed.
+Quantizations, aliases, parameter-size
+variants, and checkpoints that reuse an already registered execution family do
+not create additional credits. `trusted-track/model-port-credit` is the
+main-owned signal: it reconstructs the candidate from trusted `main`, runs the
+approved configuration on ET-SoC1, and binds any credit to the canonical PR
+author. External participant code runs only after a maintainer dispatches the
+current PR head with `approve_board_execution=true`; a new push requires fresh
+approval. Device execution is capped at two minutes, with a ten-minute job cap
+for setup and compilation. The system is currently in shadow mode, so it
+reports would-be credits without modifying award standings.
 
 The `Leaderboard gate` check is the merge signal for benchmarked submissions.
 Every selected model must produce a passing board score and strictly improve the

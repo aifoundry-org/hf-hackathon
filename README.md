@@ -23,6 +23,7 @@ Results are from real ET-SoC1 silicon via the main-branch board workflow. Each m
 | Model | Best participant | Variant | Metric | Score | PPL | Run |
 |-------|------------------|---------|--------|-------|-----|-----|
 | yolo | Rehan Qasim | `yolo_m30` | Mean end-to-end latency | 1.484214s | - | [6417155](https://github.com/aifoundry-org/hf-hackathon/actions/runs/29279280085) |
+| dncnn | karabambus | `dncnn20l64` | Denoise kernel wait (64x64 tile) | 0.221240s | - | [a967098](https://github.com/aifoundry-org/hf-hackathon/actions/runs/29410925196) |
 | lfm25 | Afonso Oliveira | `LFM2.5-1.2B-Instruct-Q8_0` | Decode tokens/s | 3.12 | 21.70 (+/- 4.45) | [44e0041](https://github.com/aifoundry-org/hf-hackathon/actions/runs/29103369466) |
 | llama32_1b | CI | `Llama-3.2-1B-Instruct-Q8_0` | Decode tokens/s | 13.43 | 15.31 (+/- 2.89) | [443e451](https://github.com/aifoundry-org/hf-hackathon/actions/runs/29263753097) |
 | gemma3n_e2b | CI | `gemma-3n-E2B-it-Q8_0` | Decode tokens/s | 1.57 | 32.83 (+/- 10.20) | [443e451](https://github.com/aifoundry-org/hf-hackathon/actions/runs/29263753097) |
@@ -30,11 +31,22 @@ Results are from real ET-SoC1 silicon via the main-branch board workflow. Each m
 | rwkv7_15b | CI | `rwkv7-1.5B-world-q8_0` | Decode tokens/s | 1.65 | 11.79 (+/- 2.14) | [443e451](https://github.com/aifoundry-org/hf-hackathon/actions/runs/29263753097) |
 | qwen25_05b | CI | `Qwen2.5-0.5B-Instruct-Q8_0` | Decode tokens/s | 11.39 | 16.97 (+/- 3.53) | [443e451](https://github.com/aifoundry-org/hf-hackathon/actions/runs/29263753097) |
 | qwen3_8b | Ashish Soni | `Qwen3-8B-Q8_0` | Decode tokens/s | 3.30 | 10.50 (+/- 2.29) | [af95906](https://github.com/aifoundry-org/hf-hackathon/actions/runs/28949135516) |
+| smollm2_135m | VenuAditya | `SmolLM2-135M-Instruct-Q8_0` | Decode tokens/s | 11.62 | 25.43 (+/- 5.40) | [51d3b3d](https://github.com/aifoundry-org/hf-hackathon/actions/runs/29412726668) |
+| smollm2_360m | VenuAditya | `SmolLM2-360M-Instruct-Q8_0` | Decode tokens/s | 10.05 | 18.31 (+/- 3.83) | [5e193cf](https://github.com/aifoundry-org/hf-hackathon/actions/runs/29412732448) |
+| smollm2_17b | VenuAditya | `SmolLM2-1.7B-Instruct-Q8_0` | Decode tokens/s | 9.29 | 13.82 (+/- 3.01) | [52662db](https://github.com/aifoundry-org/hf-hackathon/actions/runs/29412442715) |
 | deepseek_r1_15b | Afonso Oliveira | `DeepSeek-R1-Distill-Qwen-1.5B-Q8_0` | Decode tokens/s | 7.92 | 47.36 (+/- 12.09) | [44e0041](https://github.com/aifoundry-org/hf-hackathon/actions/runs/29103369466) |
 | smolvlm2_500m_video | CI | `SmolVLM2-500M-Video-Instruct` | ET firmware cycles | 10821492678 | 22.28 (+/- 4.80) | [443e451](https://github.com/aifoundry-org/hf-hackathon/actions/runs/29263753097) |
 
 Full JSON data lives in [`data/`](data/).
 <!-- leaderboard:end -->
+
+<!-- model-port-standings:start -->
+## Most Models Ported by One Individual
+
+The trusted credit system is in shadow mode while contest dates and the
+historical identity inventory are reviewed. No award credits have been issued.
+
+<!-- model-port-standings:end -->
 
 In this repo, you will find ready-to-deploy ported models, guides to deploy
 them, and opinionated files on how to optimize them for CORE-ET and ET-SoC1

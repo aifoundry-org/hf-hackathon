@@ -17,6 +17,11 @@
 !ported_models/yolo/assets/**/*.npy
 !ported_models/yolo_e2e/assets/
 !ported_models/yolo_e2e/assets/**/*.bin
+!ported_models/dncnn/assets/
+!ported_models/dncnn/assets/**/*.bin
+!ported_models/dncnn/assets/**/*.npy
+!ported_models/dncnn/refs/
+!ported_models/dncnn/refs/**/*.npy
 local-artifacts/
 .ci-work/
 run_*/

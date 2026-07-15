@@ -1,0 +1,342 @@
+name: Trusted model-port credit gate
+run-name: "Trusted model-port PR #${{ github.event.pull_request.number || inputs.pr_number }}"
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: "Open pull request number to evaluate"
+        required: true
+        type: string
+      approve_board_execution:
+        description: "Approve this PR head to execute participant code on the board host"
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+  pull-requests: read
+  statuses: write
+
+concurrency:
+  group: trusted-model-port-pr-${{ github.event.pull_request.number || inputs.pr_number }}
+  cancel-in-progress: true
+
+jobs:
+  resolve:
+    name: Resolve model-port claim
+    runs-on: ubuntu-latest
+    outputs:
+      pr: ${{ steps.pr.outputs.pr }}
+      head_sha: ${{ steps.pr.outputs.head_sha }}
+      actor: ${{ steps.pr.outputs.actor }}
+      merge_base: ${{ steps.claim.outputs.merge_base }}
+      targeted: ${{ steps.claim.outputs.targeted }}
+      eligible: ${{ steps.claim.outputs.eligible }}
+      models: ${{ steps.claim.outputs.models }}
+      activation_mode: ${{ steps.claim.outputs.activation_mode }}
+      needs_approval: ${{ steps.pr.outputs.needs_approval }}
+    steps:
+      - name: Resolve pull request
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_PR: ${{ github.event.pull_request.number || '' }}
+          INPUT_PR: ${{ inputs.pr_number || '' }}
+          APPROVE_BOARD_EXECUTION: ${{ inputs.approve_board_execution || false }}
+        run: |
+          set -euo pipefail
+          pr="${EVENT_PR:-$INPUT_PR}"
+          payload="$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${pr}")"
+          head_sha="$(jq -r .head.sha <<< "$payload")"
+          actor="$(jq -r .user.login <<< "$payload")"
+          association="$(jq -r .author_association <<< "$payload")"
+          state="$(jq -r .state <<< "$payload")"
+          base_ref="$(jq -r .base.ref <<< "$payload")"
+          [[ "$state" == open && "$base_ref" == main ]]
+          needs_approval=1
+          case "$association" in
+            OWNER|MEMBER|COLLABORATOR) needs_approval=0 ;;
+          esac
+          if [[ "$EVENT_NAME" == workflow_dispatch && "$APPROVE_BOARD_EXECUTION" == true ]]; then
+            needs_approval=0
+          fi
+          {
+            echo "pr=$pr"
+            echo "head_sha=$head_sha"
+            echo "actor=$actor"
+            echo "needs_approval=$needs_approval"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Validate main-owned credit eligibility
+        id: claim
+        env:
+          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+          PR_NUMBER: ${{ steps.pr.outputs.pr }}
+          PR_ACTOR: ${{ steps.pr.outputs.actor }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "+refs/pull/${PR_NUMBER}/head:refs/remotes/pull/${PR_NUMBER}/head"
+          [[ "$(git rev-parse "refs/remotes/pull/${PR_NUMBER}/head^{commit}")" == "$HEAD_SHA" ]]
+          merge_base="$(git merge-base HEAD "$HEAD_SHA")"
+          set +e
+          python3 .github/ci/scripts/model_port_claim.py \
+            --base "$merge_base" \
+            --head "$HEAD_SHA" \
+            --actor "$PR_ACTOR" \
+            --pr-number "$PR_NUMBER" \
+            --output "$RUNNER_TEMP/model-port-claim.json" \
+            --summary "$RUNNER_TEMP/model-port-claim.md"
+          rc=$?
+          set -e
+          cat "$RUNNER_TEMP/model-port-claim.md" >> "$GITHUB_STEP_SUMMARY"
+          targeted="$(jq -r 'if .targeted then 1 else 0 end' "$RUNNER_TEMP/model-port-claim.json")"
+          eligible="$(jq -r 'if .passed then 1 else 0 end' "$RUNNER_TEMP/model-port-claim.json")"
+          [[ "$rc" -eq 0 || "$eligible" == 0 ]]
+          {
+            echo "merge_base=$merge_base"
+            echo "targeted=$targeted"
+            echo "eligible=$eligible"
+            echo "models=$(jq -r '.models | join(" ")' "$RUNNER_TEMP/model-port-claim.json")"
+            echo "activation_mode=$(jq -r .activation_mode "$RUNNER_TEMP/model-port-claim.json")"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Publish pending status
+        if: steps.claim.outputs.targeted == '1' && steps.claim.outputs.eligible == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_SHA: ${{ steps.pr.outputs.head_sha }}
+          NEEDS_APPROVAL: ${{ steps.pr.outputs.needs_approval }}
+        run: |
+          description='Eligible claim queued for trusted ET-SoC1 execution.'
+          if [[ "$NEEDS_APPROVAL" == 1 ]]; then
+            description='Maintainer approval is required before participant code runs.'
+          fi
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${HEAD_SHA}" \
+            -f state=pending \
+            -f context=trusted-track/model-port-credit \
+            -f description="$description" \
+            -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" >/dev/null
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: model-port-claim-pr-${{ steps.pr.outputs.pr }}
+          path: ${{ runner.temp }}/model-port-claim.*
+          retention-days: 90
+          if-no-files-found: ignore
+
+  board:
+    name: Trusted model-port ET-SoC1 evaluation
+    needs: resolve
+    if: needs.resolve.outputs.targeted == '1' && needs.resolve.outputs.eligible == '1' && needs.resolve.outputs.needs_approval != '1'
+    runs-on: [self-hosted, Linux, X64, et-soc1, board-ci, single-board]
+    timeout-minutes: 10
+    outputs:
+      verdict_kind: ${{ steps.evaluate.outputs.verdict_kind }}
+    env:
+      HOME: /root
+      MODELS: ${{ needs.resolve.outputs.models }}
+      SOC3_LOCAL: ${{ vars.SOC3_LOCAL || '1' }}
+      SOC3_HOST: ${{ vars.SOC3_HOST || 'local' }}
+      SOC3_SSH_ALIAS: ${{ vars.SOC3_SSH_ALIAS || 'aifoundry1' }}
+      SOC3_SSH_KEY: ${{ vars.SOC3_SSH_KEY || '/root/.ssh/id_rsa' }}
+      USE_TAILSCALE_SSH: "0"
+      SOC3_BUILD_ET: ${{ vars.AIFOUNDRY1_SOC3_BUILD_ET || '/opt/et' }}
+      SOC3_REMOTE_ET_INSTALL: ${{ vars.AIFOUNDRY1_SOC3_REMOTE_ET_INSTALL || '/opt/et' }}
+      SOC3_REMOTE_ET_PLATFORM: ${{ vars.AIFOUNDRY1_SOC3_REMOTE_ET_PLATFORM || '/opt/et' }}
+      ET_PLATFORM_SRC: ${{ vars.AIFOUNDRY1_ET_PLATFORM_SRC || '' }}
+      ET_LIB_PATH: ${{ vars.AIFOUNDRY1_SOC3_ET_LIB_PATH || '/opt/et/host:/opt/et/lib' }}
+      GITHUB_ACTOR: ${{ needs.resolve.outputs.actor }}
+      LEADERBOARD_TEAM: ${{ needs.resolve.outputs.actor }}
+      BENCHMARK_SHA: ${{ needs.resolve.outputs.head_sha }}
+      BENCHMARK_REF: refs/pull/${{ needs.resolve.outputs.pr }}/head
+      BENCHMARK_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+      SOC3_FAIL_ON_MODEL_FAILURE: "1"
+      SOC3_SKIP_BOARD_SMOKE: "1"
+      TRUSTED_BOARD_LAUNCHER_TIMEOUT_CAP: "100"
+      TRUSTED_BOARD_OUTER_TIMEOUT_CAP: "120"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          submodules: recursive
+          persist-credentials: false
+
+      - name: Build candidate from trusted main and approved standalone port
+        id: candidate
+        env:
+          PR_NUMBER: ${{ needs.resolve.outputs.pr }}
+          PR_HEAD_SHA: ${{ needs.resolve.outputs.head_sha }}
+          PR_ACTOR: ${{ needs.resolve.outputs.actor }}
+          MERGE_BASE: ${{ needs.resolve.outputs.merge_base }}
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin "+refs/pull/${PR_NUMBER}/head:refs/remotes/pull/${PR_NUMBER}/head"
+          [[ "$(git rev-parse "refs/remotes/pull/${PR_NUMBER}/head^{commit}")" == "$PR_HEAD_SHA" ]]
+          trusted_main_sha="$(git rev-parse HEAD)"
+          python3 .github/ci/scripts/prepare_trusted_model_port_tree.py \
+            --base "$MERGE_BASE" \
+            --head "$PR_HEAD_SHA" \
+            --main "$trusted_main_sha" \
+            --actor "$PR_ACTOR" \
+            --pr-number "$PR_NUMBER" \
+            --metadata "$RUNNER_TEMP/model-port-candidate.json"
+          git config user.name "AIFoundry trusted gate"
+          git config user.email "actions@users.noreply.github.com"
+          git add .github/ci/benchmark_config.json ported_models/
+          git commit --no-gpg-sign -m "Trusted model-port candidate for PR ${PR_NUMBER}"
+          {
+            echo "trusted_main_sha=$trusted_main_sha"
+            echo "candidate_sha=$(git rev-parse HEAD)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Run trusted board benchmark and gate
+        id: evaluate
+        env:
+          TRUSTED_MAIN_SHA: ${{ steps.candidate.outputs.trusted_main_sha }}
+          SOC3_DEST: ${{ runner.temp }}/trusted-model-port-board
+        run: |
+          set +e
+          chmod +x .github/ci/scripts/*.sh .github/ci/platform/deploy/*.sh
+          .github/ci/platform/deploy/soc3-benchmark.sh
+          board_rc=$?
+          set -e
+          output="$RUNNER_TEMP/trusted-model-port"
+          mkdir -p "$output/scores"
+          source .github/ci/platform/deploy/soc3-ssh.sh
+          if soc3_is_local; then
+            cp -a "$SOC3_DEST/benchmark-output/." "$output/scores/" 2>/dev/null || true
+          else
+            rsync -az -e "$(soc3_rsync_rsh)" \
+              "$(soc3_rsync_host):$SOC3_DEST/benchmark-output/" "$output/scores/" || true
+          fi
+          missing=0
+          for model in $MODELS; do
+            [[ -f "$output/scores/score-${model}.json" ]] || missing=1
+          done
+          if [[ "$missing" -ne 0 ]]; then
+            verdict_kind=infrastructure-error
+            rc=2
+          else
+            python3 .github/ci/scripts/leaderboard_gate.py \
+              --scores-dir "$output/scores" \
+              --models "$MODELS" \
+              --target board \
+              --base-ref "$TRUSTED_MAIN_SHA" \
+              --force-submission-models "$MODELS" \
+              --expected-sha "$BENCHMARK_SHA" \
+              --expected-ref "$BENCHMARK_REF" \
+              --expected-run-url "$BENCHMARK_RUN_URL" \
+              --output "$output/verdict.md"
+            rc=$?
+            if [[ "$rc" -eq 0 && "$board_rc" -ne 0 ]]; then
+              verdict_kind=infrastructure-error
+              printf '\nBoard smoke or benchmark infrastructure failed despite a passing score.\n' >> "$output/verdict.md"
+              rc=2
+            elif [[ "$rc" -eq 0 ]]; then
+              git fetch --no-tags origin main
+              if [[ "$(git rev-parse origin/main)" != "$TRUSTED_MAIN_SHA" ]]; then
+                verdict_kind=infrastructure-error
+                printf '\nMain changed during the run; re-run against the new trusted baseline.\n' >> "$output/verdict.md"
+                rc=2
+              else
+                verdict_kind=pass
+              fi
+            else
+              verdict_kind=candidate-failure
+              rc=1
+            fi
+          fi
+          echo "verdict_kind=$verdict_kind" >> "$GITHUB_OUTPUT"
+          exit "$rc"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: trusted-model-port-pr-${{ needs.resolve.outputs.pr }}
+          path: ${{ runner.temp }}/trusted-model-port/
+          retention-days: 90
+          if-no-files-found: warn
+
+      - name: Remove participant workspace
+        if: always()
+        env:
+          SOC3_DEST: ${{ runner.temp }}/trusted-model-port-board
+        run: |
+          set -euo pipefail
+          case "$SOC3_DEST" in
+            "$RUNNER_TEMP"/*/trusted-model-port-board|"$RUNNER_TEMP"/trusted-model-port-board) ;;
+            *) echo "refusing to remove unexpected SOC3_DEST=$SOC3_DEST" >&2; exit 1 ;;
+          esac
+          source .github/ci/platform/deploy/soc3-ssh.sh
+          if soc3_is_local; then
+            rm -rf -- "$SOC3_DEST"
+          else
+            read -r -a ssh_cmd <<<"$(soc3_ssh_cmd)"
+            quoted_dest="$(printf '%q' "$SOC3_DEST")"
+            "${ssh_cmd[@]}" "rm -rf -- ${quoted_dest}"
+          fi
+          rm -rf -- "$RUNNER_TEMP/trusted-model-port"
+
+  publish:
+    name: Publish trusted model-port status
+    needs: [resolve, board]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Publish final status
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESOLVE_RESULT: ${{ needs.resolve.result }}
+          HEAD_SHA: ${{ needs.resolve.outputs.head_sha }}
+          TARGETED: ${{ needs.resolve.outputs.targeted }}
+          ELIGIBLE: ${{ needs.resolve.outputs.eligible }}
+          ACTIVATION_MODE: ${{ needs.resolve.outputs.activation_mode }}
+          NEEDS_APPROVAL: ${{ needs.resolve.outputs.needs_approval }}
+          BOARD_RESULT: ${{ needs.board.result }}
+          VERDICT_KIND: ${{ needs.board.outputs.verdict_kind }}
+        run: |
+          if [[ "$RESOLVE_RESULT" != success ]]; then
+            state=error
+            description='Trusted model-port claim could not be resolved.'
+          elif [[ "$TARGETED" != 1 ]]; then
+            state=success
+            description='No individual model-port credit claim.'
+          elif [[ "$ELIGIBLE" != 1 ]]; then
+            state=failure
+            description='Model-port claim is not eligible or not novel.'
+          elif [[ "$NEEDS_APPROVAL" == 1 ]]; then
+            state=pending
+            description='Maintainer approval required before participant code runs.'
+          elif [[ "$BOARD_RESULT" == success ]]; then
+            state=success
+            if [[ "$ACTIVATION_MODE" == shadow ]]; then
+              description='Shadow credit passed trusted ET-SoC1 execution.'
+            else
+              description='Model port is eligible for a trusted individual credit.'
+            fi
+          elif [[ "$VERDICT_KIND" == candidate-failure ]]; then
+            state=failure
+            description='Model port failed trusted correctness or board scoring.'
+          else
+            state=error
+            description='Board infrastructure failed; no credit verdict produced.'
+          fi
+          gh api --method POST "repos/${GITHUB_REPOSITORY}/statuses/${HEAD_SHA}" \
+            -f state="$state" \
+            -f context=trusted-track/model-port-credit \
+            -f description="$description" \
+            -f target_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" >/dev/null
+          [[ "$state" != failure ]]

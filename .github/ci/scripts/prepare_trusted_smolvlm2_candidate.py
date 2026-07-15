@@ -61,6 +61,26 @@ def changed_paths(base: str, head: str) -> list[str]:
     ]
 
 
+def validate_candidate_paths(paths: list[str], *, runtime_changed: bool) -> None:
+    """Reject protected-path changes only for an actual runtime candidate.
+
+    The trusted workflow runs for every pull request. Unrelated configuration
+    and benchmark PRs must receive a no-op success even though those paths are
+    protected from being overlaid into a SmolVLM2 runtime candidate.
+    """
+    if not runtime_changed:
+        return
+    blocked_paths = [
+        path
+        for path in paths
+        if path in PROTECTED_PATHS or path.startswith(PROTECTED_PREFIXES)
+    ]
+    if blocked_paths:
+        raise RuntimeError(
+            "candidate changes protected SmolVLM2 gate paths: " + ", ".join(blocked_paths)
+        )
+
+
 def submodule_entry(ref: str, path: str) -> tuple[str, str]:
     fields = git("ls-tree", ref, "--", path).strip().split()
     if len(fields) < 4 or fields[0:2] != ["160000", "commit"]:
@@ -95,18 +115,10 @@ def main() -> int:
     contract = json.loads(CONTRACT_PATH.read_text())
     runtime_path = str(contract["runtime"]["submodule_path"])
     paths = changed_paths(args.base, args.head)
-    blocked_paths = [
-        path
-        for path in paths
-        if path in PROTECTED_PATHS or path.startswith(PROTECTED_PREFIXES)
-    ]
-    if blocked_paths:
-        raise RuntimeError(
-            "candidate changes protected SmolVLM2 gate paths: " + ", ".join(blocked_paths)
-        )
     base_revision, base_url = submodule_entry(args.base, runtime_path)
     runtime_revision, runtime_url = submodule_entry(args.head, runtime_path)
     runtime_changed = runtime_path in paths or (runtime_revision, runtime_url) != (base_revision, base_url)
+    validate_candidate_paths(paths, runtime_changed=runtime_changed)
 
     cfg = load_config(MAIN_CONFIG)
     model_cfg = cfg["models"][MODEL]

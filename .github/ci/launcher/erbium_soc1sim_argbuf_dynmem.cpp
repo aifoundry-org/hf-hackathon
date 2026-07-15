@@ -10,6 +10,7 @@
 //
 //------------------------------------------------------------------------------
 
+#include <atomic>
 #include <chrono>
 #include <cstdlib>
 #include <filesystem>
@@ -263,14 +264,24 @@ int main(int argc, char** argv) {
   auto runtime = rt::IRuntime::create(std::move(deviceLayer));
 #endif
 
+  // Some ET runtime versions dispatch a stream error through the callback and
+  // then report waitForStream() success with an empty retrieveStreamErrors()
+  // result. Keep callback state independently so a failed kernel can never be
+  // reported as a successful benchmark or produce a trusted dump.
+  std::atomic<bool> stream_error_seen{false};
+  std::atomic<bool> kernel_aborted_seen{false};
+
   // Register error callbacks
   runtime->setOnStreamErrorsCallback(
-      [](rt::EventId id, const rt::StreamError& err) {
+      [&stream_error_seen](rt::EventId id, const rt::StreamError& err) {
+        stream_error_seen.store(true, std::memory_order_relaxed);
         std::cerr << "Stream error (event " << static_cast<int>(id)
                   << "): code " << static_cast<int>(err.errorCode_) << "\n";
       });
   runtime->setOnKernelAbortedErrorCallback(
-      [](rt::EventId id, std::byte*, size_t, std::function<void()> freeRes) {
+      [&kernel_aborted_seen](rt::EventId id, std::byte*, size_t,
+                             std::function<void()> freeRes) {
+        kernel_aborted_seen.store(true, std::memory_order_relaxed);
         std::cerr << "Kernel aborted (event " << static_cast<int>(id) << ")\n";
         freeRes();
       });
@@ -367,16 +378,19 @@ int main(int argc, char** argv) {
     }
   }
 
-  // Post-execution memory dump
-  if (!opts.dump_after.empty()) {
-    dump_device_memory(*runtime, stream, deviceBuf, opts.dump_size, opts.dump_after);
-  }
-
-  if (!errors.empty()) {
+  if (stream_error_seen.load(std::memory_order_relaxed) ||
+      kernel_aborted_seen.load(std::memory_order_relaxed) || !errors.empty()) {
+    std::cerr << "Error: kernel runtime failure observed; refusing post-execution dump\n";
     runtime->unloadCode(loadResult.kernel_);
     runtime->freeDevice(device, deviceBuf);
     runtime->destroyStream(stream);
     return 1;
+  }
+
+  // Post-execution memory dump is trusted only when neither the callbacks nor
+  // the synchronous runtime error query reported a failure.
+  if (!opts.dump_after.empty()) {
+    dump_device_memory(*runtime, stream, deviceBuf, opts.dump_size, opts.dump_after);
   }
 
   std::cout << "Kernel completed successfully\n";

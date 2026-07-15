@@ -340,6 +340,7 @@ def score_common(model: str, variant: str, note: str = "") -> dict[str, Any]:
         "sha": os.environ.get("BENCHMARK_SHA") or os.environ.get("GITHUB_SHA", "local"),
         "ref": os.environ.get("BENCHMARK_REF") or os.environ.get("GITHUB_REF", "local"),
         "team": os.environ.get("LEADERBOARD_TEAM") or os.environ.get("GITHUB_ACTOR", "local"),
+        "benchmark_device": os.environ.get("BENCHMARK_DEVICE", "unknown"),
         "run_url": run_url(),
         "scored_at": datetime.now(timezone.utc).isoformat(),
     }
