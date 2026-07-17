@@ -8,10 +8,10 @@
       "license_file": "LICENSE",
       "upstream": {
         "type": "git",
-        "url": "https://github.com/aifoundry-org/llama.cpp.git",
-        "branch": "et",
-        "revision": "cc4049d86b14e4ef72f827f3bb767b577f18fbcd",
-        "upstream_pr": "https://github.com/aifoundry-org/llama.cpp/pull/10",
+        "url": "https://github.com/AFOliveira/llama.cpp.git",
+        "branch": "agent/fail-fast-et-runtime",
+        "revision": "27e3f10c63c4972ab4cea5858e08d529db01f028",
+        "upstream_pr": "https://github.com/aifoundry-org/llama.cpp/pull/18",
         "upstream_author": "AFOliveira",
         "note": "Informational only: this records where the committed submodule mirrors from. CI builds from the committed submodule_path; it does not clone from this URL. To change the framework version, bump the submodule pin in a PR (see ported_models/llama_cpp_et/src/README.md)."
       },
@@ -38,8 +38,7 @@
         ],
         "targets": [
           "llama-server",
-          "llama-perplexity",
-          "llama-bench"
+          "llama-perplexity"
         ]
       },
       "note": "Out-of-tree CMake build of the committed llama_cpp_source submodule. Decoupled from the source path so the submodule working tree stays clean."

@@ -2,9 +2,10 @@
 
 ## ET llama.cpp
 
-- Source: `https://github.com/aifoundry-org/llama.cpp.git`
-- Branch: `et`
-- Pinned revision: `cc4049d86b14e4ef72f827f3bb767b577f18fbcd`
+- Source: `https://github.com/AFOliveira/llama.cpp.git`
+- Branch: `agent/fail-fast-et-runtime`
+- Pinned revision: `27e3f108b759a6e4513ff73cb0f122ac50457b80`
+- Upstream review: `https://github.com/aifoundry-org/llama.cpp/pull/18`
 - Local pointer: `src/llama.cpp-et`
 - License: MIT
 

@@ -64,10 +64,8 @@ run_board() {
     TRUSTED_LLAMA_BUILD_KEY="$build_key" \
     TRUSTED_LLAMA_REUSE_BUILD="$([[ "$build_key" == "$candidate_build_key" ]] && echo 1 || echo 0)" \
     TRUSTED_SMOLVLM2_CPU_BUILD_KEY="$main_runtime_sha" \
-    SOC3_SKIP_BOARD_SMOKE=1 \
     SMOLVLM2_SKIP_PPL="$skip_ppl" \
     SMOLVLM2_SKIP_HOST_REFERENCE="$skip_host" \
-    SOC3_FAIL_ON_MODEL_FAILURE=0 \
     "$repo_root/.github/ci/platform/deploy/soc3-benchmark.sh"
   pull_outputs "$target"
 }

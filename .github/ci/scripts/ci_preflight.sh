@@ -329,7 +329,7 @@ for p in paths:
 sys.exit(1 if bad else 0)
 PY
 
-step "Trusted Llama contract covers the shared leaderboard runtime"
+step "Trusted Llama contract uses a bounded cross-architecture sentinel"
 python3 - <<'PY' || bad "trusted Llama contract or build definition is incomplete"
 import json
 import subprocess
@@ -337,31 +337,32 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, ".github/ci/scripts")
-from benchmark_config_helpers import load_config, model_runner
+from benchmark_config_helpers import load_config
 
 contract = json.loads(Path(".github/ci/reference/llama32_1b.json").read_text())
 cfg = load_config(Path(".github/ci/benchmark_config.json"))
 target = cfg["models"][contract["model"]]
-source_artifact = target["framework"]["source_artifact"]
-expected = set()
-for model, model_cfg in cfg["models"].items():
-    if model == contract["model"]:
-        continue
-    if model_cfg.get("framework", {}).get("source_artifact") != source_artifact:
-        continue
-    if model_runner(cfg, model) != "llama_server":
-        continue
-    data = Path("data") / f"{model}.json"
-    if not data.is_file():
-        continue
-    entries = json.loads(data.read_text()).get("entries", [])
-    if any(isinstance(entry.get("tokens_per_second"), (int, float)) for entry in entries):
-        expected.add(model)
-
-actual = set(contract["runtime"]["regression_models"])
-assert actual == expected, (sorted(actual), sorted(expected))
+gitlink = subprocess.run(
+    ["git", "ls-tree", "HEAD", contract["runtime"]["submodule_path"]],
+    check=True,
+    text=True,
+    stdout=subprocess.PIPE,
+).stdout.split()[2]
+source_artifact = target["artifacts"][target["framework"]["source_artifact"]]
+assert source_artifact["upstream"]["revision"] == gitlink
+runtime = contract["runtime"]
+policy = runtime["regression_policy"]
+actual = runtime["regression_models"]
+assert policy["kind"] == "bounded_architecture_sentinel"
+assert 0 < len(actual) <= int(policy["max_models"]) == 1
+assert actual == ["qwen25_05b"]
+assert cfg["models"][actual[0]]["framework"]["name"] == "llama.cpp-et"
+assert cfg["models"][actual[0]]["runner"] == "llama_server"
 build = target["artifacts"]["llama_cpp_build"]["build"]
-assert build["targets"] == ["llama-server", "llama-perplexity", "llama-bench"]
+assert build["targets"] == ["llama-server", "llama-perplexity"]
+assert contract["performance"]["tool"] == "llama-server"
+assert contract["performance"]["repetitions"] == 1
+assert contract["quality"]["reference_device"] == "CPU"
 
 rwkv = cfg["models"]["rwkv7_15b"]
 assert rwkv["reference_contract"] == ".github/ci/reference/rwkv7_15b.json"
@@ -852,6 +853,7 @@ for regression in contract["runtime"]["regression_models"]:
     }) + "\n")
 PY
 trusted_regressions="$(jq -r '.runtime.regression_models | join(" ")' .github/ci/reference/llama32_1b.json)"
+trusted_regression_model="$(jq -r '.runtime.regression_models[0]' .github/ci/reference/llama32_1b.json)"
 python3 .github/ci/scripts/trusted_llama32_gate.py \
   --contract .github/ci/reference/llama32_1b.json \
   --track-policy .github/ci/reference/llama32_1b_track.json \
@@ -874,14 +876,15 @@ assert result["eligible_for_standings"] is True
 assert result["participant_login"] == "ci-fixture"
 assert result["participant_head_sha"] == "f" * 40
 PY
-python3 - "$trusted_scores/score-tinyllama11b.json" <<'PY'
+python3 - "$trusted_scores/score-$trusted_regression_model.json" "$trusted_regression_model" <<'PY'
 import json
 import sys
 from pathlib import Path
 
 path = Path(sys.argv[1])
+model = sys.argv[2]
 score = json.loads(path.read_text())
-entries = json.loads(Path("data/tinyllama11b.json").read_text())["entries"]
+entries = json.loads((Path("data") / f"{model}.json").read_text())["entries"]
 baseline = max(float(entry["tokens_per_second"]) for entry in entries)
 score["tokens_per_second"] = baseline * 0.98
 path.write_text(json.dumps(score) + "\n")
@@ -898,22 +901,23 @@ if python3 .github/ci/scripts/trusted_llama32_gate.py \
   --output "$tmp/trusted-llama-fail.md" >/dev/null; then
   bad "trusted Llama gate accepted a shared-runtime regression"
 fi
-python3 - "$tmp/trusted-llama-baseline.json" "$trusted_scores" <<'PY'
+python3 - "$tmp/trusted-llama-baseline.json" "$trusted_scores" "$trusted_regression_model" <<'PY'
 import json
 import sys
 from pathlib import Path
 
 baseline = json.load(open(sys.argv[1]))
 scores = Path(sys.argv[2])
+regression_model = sys.argv[3]
 target = scores / "score-llama32_1b.json"
 score = json.loads(target.read_text())
 score["tokens_per_second"] = baseline["tokens_per_second"] * 0.995
 target.write_text(json.dumps(score) + "\n")
-tiny = scores / "score-tinyllama11b.json"
-score = json.loads(tiny.read_text())
-entries = json.loads(Path("data/tinyllama11b.json").read_text())["entries"]
+sentinel = scores / f"score-{regression_model}.json"
+score = json.loads(sentinel.read_text())
+entries = json.loads((Path("data") / f"{regression_model}.json").read_text())["entries"]
 score["tokens_per_second"] = max(float(e["tokens_per_second"]) for e in entries) * 0.995
-tiny.write_text(json.dumps(score) + "\n")
+sentinel.write_text(json.dumps(score) + "\n")
 PY
 python3 .github/ci/scripts/trusted_llama32_gate.py \
   --contract .github/ci/reference/llama32_1b.json \
@@ -1015,6 +1019,16 @@ llama_submission_selection="$(python3 .github/ci/scripts/changed_benchmark_model
   --format space 2>/dev/null)"
 if [[ "$llama_submission_selection" != "llama32_1b" ]]; then
   bad "Llama track declarations selected '$llama_submission_selection', expected only llama32_1b"
+fi
+
+step "Selector bounds shared llama.cpp runtime changes to the canonical smoke"
+llama_runtime_selection="$(python3 .github/ci/scripts/changed_benchmark_models.py \
+  --target board \
+  --scope changed \
+  --changed-file ported_models/llama_cpp_et/src/llama.cpp-et \
+  --format space 2>/dev/null)"
+if [[ "$llama_runtime_selection" != "llama32_1b" ]]; then
+  bad "shared llama.cpp runtime selected '$llama_runtime_selection', expected only llama32_1b"
 fi
 
 step "Selector detects uncovered runtime code"

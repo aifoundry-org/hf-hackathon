@@ -39,8 +39,23 @@ export SOC3_HOST
 
 TRANSPORT="$(soc3_resolve_transport)"
 SSH_CMD=()
+if [[ "${SOC3_REQUIRE_LOCAL:-0}" == "1" && "$TRANSPORT" != "local" ]]; then
+  echo "error: CI board jobs must execute locally on the labelled board host" >&2
+  echo "error: refusing transport '$TRANSPORT', which would escape the runner safety sandbox" >&2
+  exit 2
+fi
 if [[ "$TRANSPORT" != "local" ]]; then
   read -r -a SSH_CMD <<<"$(soc3_ssh_cmd)"
+fi
+
+# A quarantined local board must fail before sync, build, or candidate code.
+if [[ "$TRANSPORT" == "local" ]]; then
+  _local_quarantine="${ET_BOARD_QUARANTINE_FILE:-/var/lib/et-soc1-ci/quarantine}"
+  if [[ -f "$_local_quarantine" ]]; then
+    echo "error: ET-SoC1 is quarantined; refusing the board job before any build" >&2
+    sed 's/^/  /' "$_local_quarantine" >&2 || true
+    exit 2
+  fi
 fi
 
 # A failed local prebuild must not leave an older run's score eligible for
@@ -51,6 +66,13 @@ if [[ "$TRANSPORT" == "local" ]]; then
 else
   output_dir="$(printf "%q" "${DEST}/benchmark-output")"
   "${SSH_CMD[@]}" "rm -rf ${output_dir} && mkdir -p ${output_dir}"
+fi
+
+if [[ "$TRANSPORT" == "local" ]]; then
+  # Check the root-owned runtime before syncing, building, or executing any
+  # candidate code. A stale libetrt silently reuses live uint16_t EventIds and
+  # can wedge the card after a long inference process.
+  "${ROOT}/.github/ci/platform/deploy/verify-et-runtime-contract.sh"
 fi
 
 if [[ -x "${SOC3_BUILD_ET:-$HOME/et}/bin/riscv64-unknown-elf-gcc" ]]; then
@@ -169,11 +191,8 @@ done
 if [[ -n "${SOC3_PREBUILT:-}" ]]; then
   REMOTE_ENV+=("SOC3_PREBUILT=$(printf "%q" "${SOC3_PREBUILT}")")
 fi
-if [[ -n "${SOC3_FAIL_ON_MODEL_FAILURE:-}" ]]; then
-  REMOTE_ENV+=("SOC3_FAIL_ON_MODEL_FAILURE=$(printf "%q" "${SOC3_FAIL_ON_MODEL_FAILURE}")")
-fi
-if [[ -n "${SOC3_SKIP_BOARD_SMOKE:-}" ]]; then
-  REMOTE_ENV+=("SOC3_SKIP_BOARD_SMOKE=$(printf "%q" "${SOC3_SKIP_BOARD_SMOKE}")")
+if [[ -n "${ET_BOARD_QUARANTINE_FILE:-}" ]]; then
+  REMOTE_ENV+=("ET_BOARD_QUARANTINE_FILE=$(printf "%q" "${ET_BOARD_QUARANTINE_FILE}")")
 fi
 if [[ -n "${SMOLVLM2_SKIP_PPL:-}" ]]; then
   REMOTE_ENV+=("SMOLVLM2_SKIP_PPL=$(printf "%q" "${SMOLVLM2_SKIP_PPL}")")
@@ -260,12 +279,18 @@ export TOOLCHAIN_DISTRO_VERSION="${TOOLCHAIN_DISTRO_VERSION:-22.04}"
 export PATH="${ET_INSTALL}/bin:/opt/et/bin:/opt/riscv/bin:${PATH}"
 export ET_LIB_PATH="${ET_LIB_PATH:-/opt/et/lib:/opt/et/host}"
 export LD_LIBRARY_PATH="${ET_LIB_PATH}:${LD_LIBRARY_PATH:-}"
-export BOARD_LOCK="${BOARD_LOCK:-/var/lock/etsoc-shire0.lock}"
+export BOARD_LOCK="${BOARD_LOCK:-/var/lib/et-soc1-ci/board.lock}"
 export SOC3_PREBUILT="${SOC3_PREBUILT:-0}"
 export WORK_ROOT="$DEST/.ci-work"
 export BENCHMARK_OUTPUT="$DEST/benchmark-output"
 export BENCHMARK_ARTIFACT_ROOT="$DEST/local-artifacts/model-port-benchmarks"
 export AMP_ROOT="$BENCHMARK_ARTIFACT_ROOT"
+QUARANTINE_FILE="${ET_BOARD_QUARANTINE_FILE:-/var/lib/et-soc1-ci/quarantine}"
+if [[ -f "$QUARANTINE_FILE" ]]; then
+  echo "error: ET-SoC1 is quarantined; refusing the board job before any build" >&2
+  sed 's/^/  /' "$QUARANTINE_FILE" >&2 || true
+  exit 2
+fi
 _llama_build_key="${TRUSTED_LLAMA_BUILD_KEY:-${LLAMA_CPP_ET_SOURCE_REVISION:-}}"
 if [[ -n "$_llama_build_key" ]]; then
   if [[ ! "$_llama_build_key" =~ ^[0-9a-f]{40}$ ]]; then
@@ -288,7 +313,11 @@ fi
 export PATH="$ET_INSTALL/bin:$PATH"
 mkdir -p "$WORK_ROOT" "$BENCHMARK_OUTPUT" "$AMP_ROOT" "$(dirname "$BOARD_LOCK")"
 rm -f "$BENCHMARK_OUTPUT"/score-*.json
-touch "$BOARD_LOCK" 2>/dev/null || true
+if ! touch "$BOARD_LOCK"; then
+  echo "error: cannot create or open the board lock at $BOARD_LOCK" >&2
+  exit 2
+fi
+chmod 0660 "$BOARD_LOCK" 2>/dev/null || true
 
 # Framework builds (-DGGML_ET=ON) use CMake file(CONFIGURE), which requires cmake
 # 3.18+. The board host's system cmake may be older (fails with "file does not
@@ -455,33 +484,108 @@ if [[ -f "$_launcher_lib_dir/libetrt.so" \
   export LD_LIBRARY_PATH="$_launcher_lib_dir:$LD_LIBRARY_PATH"
 fi
 
-reset_board() {
-  local reset
-  for reset in /sys/devices/pci0000:00/0000:00:01.0/0000:01:00.0/soc_reset/reinitiate \
-    /sys/bus/pci/devices/*/soc_reset/reinitiate; do
-    if [[ -w "$reset" ]]; then
-      echo "Resetting ET-SoC1 via $reset"
-      echo 1 > "$reset" || true
-      sleep 2
-      return
-    fi
-  done
+ET_KERNEL_ERROR_PATTERN='ET [0-9a-fA-F:.]+: Error Event Detected|OPS Kernel Launch|CM Runtime|MM2CMLaunch|KernelLaunch Failed|Execution error|illegal instruction|Couldn.t dispatch event:'
+ET_RUNTIME_ERROR_PATTERN='Stream error \(event|Kernel aborted \(event|ET runtime did not terminate cleanly|Error on kernel launch:|FATAL SIGNAL RECEIVED|Couldn.t dispatch event:|OPS Kernel Launch|CM Runtime|MM2CMLaunch|KernelLaunch Failed|Execution error|illegal instruction'
+
+mark_board_quarantined() {
+  local reason="$1"
+  local quarantine_dir
+  quarantine_dir="$(dirname "$QUARANTINE_FILE")"
+  mkdir -p "$quarantine_dir"
+  {
+    echo "time_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    echo "host=$(hostname)"
+    echo "boot_id=$(cat /proc/sys/kernel/random/boot_id 2>/dev/null || echo unknown)"
+    echo "reason=$reason"
+  } >"${QUARANTINE_FILE}.tmp.$$"
+  chmod 0644 "${QUARANTINE_FILE}.tmp.$$"
+  mv -f "${QUARANTINE_FILE}.tmp.$$" "$QUARANTINE_FILE"
+  echo "error: ET-SoC1 quarantined: $reason" >&2
+}
+
+kernel_error_lines() {
+  dmesg 2>/dev/null | grep -E "$ET_KERNEL_ERROR_PATTERN" || true
+}
+
+require_clean_board_state() {
+  local errors
+  if [[ -f "$QUARANTINE_FILE" ]]; then
+    echo "error: ET-SoC1 is quarantined; refusing to launch any workload." >&2
+    sed 's/^/  /' "$QUARANTINE_FILE" >&2 || true
+    echo "error: only a maintainer may clear this file after a verified external power cycle." >&2
+    return 1
+  fi
+  if ! dmesg >/dev/null 2>&1; then
+    mark_board_quarantined "CI could not inspect the kernel log before launch"
+    return 1
+  fi
+  errors="$(kernel_error_lines)"
+  if [[ -n "$errors" ]]; then
+    mark_board_quarantined "kernel log already contains ET runtime or firmware errors"
+    echo "$errors" | tail -40 >&2
+    return 1
+  fi
+}
+
+reject_new_board_errors() {
+  local stage="$1"
+  local errors
+  errors="$(kernel_error_lines)"
+  if [[ -n "$errors" ]]; then
+    mark_board_quarantined "$stage produced an ET runtime or firmware error"
+    echo "$errors" | tail -80 >&2
+    return 1
+  fi
+}
+
+runtime_failure_marker() {
+  local path="$1"
+  [[ -e "$path" ]] || return 1
+  grep -RIE -m1 "$ET_RUNTIME_ERROR_PATTERN" "$path" 2>/dev/null
+}
+
+reject_candidate_card_controls() {
+  local control_pattern match
+  # Keep the forbidden control words split in this main-owned scanner so the
+  # repository policy test can still reject their literal use everywhere else.
+  control_pattern='soc_''reset|reinit''iate|set[[:space:]]+outlet[[:space:]]+cycle|i''Boot'
+  match="$(
+    find ported_models -type f \
+      \( -name '*.c' -o -name '*.cc' -o -name '*.cpp' -o -name '*.h' \
+         -o -name '*.hpp' -o -name '*.S' -o -name '*.s' -o -name '*.sh' \
+         -o -name '*.py' \) -print0 \
+      | xargs -0 -r grep -nEim1 "$control_pattern" 2>/dev/null \
+      | head -1 || true
+  )"
+  if [[ -n "$match" ]]; then
+    echo "error: candidate source contains a forbidden card-control marker:" >&2
+    echo "  $match" >&2
+    return 1
+  fi
 }
 
 board_smoke() {
-  local smoke_elf="${BOARD_SMOKE_ELF:-/opt/et/kernels/histogram.erbium-soc1sim.elf}"
+  local smoke_elf="${BOARD_SMOKE_ELF:-/opt/et/lib/esperanto-fw/kernels/empty.elf}"
+  local expected_sha="${BOARD_SMOKE_ELF_SHA256:-73756f7b4201f2becafdd561a0d3cfa15424799e63459038f13e439600e6c598}"
   local smoke_dir="$BENCHMARK_OUTPUT/board-smoke"
   local smoke_log="$smoke_dir/run.log"
   local smoke_dump="$smoke_dir/dump.bin"
+  local smoke_input="$smoke_dir/zeros.bin"
+  local actual_sha
 
   if [[ ! -f "$smoke_elf" ]]; then
-    echo "WARN: board smoke ELF missing at $smoke_elf" >&2
-    return 0
+    echo "error: board smoke ELF missing at $smoke_elf" >&2
+    return 1
+  fi
+  actual_sha="$(sha256sum "$smoke_elf" | awk '{print $1}')"
+  if [[ "$actual_sha" != "$expected_sha" ]]; then
+    echo "error: board smoke ELF sha256 $actual_sha != pinned $expected_sha" >&2
+    return 1
   fi
 
   mkdir -p "$smoke_dir"
-  rm -f "$smoke_log" "$smoke_dump"
-  reset_board
+  rm -f "$smoke_log" "$smoke_dump" "$smoke_input"
+  truncate -s 8192 "$smoke_input"
   echo ""
   echo "========== board smoke: $(basename "$smoke_elf") =========="
   if flock -x -w 60 "$BOARD_LOCK" \
@@ -490,16 +594,27 @@ board_smoke() {
       --device soc1sim \
       --elf-load "$smoke_elf" \
       --shire 0 \
+      --file_load "0x0,$smoke_input" \
       --dump_after "$smoke_dump" \
       --timeout "${BOARD_SMOKE_LAUNCHER_TIMEOUT:-120}" \
       --mem_size 16777216 \
       --dump_size 8192 >"$smoke_log" 2>&1; then
     tail -40 "$smoke_log"
-    return 0
+    if runtime_failure_marker "$smoke_log"; then
+      mark_board_quarantined "board smoke reported a runtime failure marker"
+      return 1
+    fi
+    if ! cmp -s "$smoke_input" "$smoke_dump"; then
+      mark_board_quarantined "board smoke output did not match the deterministic zero buffer"
+      return 1
+    fi
+    reject_new_board_errors "board smoke"
+    return
   fi
 
   echo "WARN: board smoke failed; tailing $smoke_log" >&2
   tail -120 "$smoke_log" >&2 || true
+  mark_board_quarantined "board smoke launcher failed"
   return 1
 }
 
@@ -510,6 +625,10 @@ if [[ ! -x "$LAUNCHER" ]]; then
     exit 1
   fi
 fi
+if ! reject_candidate_card_controls; then
+  echo "error: refusing to execute candidate-controlled code on the board host." >&2
+  exit 2
+fi
 if [[ ! -e /dev/et0_mgmt ]]; then
   echo "error: /dev/et0_mgmt missing — not a board host?" >&2
   exit 1
@@ -518,16 +637,22 @@ echo "Host: $(hostname) device=$(stat -c '%a %U:%G' /dev/et0_mgmt) launcher=$LAU
 
 chmod +x .github/ci/scripts/*.sh scripts/*.sh 2>/dev/null || true
 FAIL=0
-if [[ "${SOC3_SKIP_BOARD_SMOKE:-0}" != "1" ]] && ! board_smoke; then
-  FAIL=1
+if ! require_clean_board_state || ! board_smoke; then
+  echo "error: ET-SoC1 preflight failed; no model benchmark was launched." >&2
+  echo "error: CI is not permitted to reset or power-cycle the card. A maintainer must diagnose" >&2
+  echo "error: the failure and perform one external power cycle before explicitly rerunning CI." >&2
+  exit 2
 fi
 for model in $MODELS; do
   echo ""
   echo "========== benchmark: $model =========="
-  reset_board
-  if ! bash .github/ci/scripts/run_model_benchmark.sh "$model"; then
+  model_rc=0
+  model_failed=0
+  bash .github/ci/scripts/run_model_benchmark.sh "$model" || model_rc=$?
+  if [[ "$model_rc" -ne 0 ]]; then
     echo "WARN: $model benchmark script returned non-zero" >&2
     FAIL=1
+    model_failed=1
   fi
   if [[ -f "$BENCHMARK_OUTPUT/score-${model}.json" ]]; then
     score_file="$BENCHMARK_OUTPUT/score-${model}.json"
@@ -543,20 +668,32 @@ PY
     then
       echo "WARN: $model benchmark score did not pass" >&2
       FAIL=1
+      model_failed=1
     fi
   else
     echo "missing score-${model}.json" >&2
     FAIL=1
+    model_failed=1
+  fi
+  if runtime_failure_marker "$BENCHMARK_OUTPUT"; then
+    mark_board_quarantined "$model emitted an ET runtime failure marker"
+    FAIL=1
+    model_failed=1
+  fi
+  if ! reject_new_board_errors "$model"; then
+    FAIL=1
+    model_failed=1
+  fi
+  if [[ "$model_failed" -ne 0 ]]; then
+    echo "error: stopping this board session after the first model or runner failure." >&2
+    echo "error: remaining models will not be launched against a potentially unhealthy ET-SoC1." >&2
+    break
   fi
 done
 
 echo ""
 echo "Scores under $BENCHMARK_OUTPUT"
 ls -la "$BENCHMARK_OUTPUT"/*.json 2>/dev/null || true
-if [[ "$FAIL" -ne 0 && "${SOC3_FAIL_ON_MODEL_FAILURE:-1}" != "1" ]]; then
-  echo "Model failures were recorded in score artifacts; leaving board infrastructure job green."
-  exit 0
-fi
 exit "$FAIL"
 REMOTE
 

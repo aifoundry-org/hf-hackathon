@@ -98,7 +98,12 @@ def execute_job(job: dict[str, Any], pool: str) -> tuple[bool, dict[str, Any], s
             pass
     nested = score.get("score") if isinstance(score.get("score"), dict) else {}
     passed = score.get("passed") or nested.get("passed")
-    ok = (proc.returncode == 0 and wait_s is not None) or passed is True
+    if nested:
+        ok = proc.returncode == 0 and nested.get("passed") is True
+    else:
+        ok = proc.returncode == 0 and (
+            passed is True or wait_s is not None
+        )
     if nested:
         score.update(nested)
     err = None if ok else (proc.stderr or proc.stdout or "run failed")[:2000]

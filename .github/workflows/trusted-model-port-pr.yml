@@ -149,6 +149,7 @@ jobs:
       MODELS: ${{ needs.resolve.outputs.models }}
       SOC3_LOCAL: ${{ vars.SOC3_LOCAL || '1' }}
       SOC3_HOST: ${{ vars.SOC3_HOST || 'local' }}
+      SOC3_REQUIRE_LOCAL: "1"
       SOC3_SSH_ALIAS: ${{ vars.SOC3_SSH_ALIAS || 'aifoundry1' }}
       SOC3_SSH_KEY: ${{ vars.SOC3_SSH_KEY || '/root/.ssh/id_rsa' }}
       USE_TAILSCALE_SSH: "0"
@@ -162,8 +163,6 @@ jobs:
       BENCHMARK_SHA: ${{ needs.resolve.outputs.head_sha }}
       BENCHMARK_REF: refs/pull/${{ needs.resolve.outputs.pr }}/head
       BENCHMARK_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-      SOC3_FAIL_ON_MODEL_FAILURE: "1"
-      SOC3_SKIP_BOARD_SMOKE: "1"
       TRUSTED_BOARD_LAUNCHER_TIMEOUT_CAP: "100"
       TRUSTED_BOARD_OUTER_TIMEOUT_CAP: "120"
     steps:

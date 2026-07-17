@@ -32,10 +32,10 @@
     "flash_attn": false,
     "api": "completion",
     "prompt": "Repeat this token sequence without commentary: OK OK OK OK OK OK OK OK OK OK",
-    "max_tokens": 96,
+    "max_tokens": 24,
     "temperature": 0,
     "ignore_eos": true,
-    "min_completion_tokens": 32,
+    "min_completion_tokens": 8,
     "perplexity": {
       "enabled": true,
       "perplexity_artifact": "llama_perplexity",

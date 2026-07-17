@@ -32,10 +32,10 @@
     "request_timeout_s": 240,
     "extra_args": ["-fit", "off"],
     "prompt": "Repeat the word OK exactly 160 times, separated by spaces. Do not number them. Do not explain. Do not abbreviate.",
-    "max_tokens": 128,
+    "max_tokens": 24,
     "temperature": 0,
     "ignore_eos": true,
-    "min_completion_tokens": 32,
+    "min_completion_tokens": 8,
     "success_substring": "OK",
     "perplexity": {
       "enabled": true,

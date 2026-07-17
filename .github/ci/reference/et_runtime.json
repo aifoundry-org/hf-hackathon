@@ -1,0 +1,17 @@
+{
+  "source_repository": "https://github.com/aifoundry-org/et-platform.git",
+  "source_revision": "836a4ab600e93c3059bb58c898edbc37744cd8d0",
+  "libraries": [
+    {
+      "role": "shared_runtime",
+      "path": "/opt/et/lib/libetrt.so",
+      "sha256": "d8e64390ec428a9b8642c6b87534a37124cdb493f729a93909b2050e3296c71d"
+    },
+    {
+      "role": "backend_static_link_input",
+      "path": "/opt/et/lib/libetrt_static.a",
+      "sha256": "2097190a56d455906fc01f0175a7d60ee0d53ccf683d1937fe5c9f70a56a7ab3"
+    }
+  ],
+  "required_marker": "No free runtime event IDs; synchronize the stream before submitting more commands"
+}

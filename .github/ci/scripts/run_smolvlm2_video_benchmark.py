@@ -32,6 +32,7 @@ from run_llama_server_benchmark import (
     score_common,
     sha256_file,
     terminate,
+    verify_et_backend_runtime_guard,
     wait_ready,
     write_score,
 )
@@ -52,6 +53,19 @@ def unsupported_vision_ops(log: str) -> set[str]:
 
 def log_failures(log: str, *, mode: str, request_count: int, allowed_ops: set[str]) -> list[str]:
     failures: list[str] = []
+    if mode == "board":
+        for marker in (
+            "Stream error (event",
+            "Kernel aborted (event",
+            "ET: stream error callback",
+            "ET: kernel aborted callback",
+            "Couldn't dispatch event:",
+            "Error on kernel launch:",
+            "FATAL SIGNAL RECEIVED",
+        ):
+            if marker in log:
+                failures.append(f"board: ET runtime failure marker observed: {marker}")
+                break
     observed_requests = log.count(f"done request: POST {REQUEST_PATH}")
     if observed_requests != request_count:
         failures.append(f"{mode}: observed {observed_requests}/{request_count} completed requests")
@@ -493,7 +507,16 @@ def run_mode(
     except Exception as exc:
         failures.append(f"{mode}: server benchmark error: {exc}")
     finally:
-        terminate(proc)
+        if not terminate(proc):
+            shutdown_note = (
+                "ET runtime did not terminate cleanly"
+                if mode == "board"
+                else "CPU server did not terminate cleanly"
+            )
+            (run_dir / f"server-{run_label}-shutdown-failure.log").write_text(
+                shutdown_note + "\n"
+            )
+            failures.append(f"{mode}: {shutdown_note}")
 
     if mode == "board" and profile_board and results and not failures:
         profile_path = profile_dir / "et_runtime_trace.json"
@@ -663,6 +686,13 @@ def validate_contract(
     score_cfg = mcfg.get("score", {})
     if score_cfg.get("metric") != performance["metric"] or score_cfg.get("higher_is_better") is not False:
         raise ValueError("leaderboard metric differs from the protected firmware-cycle contract")
+    if (
+        int(performance.get("warmup_repetitions", -1)) != 0
+        or int(performance.get("measured_repetitions", -1)) != 1
+        or performance.get("reuse_measured_request_for_correctness") is not True
+        or int(performance.get("board_processes_per_score", -1)) != 1
+    ):
+        raise ValueError("SmolVLM2 must use one measured request in one ET runtime process")
     for key in ("frames_per_second", "prompt_template", "cases", "order_pair"):
         if multimodal.get(key) != input_contract.get(key):
             raise ValueError(f"multimodal {key} differs from the protected contract")
@@ -770,6 +800,7 @@ def main() -> int:
         cases = selected_correctness_cases(all_cases, contract["correctness"])
         validate_contract(contract, mcfg, model_path, mmproj_path, fixture_paths)
         ensure_llama_cpp_build(mcfg, server_cfg, server_bin, None, workdir)
+        verify_et_backend_runtime_guard(server_bin)
         host_server_bin = Path(os.environ.get("TRUSTED_SMOLVLM2_CPU_SERVER", str(server_bin)))
         cpu_ppl_bin = Path(
             os.environ.get(
@@ -797,7 +828,7 @@ def main() -> int:
         write_score(score_path, score)
         return 0
 
-    board_lock = Path(os.environ.get("BOARD_LOCK", "/var/lock/etsoc-shire0.lock"))
+    board_lock = Path(os.environ.get("BOARD_LOCK", "/var/lib/et-soc1-ci/board.lock"))
     board_lock.parent.mkdir(parents=True, exist_ok=True)
     ppl_metrics: dict[str, Any] = {}
     cpu_ppl_metrics: dict[str, Any] = {}
@@ -1004,19 +1035,21 @@ def main() -> int:
     first_run_ppl = float(contract["quality"]["perplexity"]["first_run_perplexity"])
     ppl_ratio = float(ppl) / first_run_ppl if isinstance(ppl, float) else None
     cpu_ppl_ratio = float(cpu_ppl) / first_run_ppl if isinstance(cpu_ppl, float) else None
-    et_cpu_ppl_difference = (
+    candidate_cpu_ppl_difference = (
         abs(float(ppl) - float(cpu_ppl)) / float(cpu_ppl)
         if isinstance(ppl, float) and isinstance(cpu_ppl, float) and cpu_ppl > 0
         else None
     )
     maximum_difference = float(
-        contract["quality"]["perplexity"]["maximum_et_cpu_relative_difference"]
+        contract["quality"]["perplexity"]["maximum_candidate_cpu_relative_difference"]
     )
     if not skip_ppl and (
-        et_cpu_ppl_difference is None or et_cpu_ppl_difference > maximum_difference
+        ppl_metrics.get("perplexity_device") != "CPU"
+        or candidate_cpu_ppl_difference is None
+        or candidate_cpu_ppl_difference > maximum_difference
     ):
         failures.append(
-            "ET PPL does not agree with trusted CPU PPL within "
+            "candidate CPU PPL does not agree with trusted CPU PPL within "
             f"{maximum_difference:.2%}"
         )
     maximum_ppl = float(contract["quality"]["perplexity"]["maximum_perplexity"])
@@ -1025,7 +1058,7 @@ def main() -> int:
     quality_note = (
         "trusted paired-main PPL check skipped"
         if skip_ppl
-        else f"PPL {float(ppl):.4f} <= {maximum_ppl:.4f}"
+        else f"CPU PPL {float(ppl):.4f} <= {maximum_ppl:.4f}"
     )
     note = "; ".join(failures) if failures else (
         f"{len(cases)} public video/order cases passed; {quality_note}; "
@@ -1048,16 +1081,18 @@ def main() -> int:
             "perplexity": ppl,
             "perplexity_error": ppl_metrics.get("perplexity_error"),
             "perplexity_tokens": ppl_metrics.get("perplexity_tokens"),
+            "perplexity_device": ppl_metrics.get("perplexity_device"),
             "perplexity_first_run": first_run_ppl,
             "perplexity_ratio_to_first_run": ppl_ratio,
             "cpu_perplexity": cpu_ppl,
             "cpu_perplexity_error": cpu_ppl_metrics.get("perplexity_error"),
             "cpu_perplexity_ratio_to_first_run": cpu_ppl_ratio,
-            "et_cpu_perplexity_relative_difference": et_cpu_ppl_difference,
+            "candidate_cpu_perplexity_relative_difference": candidate_cpu_ppl_difference,
             "perplexity_maximum": contract["quality"]["perplexity"]["maximum_perplexity"],
             "trusted_cpu_reference": bool(os.environ.get("TRUSTED_SMOLVLM2_CPU_SERVER")),
             "cpu_reference_executed": not skip_host_reference,
             "cpu_perplexity_reference_executed": not skip_ppl,
+            "et_process_count": 1,
             "vision_fallback_ops": sorted(fallback_ops),
             "validation_contract_sha256": contract_sha256(contract_path),
             "valid_dump": not failures,

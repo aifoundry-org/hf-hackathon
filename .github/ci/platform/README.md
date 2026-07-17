@@ -39,3 +39,45 @@ docker compose -f deploy/docker-compose.public.yml up -d
 ```
 
 Board host: set `JOBS_API_URL=https://your-public-api` and run `worker --pool board`.
+
+## Board recovery policy
+
+CI never resets or power-cycles an ET-SoC1. Each direct board session runs a
+checksum-pinned SDK `empty.elf` preflight, verifies a deterministic memory dump,
+and fails closed if the card is not healthy. A runtime or firmware error writes
+`/var/lib/et-soc1-ci/quarantine`; every later job refuses to touch the card.
+
+Recovery is manual: stop the Actions runner, diagnose the first failure, perform
+one external power cycle, then run
+`.github/ci/platform/deploy/clear-board-quarantine.sh --after-external-power-cycle`.
+The command refuses to clear quarantine unless the host boot ID changed and the
+new boot has no ET errors. Re-enable the runner only after the deterministic
+preflight passes.
+
+The root-owned Actions service must also be provisioned with
+`deploy/install-actions-runner-safety.sh`. Its systemd policy makes kernel
+controls read-only, removes mount/reboot/module capabilities and syscalls, and
+denies network access to the iBoot controller. The ET SDK and source tree under
+`/opt` are also read-only to the runner. The policy applies to every process
+launched by CI. The installer never starts or restarts the runner. Board
+workflows also require local transport so they cannot escape that service
+sandbox through a second SSH session.
+
+The llama.cpp ET backend drains its stream before 4,096 queued kernels, and each
+text-model score launches exactly one bounded ET generation process. The latter
+is required because the 16-bit device event tag cannot distinguish a delayed
+response from a recycled ID in another event generation. CPU PPL supplies the
+short model-quality gate without opening a second ET runtime. The allocator fix
+merged in `aifoundry-org/et-platform#134` remains required defense in depth.
+Every board job verifies the exact source revision plus both the shared
+`libetrt.so` and static `libetrt_static.a` hashes in
+`.github/ci/reference/et_runtime.json` before building candidate code. The
+static archive matters because `libggml-et.so` incorporates it at link time.
+Provision those audited libraries with `deploy/install-et-runtime-contract.sh`;
+the installer archives the previous libraries, writes a root-owned manifest,
+and never starts the runner or accesses the card.
+
+After any manual host build or runtime replacement, run `sync` and verify all
+expected ELF files are non-empty before an external power cycle. Otherwise a
+host power loss can persist zero-length build outputs even though the linker
+reported success.

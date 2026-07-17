@@ -47,11 +47,16 @@ if [[ -e /dev/et0_mgmt ]]; then
   sudo chmod 660 /dev/et0_mgmt /dev/et0_ops 2>/dev/null || \
     echo "warn: could not tighten /dev/et0_* (run as root)"
   sudo chown -R etsoc:etsoc "$JOBS_DATA_DIR" 2>/dev/null || true
+  sudo install -d -o etsoc -g etsoc -m 0770 \
+    "$(dirname "${ET_BOARD_QUARANTINE_FILE:-/var/lib/et-soc1-ci/quarantine}")" \
+    2>/dev/null || true
   echo "Run board worker as: sudo -u etsoc env HOST_ID=... python3 -m et_jobs worker --pool board"
 fi
 
 sudo mkdir -p "$(dirname "$BOARD_LOCK")" 2>/dev/null || true
 sudo touch "$BOARD_LOCK" 2>/dev/null || true
+sudo chown root:etsoc "$BOARD_LOCK" 2>/dev/null || true
+sudo chmod 0660 "$BOARD_LOCK" 2>/dev/null || true
 
 echo "Install done. Start:"
 echo "  source $ENV_FILE"

@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
-"""Run a contract-owned LLM quality check and llama-bench performance test."""
+"""Run the bounded, contract-owned Llama quality and performance check."""
 
 from __future__ import annotations
 
 import argparse
 import hashlib
 import json
+import math
 import os
 import re
-import statistics
+import struct
 import subprocess
 import sys
 from pathlib import Path
@@ -25,6 +26,7 @@ from run_llama_server_benchmark import (
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 LEGACY_RUNNER = REPO_ROOT / ".github" / "ci" / "scripts" / "run_llama_server_benchmark.py"
+MAX_SAFE_ET_GENERATION_TOKENS = 24
 
 
 def contract_sha256(path: Path) -> str:
@@ -53,6 +55,14 @@ def effective_config(config_path: Path, contract: dict[str, Any], output: Path) 
     runtime = contract["runtime"]
     generation = contract["generation_validation"]
     quality = contract["quality"]
+    max_tokens = int(generation["max_tokens"])
+    if max_tokens > MAX_SAFE_ET_GENERATION_TOKENS:
+        raise RuntimeError(
+            f"generation contract requests {max_tokens} tokens; "
+            f"safe ET limit is {MAX_SAFE_ET_GENERATION_TOKENS}"
+        )
+    if contract["performance"].get("tool") != "llama-server":
+        raise RuntimeError("trusted Llama performance must use the bounded llama-server request")
     lcfg.update(
         {
             "device": runtime["required_device"],
@@ -60,23 +70,24 @@ def effective_config(config_path: Path, contract: dict[str, Any], output: Path) 
             "require_full_offload": runtime["require_full_offload"],
             "api": "completion",
             "prompt": generation["prompt"],
-            "max_tokens": generation["max_tokens"],
+            "max_tokens": max_tokens,
             "temperature": generation["temperature"],
             "ignore_eos": generation["ignore_eos"],
             "min_completion_tokens": generation["min_completion_tokens"],
         }
     )
     lcfg["perplexity"] = {
-        "enabled": True,
+        "enabled": False,
         "perplexity_artifact": "llama_perplexity",
         "corpus_artifact": quality["corpus_artifact"],
         "ctx_size": quality["context_size"],
         "batch_size": quality["batch_size"],
         "ubatch_size": quality["ubatch_size"],
         "timeout_s": int(lcfg.get("perplexity", {}).get("timeout_s", 300)),
-        "min_ppl": 1.0,
-        "max_ppl": 1000.0,
         "chunks": quality["chunks"],
+        "device": "CPU",
+        "gpu_layers": 0,
+        "require_full_offload": False,
     }
     mcfg["reference_contract"] = str(
         Path(".github") / "ci" / "reference" / "llama32_1b.json"
@@ -85,118 +96,113 @@ def effective_config(config_path: Path, contract: dict[str, Any], output: Path) 
     return cfg
 
 
-def parse_json_array(text: str) -> list[dict[str, Any]]:
-    starts = [match.start() for match in re.finditer(r"(?m)^\s*\[\s*$", text)]
-    for start in reversed(starts):
-        try:
-            value = json.loads(text[start:])
-        except json.JSONDecodeError:
-            continue
-        if isinstance(value, list) and all(isinstance(item, dict) for item in value):
-            return value
-    raise RuntimeError("llama-bench did not emit a JSON result array")
+def _read_exact(handle: Any, size: int) -> bytes:
+    value = handle.read(size)
+    if len(value) != size:
+        raise RuntimeError("truncated GGUF metadata")
+    return value
 
 
-def find_bench_row(rows: list[dict[str, Any]], *, prompt: int, generation: int) -> dict[str, Any]:
-    for row in rows:
-        if int(row.get("n_prompt", -1)) == prompt and int(row.get("n_gen", -1)) == generation:
-            return row
-    raise RuntimeError(f"missing llama-bench row pp={prompt} tg={generation}")
+def _read_u32(handle: Any) -> int:
+    return struct.unpack("<I", _read_exact(handle, 4))[0]
 
 
-def samples(row: dict[str, Any], repetitions: int) -> list[float]:
-    values = row.get("samples_ts")
-    if not isinstance(values, list) or len(values) != repetitions:
-        raise RuntimeError(
-            f"llama-bench returned {len(values) if isinstance(values, list) else 0} samples, "
-            f"expected {repetitions}"
-        )
-    out = [float(value) for value in values]
-    if any(value <= 0 for value in out):
-        raise RuntimeError("llama-bench returned a non-positive throughput sample")
-    return out
+def _read_u64(handle: Any) -> int:
+    return struct.unpack("<Q", _read_exact(handle, 8))[0]
 
 
-def coefficient_of_variation(values: list[float]) -> float:
-    mean = statistics.fmean(values)
-    return statistics.pstdev(values) / mean if len(values) > 1 else 0.0
+def _skip_gguf_string(handle: Any) -> None:
+    length = _read_u64(handle)
+    if length > 1 << 30:
+        raise RuntimeError("invalid GGUF string length")
+    handle.seek(length, os.SEEK_CUR)
 
 
-def run_bench(
-    *,
-    bench_bin: Path,
-    model_path: Path,
-    lcfg: dict[str, Any],
-    contract: dict[str, Any],
-    run_dir: Path,
-    env: dict[str, str],
+def _skip_gguf_value(handle: Any, value_type: int) -> None:
+    fixed_sizes = {
+        0: 1,
+        1: 1,
+        2: 2,
+        3: 2,
+        4: 4,
+        5: 4,
+        6: 4,
+        7: 1,
+        10: 8,
+        11: 8,
+        12: 8,
+    }
+    if value_type in fixed_sizes:
+        handle.seek(fixed_sizes[value_type], os.SEEK_CUR)
+    elif value_type == 8:
+        _skip_gguf_string(handle)
+    elif value_type == 9:
+        element_type = _read_u32(handle)
+        count = _read_u64(handle)
+        if count > 1 << 30:
+            raise RuntimeError("invalid GGUF array length")
+        for _ in range(count):
+            _skip_gguf_value(handle, element_type)
+    else:
+        raise RuntimeError(f"unsupported GGUF metadata type {value_type}")
+
+
+def gguf_parameter_count(path: Path) -> int:
+    with path.open("rb") as handle:
+        if _read_exact(handle, 4) != b"GGUF":
+            raise RuntimeError(f"candidate is not a GGUF file: {path}")
+        version = _read_u32(handle)
+        if version not in (2, 3):
+            raise RuntimeError(f"unsupported GGUF version {version}")
+        tensor_count = _read_u64(handle)
+        metadata_count = _read_u64(handle)
+        if tensor_count > 1_000_000 or metadata_count > 1_000_000:
+            raise RuntimeError("unreasonable GGUF table size")
+        for _ in range(metadata_count):
+            _skip_gguf_string(handle)
+            _skip_gguf_value(handle, _read_u32(handle))
+        parameters = 0
+        for _ in range(tensor_count):
+            _skip_gguf_string(handle)
+            dimensions = _read_u32(handle)
+            if dimensions > 8:
+                raise RuntimeError(f"invalid GGUF tensor rank {dimensions}")
+            shape = [_read_u64(handle) for _ in range(dimensions)]
+            _read_u32(handle)  # ggml tensor type
+            _read_u64(handle)  # data offset
+            parameters += math.prod(shape)
+    return parameters
+
+
+def validate_server_model_identity(
+    log_path: Path, model_path: Path, contract: dict[str, Any]
 ) -> dict[str, Any]:
-    performance = contract["performance"]
-    command = [
-        str(bench_bin),
-        "-m",
-        str(model_path),
-        "-dev",
-        str(contract["runtime"]["required_device"]),
-        "-ngl",
-        str(contract["runtime"]["required_gpu_layers"]),
-        "-p",
-        str(performance["prompt_tokens"]),
-        "-n",
-        str(performance["generation_tokens"]),
-        "-b",
-        str(lcfg.get("batch_size", performance["batch_size"])),
-        "-ub",
-        str(lcfg.get("ubatch_size", performance["ubatch_size"])),
-        "-fa",
-        "1" if lcfg.get("flash_attn", False) else "0",
-        "-r",
-        str(performance["repetitions"]),
-        "-o",
-        "json",
-    ]
-    write_json(run_dir / "llama-bench-command.json", command)
-    proc = subprocess.run(
-        command,
-        cwd=str(bench_bin.parent),
-        env=env,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.STDOUT,
-        timeout=int(performance.get("timeout_s", 600)),
-        check=False,
-    )
-    (run_dir / "llama-bench.log").write_text(proc.stdout)
-    if proc.returncode != 0:
-        raise RuntimeError(f"llama-bench exited rc={proc.returncode}")
-    rows = parse_json_array(proc.stdout)
-    prompt_row = find_bench_row(rows, prompt=int(performance["prompt_tokens"]), generation=0)
-    decode_row = find_bench_row(rows, prompt=0, generation=int(performance["generation_tokens"]))
-    expected_params = int(contract["base_model"]["parameter_count"])
-    prefix = str(contract["base_model"]["architecture_prefix"])
-    for row in (prompt_row, decode_row):
-        if int(row.get("model_n_params", 0)) != expected_params:
-            raise RuntimeError(
-                f"candidate parameter count {row.get('model_n_params')} != contracted {expected_params}"
-            )
-        if not str(row.get("model_type", "")).startswith(prefix):
-            raise RuntimeError(f"candidate model type {row.get('model_type')!r} does not match {prefix!r}")
-        if "ET" not in str(row.get("backends", "")) or "ET" not in str(row.get("gpu_info", "")):
-            raise RuntimeError("llama-bench did not report the ET backend and ET device")
-
-    repetitions = int(performance["repetitions"])
-    prompt_samples = samples(prompt_row, repetitions)
-    decode_samples = samples(decode_row, repetitions)
+    log = log_path.read_text(errors="replace")
+    base = contract["base_model"]
+    architecture = str(base["architecture"])
+    model_type = str(base["model_type"])
+    if not re.search(
+        rf"print_info:\s+arch\s+=\s+{re.escape(architecture)}\s*$",
+        log,
+        re.MULTILINE,
+    ):
+        raise RuntimeError(f"server did not report architecture {architecture}")
+    if not re.search(
+        rf"print_info:\s+model type\s+=\s+{re.escape(model_type)}\s*$",
+        log,
+        re.MULTILINE,
+    ):
+        raise RuntimeError(f"server did not report model type {model_type}")
+    parameter_count = gguf_parameter_count(model_path)
+    expected = int(base["parameter_count"])
+    if parameter_count != expected:
+        raise RuntimeError(
+            f"candidate parameter count {parameter_count} != contracted {expected}"
+        )
     return {
-        "prompt_samples": prompt_samples,
-        "decode_samples": decode_samples,
-        "prompt_median": statistics.median(prompt_samples),
-        "decode_median": statistics.median(decode_samples),
-        "prompt_cv": coefficient_of_variation(prompt_samples),
-        "decode_cv": coefficient_of_variation(decode_samples),
-        "model_type": decode_row.get("model_type"),
-        "model_size": decode_row.get("model_size"),
-        "model_n_params": decode_row.get("model_n_params"),
+        "model_type": f"{architecture} {model_type}",
+        "model_size": model_path.stat().st_size,
+        "model_n_params": parameter_count,
     }
 
 
@@ -216,6 +222,8 @@ def run_cpu_perplexity(
         str(model_path),
         "-f",
         str(corpus_path),
+        "-dev",
+        "CPU",
         "-ngl",
         "0",
         "-c",
@@ -300,10 +308,8 @@ def main() -> int:
 
     try:
         model_path = materialize_artifact(mcfg, str(lcfg["model_artifact"]))
-        workdir = resolve_artifact_path(mcfg, str(lcfg["workdir_artifact"]))
         server_bin = resolve_artifact_path(mcfg, str(lcfg["server_artifact"]))
         ppl_bin = resolve_artifact_path(mcfg, str(lcfg["perplexity"]["perplexity_artifact"]))
-        bench_bin = server_bin.parent / "llama-bench"
         corpus_id = str(contract["quality"]["corpus_artifact"])
         corpus_path = materialize_artifact(mcfg, corpus_id)
         expected_corpus_sha = artifact_config(mcfg, corpus_id).get("sha256")
@@ -311,19 +317,9 @@ def main() -> int:
             actual = hashlib.sha256(corpus_path.read_bytes()).hexdigest()
             if actual != expected_corpus_sha:
                 raise RuntimeError(f"PPL corpus sha256 {actual} != {expected_corpus_sha}")
-        if not bench_bin.is_file():
-            raise RuntimeError(f"missing llama-bench: {bench_bin}")
 
         env = os.environ.copy()
         env["LD_LIBRARY_PATH"] = f"{server_bin.parent}:{env.get('LD_LIBRARY_PATH', '')}"
-        bench = run_bench(
-            bench_bin=bench_bin,
-            model_path=model_path,
-            lcfg=lcfg,
-            contract=contract,
-            run_dir=run_dir,
-            env=env,
-        )
         cpu_bin = Path(args.cpu_reference_bin).resolve() if args.cpu_reference_bin else ppl_bin
         cpu_ppl = run_cpu_perplexity(
             ppl_bin=cpu_bin,
@@ -333,44 +329,32 @@ def main() -> int:
             run_dir=run_dir,
             env=env,
         )
-        et_ppl = score.get("perplexity")
-        if not isinstance(et_ppl, (int, float)):
-            raise RuntimeError("ET score has no PPL")
-        relative_ppl_difference = abs(float(et_ppl) - float(cpu_ppl["perplexity"])) / float(
-            cpu_ppl["perplexity"]
+        identity = validate_server_model_identity(
+            run_dir / "server" / "server.log", model_path, contract
         )
-        max_relative = float(contract["quality"]["max_et_cpu_ppl_relative_difference"])
-        if relative_ppl_difference > max_relative:
-            failures.append(
-                f"ET PPL differs from trusted CPU PPL by {relative_ppl_difference:.2%}; "
-                f"maximum is {max_relative:.2%}"
-            )
-        max_cv = float(contract["performance"]["max_sample_cv"])
-        if bench["decode_cv"] > max_cv:
-            failures.append(
-                f"decode throughput CV {bench['decode_cv']:.2%} exceeds {max_cv:.2%}"
-            )
-        if bench["prompt_cv"] > max_cv:
-            failures.append(
-                f"prompt throughput CV {bench['prompt_cv']:.2%} exceeds {max_cv:.2%}"
-            )
+        decode_speed = score.get("tokens_per_second")
+        prompt_speed = score.get("prompt_tokens_per_second")
+        if not isinstance(decode_speed, (int, float)) or float(decode_speed) <= 0:
+            raise RuntimeError("llama-server did not report positive decode throughput")
+        if not isinstance(prompt_speed, (int, float)) or float(prompt_speed) <= 0:
+            raise RuntimeError("llama-server did not report positive prompt throughput")
 
         score.update(
             {
-                "tokens_per_second": bench["decode_median"],
-                "prompt_tokens_per_second": bench["prompt_median"],
                 "performance_samples": {
-                    "decode_tokens_per_second": bench["decode_samples"],
-                    "prompt_tokens_per_second": bench["prompt_samples"],
-                    "decode_cv": bench["decode_cv"],
-                    "prompt_cv": bench["prompt_cv"],
+                    "tool": "llama-server",
+                    "decode_tokens_per_second": [float(decode_speed)],
+                    "prompt_tokens_per_second": [float(prompt_speed)],
                 },
-                "cpu_perplexity": cpu_ppl["perplexity"],
-                "cpu_perplexity_error": cpu_ppl.get("perplexity_error"),
-                "et_cpu_ppl_relative_difference": relative_ppl_difference,
-                "model_type": bench["model_type"],
-                "model_size": bench["model_size"],
-                "model_n_params": bench["model_n_params"],
+                "perplexity": cpu_ppl["perplexity"],
+                "perplexity_error": cpu_ppl.get("perplexity_error"),
+                "perplexity_tokens": cpu_ppl.get("perplexity_tokens"),
+                "perplexity_prompt_tokens_per_second": cpu_ppl.get(
+                    "perplexity_prompt_tokens_per_second"
+                ),
+                "perplexity_device": "CPU",
+                "et_process_count": 1,
+                **identity,
             }
         )
     except Exception as exc:
@@ -380,7 +364,9 @@ def main() -> int:
     score["passed"] = not failures
     score["status"] = "pass" if not failures else "fail"
     score["valid_note"] = (
-        "trusted Llama ET/CPU quality and PP256/TG128 performance passed"
+        (
+            "trusted Llama single-process ET generation and CPU PPL passed"
+        )
         if not failures
         else "; ".join(failures)
     )

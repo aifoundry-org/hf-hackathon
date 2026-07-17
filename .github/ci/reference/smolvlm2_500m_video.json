@@ -173,7 +173,8 @@
       "first_run_tokens": 512,
       "max_relative_regression": 0.2,
       "maximum_perplexity": 26.739,
-      "maximum_et_cpu_relative_difference": 0.01
+      "reference_device": "CPU",
+      "maximum_candidate_cpu_relative_difference": 0.01
     }
   },
   "performance": {
@@ -186,6 +187,7 @@
     "warmup_repetitions": 0,
     "measured_repetitions": 1,
     "reuse_measured_request_for_correctness": true,
+    "board_processes_per_score": 1,
     "generation_tokens": 3,
     "aggregation": "median of per-request summed firmware cycles",
     "minimum_kernel_launches_per_request": 4000,

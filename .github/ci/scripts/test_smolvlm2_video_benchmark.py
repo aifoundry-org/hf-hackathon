@@ -7,6 +7,8 @@ from pathlib import Path
 
 import run_smolvlm2_video_benchmark as benchmark
 
+ROOT = Path(__file__).resolve().parents[3]
+
 
 class SmolVLM2VideoBenchmarkTests(unittest.TestCase):
     def test_normalize_answer(self) -> None:
@@ -62,6 +64,20 @@ class SmolVLM2VideoBenchmarkTests(unittest.TestCase):
         contract["maximum_perplexity"] = 26.7
         with self.assertRaisesRegex(ValueError, "internally inconsistent"):
             benchmark.maximum_perplexity(contract)
+
+    def test_contract_uses_one_bounded_et_process_and_cpu_ppl(self) -> None:
+        contract = json.loads(
+            (ROOT / ".github/ci/reference/smolvlm2_500m_video.json").read_text()
+        )
+        performance = contract["performance"]
+        self.assertEqual(performance["warmup_repetitions"], 0)
+        self.assertEqual(performance["measured_repetitions"], 1)
+        self.assertIs(performance["reuse_measured_request_for_correctness"], True)
+        self.assertEqual(performance["board_processes_per_score"], 1)
+        self.assertEqual(
+            contract["quality"]["perplexity"]["reference_device"],
+            "CPU",
+        )
 
     def test_model_identity_requires_language_and_vision_structure(self) -> None:
         contract = {
