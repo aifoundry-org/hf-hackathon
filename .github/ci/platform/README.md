@@ -66,8 +66,10 @@ sandbox through a second SSH session.
 The llama.cpp ET backend drains its stream before 4,096 queued kernels, far
 below the runtime's 65,536-value event namespace. This is defense in depth, not
 a substitute for the allocator fix merged in `aifoundry-org/et-platform#134`.
-Every board job verifies the exact source revision and `libetrt.so` hash in
-`.github/ci/reference/et_runtime.json` before building candidate code. Provision
-that audited library with `deploy/install-et-runtime-contract.sh`; the installer
-archives the previous library, writes a root-owned manifest, and never starts
-the runner or accesses the card.
+Every board job verifies the exact source revision plus both the shared
+`libetrt.so` and static `libetrt_static.a` hashes in
+`.github/ci/reference/et_runtime.json` before building candidate code. The
+static archive matters because `libggml-et.so` incorporates it at link time.
+Provision those audited libraries with `deploy/install-et-runtime-contract.sh`;
+the installer archives the previous libraries, writes a root-owned manifest,
+and never starts the runner or accesses the card.

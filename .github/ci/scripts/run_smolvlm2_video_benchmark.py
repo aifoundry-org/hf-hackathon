@@ -32,6 +32,7 @@ from run_llama_server_benchmark import (
     score_common,
     sha256_file,
     terminate,
+    verify_et_backend_runtime_guard,
     wait_ready,
     write_score,
 )
@@ -783,6 +784,7 @@ def main() -> int:
         cases = selected_correctness_cases(all_cases, contract["correctness"])
         validate_contract(contract, mcfg, model_path, mmproj_path, fixture_paths)
         ensure_llama_cpp_build(mcfg, server_cfg, server_bin, None, workdir)
+        verify_et_backend_runtime_guard(server_bin)
         host_server_bin = Path(os.environ.get("TRUSTED_SMOLVLM2_CPU_SERVER", str(server_bin)))
         cpu_ppl_bin = Path(
             os.environ.get(

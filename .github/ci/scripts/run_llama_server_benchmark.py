@@ -25,6 +25,9 @@ from benchmark_config_helpers import load_config as load_benchmark_config
 REPO_ROOT = Path(__file__).resolve().parents[3]
 CONFIG_PATH = REPO_ROOT / ".github" / "ci" / "benchmark_config.json"
 MAX_SAFE_ET_GENERATION_TOKENS = 24
+ET_EVENT_ID_GUARD = (
+    b"No free runtime event IDs; synchronize the stream before submitting more commands"
+)
 ET_RUNTIME_FAILURE_MARKERS = (
     "Stream error (event",
     "Kernel aborted (event",
@@ -307,6 +310,28 @@ def ensure_llama_cpp_build(mcfg: dict[str, Any], lcfg: dict[str, Any], server_bi
     subprocess.run(build, check=True)
     if source_revision:
         revision_stamp.write_text(source_revision + "\n")
+
+
+def verify_et_backend_runtime_guard(server_bin: Path) -> None:
+    """Ensure the final ET backend embeds the audited static-runtime guard."""
+    backend_dir = server_bin.parent
+    candidates = sorted(backend_dir.glob("libggml-et.so*"))
+    guarded = []
+    for candidate in candidates:
+        if not candidate.is_file():
+            continue
+        try:
+            if ET_EVENT_ID_GUARD in candidate.read_bytes():
+                guarded.append(candidate)
+        except OSError:
+            continue
+    if not guarded:
+        listed = ", ".join(str(path) for path in candidates) or "none"
+        raise RuntimeError(
+            "llama.cpp ET backend does not embed the audited EventId exhaustion guard; "
+            f"refusing board work (searched {backend_dir}, candidates: {listed})"
+        )
+    print(f"ET backend runtime guard OK: {guarded[0]}")
 
 
 def sha256_file(path: Path) -> str:
@@ -640,6 +665,8 @@ def main() -> int:
             ppl_bin = Path(str(pcfg.get("perplexity_bin") or (server_bin.parent / "llama-perplexity")))
     try:
         ensure_llama_cpp_build(mcfg, lcfg, server_bin, ppl_bin, workdir)
+        if device.strip().upper() == "ET":
+            verify_et_backend_runtime_guard(server_bin)
     except Exception as exc:
         note = f"artifact setup failed: {exc}"
         score.update({"status": "fail", "note": note, "valid_note": note})
