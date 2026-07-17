@@ -324,7 +324,7 @@ jobs:
     name: board (${{ needs.select-board-models.outputs.models || 'no models' }})
     needs: [authorize-board-run, select-board-models]
     if: needs.authorize-board-run.outputs.allowed == '1' && needs.select-board-models.outputs.has_models == '1'
-    runs-on: [self-hosted, Linux, X64, et-soc1, board-ci, single-board]
+    runs-on: [self-hosted, Linux, X64, et-soc1, board-ci, single-board, aifoundry3]
     timeout-minutes: 240
     outputs:
       trusted_main_sha: ${{ steps.trusted-candidate.outputs.main_sha }}
