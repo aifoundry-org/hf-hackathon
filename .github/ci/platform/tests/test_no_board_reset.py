@@ -135,6 +135,8 @@ class BoardRecoveryPolicyTests(unittest.TestCase):
             "does not match the audited contract",
         ):
             self.assertIn(marker, verifier)
+        self.assertIn('< <(strings "$library")', verifier)
+        self.assertIn('< <(strings "$staged_library")', installer)
         self.assertIn("refusing runtime replacement", installer)
         self.assertIn("The runner was not started and the board was not accessed.", installer)
 

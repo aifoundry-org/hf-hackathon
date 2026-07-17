@@ -61,7 +61,7 @@ if [[ "$actual_sha" != "$expected_sha" ]]; then
   echo "error: ET runtime sha256 $actual_sha != audited $expected_sha" >&2
   exit 1
 fi
-if ! strings "$library" | grep -Fqx "$required_marker"; then
+if ! grep -Fqx "$required_marker" < <(strings "$library"); then
   echo "error: ET runtime lacks the audited EventId exhaustion guard" >&2
   exit 1
 fi

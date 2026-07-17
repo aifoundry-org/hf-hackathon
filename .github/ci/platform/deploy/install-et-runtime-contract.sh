@@ -40,7 +40,7 @@ if [[ "$actual_sha" != "$expected_sha" ]]; then
   echo "error: staged ET runtime sha256 $actual_sha != audited $expected_sha" >&2
   exit 1
 fi
-if ! strings "$staged_library" | grep -Fqx "$required_marker"; then
+if ! grep -Fqx "$required_marker" < <(strings "$staged_library"); then
   echo "error: staged ET runtime lacks the audited EventId exhaustion guard" >&2
   exit 1
 fi
