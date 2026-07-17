@@ -97,15 +97,46 @@ class BoardRecoveryPolicyTests(unittest.TestCase):
             "ProtectKernelTunables=yes",
             "ProtectKernelModules=yes",
             "ProtectControlGroups=yes",
-            "ReadOnlyPaths=/sys/bus/pci/devices /sys/devices",
+            "ReadOnlyPaths=/sys/bus/pci/devices /sys/devices /opt/et /opt/et-platform",
             "IPAddressDeny=10.20.10.117",
             "NoNewPrivileges=yes",
             "CapabilityBoundingSet=~CAP_SYS_ADMIN CAP_SYS_BOOT CAP_SYS_MODULE CAP_SYS_RAWIO",
             "SystemCallFilter=~@mount @reboot @module",
         ):
             self.assertIn(setting, installer)
+        self.assertIn('systemctl show "$unit" -p User --value', installer)
+        self.assertIn('state_dir="${ET_BOARD_STATE_DIR:-/var/lib/et-soc1-ci}"', installer)
+        self.assertIn('board_lock="${BOARD_LOCK:-$state_dir/board.lock}"', installer)
+        self.assertNotIn("root:etsoc", installer)
         self.assertNotIn("systemctl restart", installer)
         self.assertNotIn("systemctl start", installer)
+
+    def test_board_runner_requires_audited_host_runtime_before_build(self) -> None:
+        runner = (
+            REPO_ROOT / ".github/ci/platform/deploy/soc3-benchmark.sh"
+        ).read_text()
+        verifier = (
+            REPO_ROOT
+            / ".github/ci/platform/deploy/verify-et-runtime-contract.sh"
+        ).read_text()
+        installer = (
+            REPO_ROOT
+            / ".github/ci/platform/deploy/install-et-runtime-contract.sh"
+        ).read_text()
+        self.assertIn("verify-et-runtime-contract.sh", runner)
+        self.assertLess(
+            runner.index("verify-et-runtime-contract.sh"),
+            runner.index("Pre-building ELFs locally"),
+        )
+        for marker in (
+            "source_revision",
+            "sha256sum",
+            "required_marker",
+            "does not match the audited contract",
+        ):
+            self.assertIn(marker, verifier)
+        self.assertIn("refusing runtime replacement", installer)
+        self.assertIn("The runner was not started and the board was not accessed.", installer)
 
     def test_board_workflows_cannot_escape_sandbox_over_ssh(self) -> None:
         runner = (

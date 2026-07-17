@@ -57,13 +57,17 @@ preflight passes.
 The root-owned Actions service must also be provisioned with
 `deploy/install-actions-runner-safety.sh`. Its systemd policy makes kernel
 controls read-only, removes mount/reboot/module capabilities and syscalls, and
-denies network access to the iBoot controller. It applies the restriction to
-every process launched by CI. The installer never starts or restarts the
-runner. Board workflows also require local transport so they cannot escape
-that service sandbox through a second SSH session.
+denies network access to the iBoot controller. The ET SDK and source tree under
+`/opt` are also read-only to the runner. The policy applies to every process
+launched by CI. The installer never starts or restarts the runner. Board
+workflows also require local transport so they cannot escape that service
+sandbox through a second SSH session.
 
 The llama.cpp ET backend drains its stream before 4,096 queued kernels, far
-below the runtime's 65,536-value event namespace. The runtime allocator fix
-that safely skips live IDs at wraparound is tracked in
-`aifoundry-org/et-platform#134`; the backend-side bound protects CI even while a
-host still has the older SDK runtime.
+below the runtime's 65,536-value event namespace. This is defense in depth, not
+a substitute for the allocator fix merged in `aifoundry-org/et-platform#134`.
+Every board job verifies the exact source revision and `libetrt.so` hash in
+`.github/ci/reference/et_runtime.json` before building candidate code. Provision
+that audited library with `deploy/install-et-runtime-contract.sh`; the installer
+archives the previous library, writes a root-owned manifest, and never starts
+the runner or accesses the card.

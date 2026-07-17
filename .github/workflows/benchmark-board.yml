@@ -122,6 +122,7 @@ jobs:
           while IFS= read -r path; do
             case "$path" in
               .github/workflows/*|\
+              .github/ci/reference/et_runtime.json|\
               .github/ci/reference/llama32_1b.json|\
               .github/ci/reference/rwkv7_15b.json|\
               .github/ci/reference/smolvlm2_500m_video.json|\

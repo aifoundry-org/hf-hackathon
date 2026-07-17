@@ -68,6 +68,13 @@ else
   "${SSH_CMD[@]}" "rm -rf ${output_dir} && mkdir -p ${output_dir}"
 fi
 
+if [[ "$TRANSPORT" == "local" ]]; then
+  # Check the root-owned runtime before syncing, building, or executing any
+  # candidate code. A stale libetrt silently reuses live uint16_t EventIds and
+  # can wedge the card after a long inference process.
+  "${ROOT}/.github/ci/platform/deploy/verify-et-runtime-contract.sh"
+fi
+
 if [[ -x "${SOC3_BUILD_ET:-$HOME/et}/bin/riscv64-unknown-elf-gcc" ]]; then
   _etp="${ET_PLATFORM_SRC:-}"
   if [[ -n "$_etp" ]] && ! et_platform_src_complete "$_etp"; then
