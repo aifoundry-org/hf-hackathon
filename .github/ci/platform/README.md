@@ -39,3 +39,10 @@ docker compose -f deploy/docker-compose.public.yml up -d
 ```
 
 Board host: set `JOBS_API_URL=https://your-public-api` and run `worker --pool board`.
+
+## Board recovery policy
+
+CI never resets or power-cycles an ET-SoC1. Each direct board session runs a
+small preflight kernel and fails closed if the card is not healthy. After a
+firmware or kernel-launch failure, stop the queue, diagnose the first failure,
+and have a maintainer perform one external power cycle before rerunning CI.

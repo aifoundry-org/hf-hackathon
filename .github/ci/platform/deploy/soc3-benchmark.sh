@@ -455,19 +455,6 @@ if [[ -f "$_launcher_lib_dir/libetrt.so" \
   export LD_LIBRARY_PATH="$_launcher_lib_dir:$LD_LIBRARY_PATH"
 fi
 
-reset_board() {
-  local reset
-  for reset in /sys/devices/pci0000:00/0000:00:01.0/0000:01:00.0/soc_reset/reinitiate \
-    /sys/bus/pci/devices/*/soc_reset/reinitiate; do
-    if [[ -w "$reset" ]]; then
-      echo "Resetting ET-SoC1 via $reset"
-      echo 1 > "$reset" || true
-      sleep 2
-      return
-    fi
-  done
-}
-
 board_smoke() {
   local smoke_elf="${BOARD_SMOKE_ELF:-/opt/et/kernels/histogram.erbium-soc1sim.elf}"
   local smoke_dir="$BENCHMARK_OUTPUT/board-smoke"
@@ -475,13 +462,12 @@ board_smoke() {
   local smoke_dump="$smoke_dir/dump.bin"
 
   if [[ ! -f "$smoke_elf" ]]; then
-    echo "WARN: board smoke ELF missing at $smoke_elf" >&2
-    return 0
+    echo "error: board smoke ELF missing at $smoke_elf" >&2
+    return 1
   fi
 
   mkdir -p "$smoke_dir"
   rm -f "$smoke_log" "$smoke_dump"
-  reset_board
   echo ""
   echo "========== board smoke: $(basename "$smoke_elf") =========="
   if flock -x -w 60 "$BOARD_LOCK" \
@@ -518,14 +504,22 @@ echo "Host: $(hostname) device=$(stat -c '%a %U:%G' /dev/et0_mgmt) launcher=$LAU
 
 chmod +x .github/ci/scripts/*.sh scripts/*.sh 2>/dev/null || true
 FAIL=0
-if [[ "${SOC3_SKIP_BOARD_SMOKE:-0}" != "1" ]] && ! board_smoke; then
-  FAIL=1
+if [[ "${SOC3_SKIP_BOARD_SMOKE:-0}" != "1" ]]; then
+  if ! board_smoke; then
+    echo "error: ET-SoC1 preflight failed; no benchmark was launched." >&2
+    echo "error: CI is not permitted to reset or power-cycle the card. A maintainer must diagnose" >&2
+    echo "error: the failure and perform one external power cycle before explicitly rerunning CI." >&2
+    exit 2
+  fi
+else
+  echo "WARN: ET-SoC1 preflight explicitly skipped (SOC3_SKIP_BOARD_SMOKE=1)." >&2
 fi
 for model in $MODELS; do
   echo ""
   echo "========== benchmark: $model =========="
-  reset_board
-  if ! bash .github/ci/scripts/run_model_benchmark.sh "$model"; then
+  model_rc=0
+  bash .github/ci/scripts/run_model_benchmark.sh "$model" || model_rc=$?
+  if [[ "$model_rc" -ne 0 ]]; then
     echo "WARN: $model benchmark script returned non-zero" >&2
     FAIL=1
   fi
@@ -547,6 +541,11 @@ PY
   else
     echo "missing score-${model}.json" >&2
     FAIL=1
+  fi
+  if [[ "$model_rc" -ne 0 ]]; then
+    echo "error: stopping this board session after the first runner failure." >&2
+    echo "error: remaining models will not be launched against a potentially unhealthy ET-SoC1." >&2
+    break
   fi
 done
 

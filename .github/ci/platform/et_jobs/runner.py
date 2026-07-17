@@ -23,15 +23,6 @@ def parse_kernel_wait(log_path: Path) -> float | None:
     return float(m.group(1)) if m else None
 
 
-def soc_reset() -> None:
-    p = Path(config.SOC_RESET)
-    if p.is_file():
-        try:
-            p.write_text("1")
-        except OSError:
-            pass
-
-
 def run_cmd(cmd: list[str], log_file: Path, env: dict[str, str] | None = None) -> int:
     log_file.parent.mkdir(parents=True, exist_ok=True)
     merged = os.environ.copy()
@@ -192,17 +183,11 @@ def _resolve_smoke_elf() -> str:
 
 def run_board_smoke(job_id: str) -> dict:
     elf = _resolve_smoke_elf()
-    soc_reset()
-    try:
-        out = run_kernel(job_id=job_id, device="soc1sim", elf=elf, stage="board")
-    finally:
-        soc_reset()
-    return out
+    return run_kernel(job_id=job_id, device="soc1sim", elf=elf, stage="board")
 
 
 def run_board_benchmark(job_id: str, model: str) -> dict:
     """Board path: build ELF + run via .github/ci/scripts/run_model_benchmark.sh on real silicon."""
-    soc_reset()
     log_file = _log_path(job_id, "board")
     script = config.REPO_ROOT / ".github/ci/scripts/run_model_benchmark.sh"
     if not script.is_file():
@@ -220,38 +205,32 @@ def run_board_benchmark(job_id: str, model: str) -> dict:
     }
     if config.ET_PLATFORM_SRC:
         env["ET_PLATFORM_SRC"] = config.ET_PLATFORM_SRC
-    try:
-        rc = run_cmd(["bash", str(script), model], log_file, env)
-        score_path = Path(env["BENCHMARK_OUTPUT"]) / f"score-{model}.json"
-        score: dict = {}
-        if score_path.is_file():
-            score = json.loads(score_path.read_text())
-        return {"returncode": rc, "score": score, "log": str(log_file)}
-    finally:
-        soc_reset()
+    rc = run_cmd(["bash", str(script), model], log_file, env)
+    score_path = Path(env["BENCHMARK_OUTPUT"]) / f"score-{model}.json"
+    score: dict = {}
+    if score_path.is_file():
+        score = json.loads(score_path.read_text())
+    return {"returncode": rc, "score": score, "log": str(log_file)}
 
 
 def run_board_benchmark_legacy(job_id: str, model: str) -> dict:
     """Fallback: single-kernel run when CI scripts are missing."""
-    try:
-        sys.path.insert(0, str(config.REPO_ROOT / ".github/ci/scripts"))
-        from benchmark_config_helpers import load_config
+    sys.path.insert(0, str(config.REPO_ROOT / ".github/ci/scripts"))
+    from benchmark_config_helpers import load_config
 
-        cfg = load_config(config.REPO_ROOT / ".github/ci/benchmark_config.json")
-        variant = cfg["models"][model]["canonical_variant"]
-        bench_dir = cfg["models"][model]["bench_dir"]
-        elf_name = f"{variant}.elf"
-        elf = config.MODEL_PORT_ARTIFACTS / bench_dir / elf_name
-        if not elf.is_file():
-            raise FileNotFoundError(f"ELF not found for board run: {elf_name}")
-        return run_kernel(
-            job_id=job_id,
-            device="soc1sim",
-            elf=str(elf),
-            stage="board",
-        )
-    finally:
-        soc_reset()
+    cfg = load_config(config.REPO_ROOT / ".github/ci/benchmark_config.json")
+    variant = cfg["models"][model]["canonical_variant"]
+    bench_dir = cfg["models"][model]["bench_dir"]
+    elf_name = f"{variant}.elf"
+    elf = config.MODEL_PORT_ARTIFACTS / bench_dir / elf_name
+    if not elf.is_file():
+        raise FileNotFoundError(f"ELF not found for board run: {elf_name}")
+    return run_kernel(
+        job_id=job_id,
+        device="soc1sim",
+        elf=str(elf),
+        stage="board",
+    )
 
 
 def main() -> int:

@@ -43,7 +43,6 @@ export ET_PLATFORM="${ET_PLATFORM:-$ET_INSTALL}"
 export LAUNCHER="${LAUNCHER:-/opt/et/bin/erbium_soc1sim_argbuf_dynmem}"
 export ET_LIB_PATH="${ET_LIB_PATH:-/opt/et/host:/opt/et/lib}"
 export BOARD_LOCK="${BOARD_LOCK:-/var/lock/etsoc-shire0.lock}"
-export SOC_RESET_SYSFS="${SOC_RESET_SYSFS:-/sys/devices/pci0000:00/0000:00:01.0/0000:01:00.0/soc_reset/reinitiate}"
 export SIM_ONLY_PUBLIC=1
 
 for candidate in "$HOME/et-platform" "$HOME/et" /root/et-platform "$DEST/et-platform"; do
@@ -69,7 +68,7 @@ curl -sf "$JOBS_API_URL/health" >/dev/null
 nohup env PYTHONPATH="$PLATFORM" JOBS_API_URL="$JOBS_API_URL" JOBS_DATA_DIR="$JOBS_DATA_DIR" \
   WORKER_TOKENS="$WORKER_TOKENS" HOST_ID="$HOST_ID" JOBS_REPO_ROOT="$JOBS_REPO_ROOT" \
   LAUNCHER="$LAUNCHER" ET_INSTALL="$ET_INSTALL" ET_PLATFORM="$ET_PLATFORM" ET_PLATFORM_SRC="$ET_PLATFORM_SRC" \
-  ET_LIB_PATH="$ET_LIB_PATH" BOARD_LOCK="$BOARD_LOCK" SOC_RESET_SYSFS="$SOC_RESET_SYSFS" \
+  ET_LIB_PATH="$ET_LIB_PATH" BOARD_LOCK="$BOARD_LOCK" \
   ET_JOBS_DRY_RUN=0 KERNEL_TIMEOUT=600 \
   python3 -m et_jobs worker --pool board >"$JOBS_DATA_DIR/run/board.log" 2>&1 &
 echo $! >"$JOBS_DATA_DIR/run/board.pid"
