@@ -90,7 +90,7 @@ def main() -> int:
         "",
         (
             f"Mode: **{args.mode}**. The candidate uses the main-owned model contract, CPU "
-            "reference, ET quality check, PP256/TG128 benchmark, and shared-runtime "
+            "reference, ET quality check, PP256/TG24 benchmark, and bounded shared-runtime "
             "regression set."
         ),
         "",

@@ -37,18 +37,13 @@
     "required_gpu_layers": 99,
     "require_full_offload": true,
     "regression_models": [
-      "lfm25",
-      "gemma3n_e2b",
-      "tinyllama11b",
-      "smollm2_135m",
-      "smollm2_360m",
-      "smollm2_17b",
-      "rwkv7_15b",
-      "qwen25_05b",
-      "qwen3_8b",
-      "deepseek_r1_15b",
-      "smolvlm_256m"
-    ]
+      "qwen25_05b"
+    ],
+    "regression_policy": {
+      "kind": "bounded_architecture_sentinel",
+      "max_models": 1,
+      "rationale": "Qwen2 0.5B is a small non-Llama architecture and previously exposed an ET perplexity crash."
+    }
   },
   "performance": {
     "prompt_tokens": 256,

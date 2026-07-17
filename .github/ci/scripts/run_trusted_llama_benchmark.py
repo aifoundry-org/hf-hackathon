@@ -189,6 +189,7 @@ def run_bench(
     decode_row = find_bench_row(rows, prompt=0, generation=int(performance["generation_tokens"]))
     expected_params = int(contract["base_model"]["parameter_count"])
     prefix = str(contract["base_model"]["architecture_prefix"])
+    expected_layers = int(contract["runtime"]["required_gpu_layers"])
     for row in (prompt_row, decode_row):
         if int(row.get("model_n_params", 0)) != expected_params:
             raise RuntimeError(
@@ -198,6 +199,12 @@ def run_bench(
             raise RuntimeError(f"candidate model type {row.get('model_type')!r} does not match {prefix!r}")
         if "ET" not in str(row.get("backends", "")) or "ET" not in str(row.get("gpu_info", "")):
             raise RuntimeError("llama-bench did not report the ET backend and ET device")
+        if str(row.get("devices", "")) != str(contract["runtime"]["required_device"]):
+            raise RuntimeError(f"llama-bench selected unexpected devices: {row.get('devices')!r}")
+        if int(row.get("n_gpu_layers", -1)) != expected_layers:
+            raise RuntimeError(
+                f"llama-bench offloaded {row.get('n_gpu_layers')} layers, expected {expected_layers}"
+            )
 
     repetitions = int(performance["repetitions"])
     prompt_samples = samples(prompt_row, repetitions)

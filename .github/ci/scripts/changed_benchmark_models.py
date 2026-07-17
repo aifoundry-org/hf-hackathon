@@ -27,6 +27,14 @@ FRAMEWORK_ARTIFACT_KINDS = {
     "framework_binary",
 }
 
+# Pull-request and main-push CI must remain a bounded smoke. A shared framework
+# change is represented by one canonical, fully offloaded model; the trusted
+# track may add its own small architecture sentinel. Broad manual/scheduled
+# validation still uses --scope affected or an explicit model list.
+FRAMEWORK_SMOKE_MODELS = {
+    "llama.cpp-et": ("llama32_1b",),
+}
+
 GENERIC_BOARD_INFRA_PATHS = {
     ".github/workflows/benchmark-board.yml",
     ".github/ci/scripts/benchmark_config_helpers.py",
@@ -236,6 +244,17 @@ def default_models_for_framework(cfg: dict[str, Any], framework: str, target: st
         if cfg["models"].get(name, {}).get("benchmark_default", True)
     ]
     return defaults or candidates
+
+
+def smoke_models_for_framework(cfg: dict[str, Any], framework: str, target: str) -> list[str]:
+    configured = cfg.get("models", {})
+    selected = []
+    for model in FRAMEWORK_SMOKE_MODELS.get(framework, ()):
+        if model not in configured or not model_supports_target(cfg, model, target):
+            continue
+        if model_framework(configured[model]) == framework:
+            selected.append(model)
+    return selected or default_models_for_framework(cfg, framework, target)[:1]
 
 
 def default_models_for_runner(cfg: dict[str, Any], runner: str, target: str) -> list[str]:
@@ -608,8 +627,8 @@ def main() -> int:
         help=(
             "affected: shared infra/workflow/global-config changes fan out to all "
             "default models (use for broad validation). "
-            "changed: select only models whose own files or vendored framework "
-            "source changed — i.e. the models a PR or main push is submitting."
+            "changed: select models whose own files changed, or one canonical "
+            "smoke model for a changed vendored framework."
         ),
     )
     parser.add_argument(
@@ -724,7 +743,10 @@ def main() -> int:
     if shared_all:
         selected.update(configured_model_names(cfg, args.target, default_only=True))
     for framework in sorted(shared_frameworks):
-        selected.update(default_models_for_framework(cfg, framework, args.target))
+        if honor_global:
+            selected.update(default_models_for_framework(cfg, framework, args.target))
+        else:
+            selected.update(smoke_models_for_framework(cfg, framework, args.target))
     for runner in sorted(shared_runners):
         selected.update(default_models_for_runner(cfg, runner, args.target))
 

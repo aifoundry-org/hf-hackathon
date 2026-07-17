@@ -120,7 +120,7 @@ leaderboard baselines under main-branch control. A passing result requires:
 - full ET offload and deterministic generation from the contracted model;
 - ET WikiText-2 PPL within 2% of a CPU run of the same GGUF;
 - PPL no more than 20% worse than the best leaderboard PPL;
-- three stable PP256/TG128 runs, with decode throughput at least 1% faster than
+- three stable PP256/TG24 runs, with decode throughput at least 1% faster than
   paired current main and strictly faster than the best score made under the
   same measurement contract;
 - for a shared runtime change, passing PPL and decode throughput no more than
