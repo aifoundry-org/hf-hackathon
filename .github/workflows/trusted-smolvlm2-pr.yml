@@ -114,7 +114,7 @@ jobs:
     name: Trusted SmolVLM2 board evaluation
     needs: resolve
     if: needs.resolve.outputs.targeted == '1' && needs.resolve.outputs.needs_approval != '1'
-    runs-on: [self-hosted, Linux, X64, et-soc1, board-ci, single-board, aifoundry3]
+    runs-on: [self-hosted, Linux, X64, et-soc1, board-ci, single-board, aifoundry2]
     timeout-minutes: 10
     outputs:
       verdict_kind: ${{ steps.evaluate.outputs.verdict_kind }}

@@ -48,6 +48,23 @@ step "Workflow YAML parses"
 for yml in .github/workflows/*.yml; do
   python3 -c "import yaml,sys; yaml.safe_load(open(sys.argv[1]))" "$yml" || bad "invalid YAML: $yml"
 done
+python3 - <<'PY' || bad "ET-SoC1 workflows are not pinned exclusively to aifoundry2"
+from pathlib import Path
+
+import yaml
+
+targets = {
+    "benchmark-board.yml": "board-benchmark",
+    "trusted-llama32-pr.yml": "board",
+    "trusted-model-port-pr.yml": "board",
+    "trusted-smolvlm2-pr.yml": "board",
+}
+for filename, job_name in targets.items():
+    workflow = yaml.safe_load((Path(".github/workflows") / filename).read_text())
+    labels = workflow["jobs"][job_name]["runs-on"]
+    assert "aifoundry2" in labels, f"{filename} is not pinned to aifoundry2"
+    assert "aifoundry3" not in labels, f"{filename} still selects aifoundry3"
+PY
 if ! grep -qF 'uses: aifoundry-org/hf-hackathon/.github/workflows/benchmark-board.yml@main' \
   .github/workflows/trusted-yolo-pr.yml; then
   bad "trusted YOLO PR caller is not pinned to the main-owned reusable workflow"
