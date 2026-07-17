@@ -20,6 +20,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from board_lock import open_board_lock
 from benchmark_config_helpers import load_config as load_benchmark_config
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -685,7 +686,7 @@ def main() -> int:
     ppl_failures: list[str] = []
     try:
         board_lock.parent.mkdir(parents=True, exist_ok=True)
-        lock_file = board_lock.open("a")
+        lock_file = open_board_lock(board_lock)
         fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
 
         env = os.environ.copy()

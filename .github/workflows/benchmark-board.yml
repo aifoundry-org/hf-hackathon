@@ -127,6 +127,8 @@ jobs:
               .github/ci/reference/smolvlm2_500m_video.json|\
               .github/ci/reference/yolo.json|\
               .github/ci/platform/deploy/*|\
+              .github/ci/scripts/board_lock.py|\
+              .github/ci/scripts/prepare_board_lock.sh|\
               .github/ci/scripts/benchmark_config_helpers.py|\
               .github/ci/scripts/build_leaderboard_elf.sh|\
               .github/ci/scripts/changed_benchmark_models.py|\

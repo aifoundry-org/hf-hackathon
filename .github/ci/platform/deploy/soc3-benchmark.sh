@@ -286,9 +286,9 @@ if [[ -n "${TRUSTED_SMOLVLM2_CPU_BUILD_KEY:-}" ]]; then
   export TRUSTED_SMOLVLM2_CPU_PERPLEXITY="$_smol_cpu_dir/llama-perplexity"
 fi
 export PATH="$ET_INSTALL/bin:$PATH"
-mkdir -p "$WORK_ROOT" "$BENCHMARK_OUTPUT" "$AMP_ROOT" "$(dirname "$BOARD_LOCK")"
+mkdir -p "$WORK_ROOT" "$BENCHMARK_OUTPUT" "$AMP_ROOT"
 rm -f "$BENCHMARK_OUTPUT"/score-*.json
-touch "$BOARD_LOCK" 2>/dev/null || true
+bash .github/ci/scripts/prepare_board_lock.sh "$BOARD_LOCK"
 
 # Framework builds (-DGGML_ET=ON) use CMake file(CONFIGURE), which requires cmake
 # 3.18+. The board host's system cmake may be older (fails with "file does not
@@ -484,7 +484,10 @@ board_smoke() {
   reset_board
   echo ""
   echo "========== board smoke: $(basename "$smoke_elf") =========="
-  if flock -x -w 60 "$BOARD_LOCK" \
+  if python3 .github/ci/scripts/board_lock.py \
+    --lock "$BOARD_LOCK" \
+    --timeout 60 \
+    -- \
     timeout --kill-after=10s "${BOARD_SMOKE_TIMEOUT:-180}" \
     "$LAUNCHER" \
       --device soc1sim \

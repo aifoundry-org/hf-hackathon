@@ -135,9 +135,22 @@ def run_kernel(
             cmd.append(f"--file_load={fl}")
 
     lock = config.BOARD_LOCK
-    if device == "soc1sim" and Path(lock).parent.is_dir():
-        shell_cmd = f"flock -x -w 600 {lock} {' '.join(cmd)}"
-        rc = run_cmd(["bash", "-lc", shell_cmd], log_file, {"LD_LIBRARY_PATH": ld})
+    if device == "soc1sim":
+        helper = config.REPO_ROOT / ".github/ci/scripts/board_lock.py"
+        rc = run_cmd(
+            [
+                sys.executable,
+                str(helper),
+                "--lock",
+                lock,
+                "--timeout",
+                "600",
+                "--",
+                *cmd,
+            ],
+            log_file,
+            {"LD_LIBRARY_PATH": ld},
+        )
     else:
         rc = run_cmd(cmd, log_file, {"LD_LIBRARY_PATH": ld})
 

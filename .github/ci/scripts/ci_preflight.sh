@@ -36,6 +36,8 @@ python3 -m unittest discover -s .github/ci/scripts -p 'test_trusted_llama32_poli
   || bad "trusted Llama track policy tests failed"
 python3 -m unittest discover -s .github/ci/scripts -p 'test_model_port_track.py' \
   || bad "trusted model-port track tests failed"
+python3 -m unittest discover -s .github/ci/scripts -p 'test_board_lock.py' \
+  || bad "shared board lock tests failed"
 python3 -m py_compile ported_models/yolo/tools/host_reference.py \
   || bad "YOLO host-reference compile errors"
 

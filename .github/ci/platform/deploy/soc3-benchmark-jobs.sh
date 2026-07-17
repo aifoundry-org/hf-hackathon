@@ -53,6 +53,7 @@ done
 
 python3 -m pip install --user -q -r "$PLATFORM/requirements.txt" 2>/dev/null || true
 chmod +x "$DEST/.github/ci/scripts/"*.sh "$DEST/scripts/"*.sh 2>/dev/null || true
+bash "$DEST/.github/ci/scripts/prepare_board_lock.sh" "$BOARD_LOCK"
 
 mkdir -p "$JOBS_DATA_DIR/run"
 for p in "$JOBS_DATA_DIR/run"/*.pid; do kill "$(cat "$p")" 2>/dev/null || true; done

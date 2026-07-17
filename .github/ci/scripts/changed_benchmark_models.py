@@ -40,6 +40,13 @@ GENERIC_BOARD_INFRA_PATHS = {
     "scripts/run_sysemu_model_ports.sh",
 }
 
+BOARD_LOCK_INFRA_PATHS = {
+    ".github/ci/scripts/board_lock.py",
+    ".github/ci/scripts/prepare_board_lock.sh",
+}
+BOARD_LOCK_SMOKE_MODELS = ("dncnn", "smollm2_135m")
+
+
 RUNNER_INFRA_PATHS = {
     ".github/ci/scripts/run_llama_server_benchmark.py": "llama_server",
     ".github/ci/scripts/run_smolvlm2_video_benchmark.py": "smolvlm2_video",
@@ -677,6 +684,15 @@ def main() -> int:
             model = str((claim or {}).get("benchmark_model") or "")
             if model in cfg.get("models", {}) and model_supports_target(cfg, model, args.target):
                 selected.add(model)
+            continue
+        if path in BOARD_LOCK_INFRA_PATHS:
+            for model in BOARD_LOCK_SMOKE_MODELS:
+                if model in cfg.get("models", {}) and model_supports_target(
+                    cfg, model, args.target
+                ):
+                    selected.add(model)
+            if honor_global:
+                shared_all = True
             continue
         if path in GENERIC_BOARD_INFRA_PATHS or is_under(path, ".github/ci/platform/"):
             if honor_global:

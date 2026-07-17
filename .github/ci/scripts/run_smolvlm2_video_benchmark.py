@@ -19,6 +19,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from board_lock import open_board_lock
 from benchmark_config_helpers import load_config
 from run_llama_server_benchmark import (
     artifact_config,
@@ -803,7 +804,7 @@ def main() -> int:
     cpu_ppl_metrics: dict[str, Any] = {}
     ppl_failures: list[str] = []
     skip_host_reference = os.environ.get("SMOLVLM2_SKIP_HOST_REFERENCE") == "1"
-    with board_lock.open("a") as lock_file:
+    with open_board_lock(board_lock) as lock_file:
         fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
         if skip_host_reference:
             host_results: list[dict[str, Any]] = []

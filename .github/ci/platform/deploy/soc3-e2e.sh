@@ -6,6 +6,8 @@ DEST="${SOC3_DEST:-/root/et-jobs-deploy}"
 
 ROOT="$(cd "$(dirname "$0")/../../../.." && pwd)"
 rsync -az "$ROOT/.github/ci/platform/" "$SOC3:$DEST/.github/ci/platform/"
+rsync -az "$ROOT/.github/ci/scripts/board_lock.py" "$ROOT/.github/ci/scripts/prepare_board_lock.sh" \
+  "$SOC3:$DEST/.github/ci/scripts/"
 
 ssh "$SOC3" "bash -s" <<REMOTE
 set -euo pipefail
@@ -43,6 +45,7 @@ groupadd -f etsoc 2>/dev/null || true
 chown root:etsoc /dev/et0_mgmt /dev/et0_ops 2>/dev/null || true
 chmod 660 /dev/et0_mgmt /dev/et0_ops 2>/dev/null || true
 stat -c '%a %U:%G' /dev/et0_mgmt
+bash "\$DEST/.github/ci/scripts/prepare_board_lock.sh" "\$BOARD_LOCK"
 
 mkdir -p "\$JOBS_DATA_DIR/run"
 shopt -s nullglob
