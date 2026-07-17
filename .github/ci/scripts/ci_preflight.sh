@@ -332,6 +332,7 @@ PY
 step "Trusted Llama contract uses a bounded cross-architecture sentinel"
 python3 - <<'PY' || bad "trusted Llama contract or build definition is incomplete"
 import json
+import subprocess
 import sys
 from pathlib import Path
 
@@ -341,6 +342,14 @@ from benchmark_config_helpers import load_config
 contract = json.loads(Path(".github/ci/reference/llama32_1b.json").read_text())
 cfg = load_config(Path(".github/ci/benchmark_config.json"))
 target = cfg["models"][contract["model"]]
+gitlink = subprocess.run(
+    ["git", "ls-tree", "HEAD", contract["runtime"]["submodule_path"]],
+    check=True,
+    text=True,
+    stdout=subprocess.PIPE,
+).stdout.split()[2]
+source_artifact = target["artifacts"][target["framework"]["source_artifact"]]
+assert source_artifact["upstream"]["revision"] == gitlink
 runtime = contract["runtime"]
 policy = runtime["regression_policy"]
 actual = runtime["regression_models"]

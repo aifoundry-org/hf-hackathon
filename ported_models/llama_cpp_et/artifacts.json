@@ -10,7 +10,7 @@
         "type": "git",
         "url": "https://github.com/AFOliveira/llama.cpp.git",
         "branch": "agent/fail-fast-et-runtime",
-        "revision": "27e3f108b759a6e4513ff73cb0f122ac50457b80",
+        "revision": "27e3f10c63c4972ab4cea5858e08d529db01f028",
         "upstream_pr": "https://github.com/aifoundry-org/llama.cpp/pull/18",
         "upstream_author": "AFOliveira",
         "note": "Informational only: this records where the committed submodule mirrors from. CI builds from the committed submodule_path; it does not clone from this URL. To change the framework version, bump the submodule pin in a PR (see ported_models/llama_cpp_et/src/README.md)."
