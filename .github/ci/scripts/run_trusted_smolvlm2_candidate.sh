@@ -66,7 +66,6 @@ run_board() {
     TRUSTED_SMOLVLM2_CPU_BUILD_KEY="$main_runtime_sha" \
     SMOLVLM2_SKIP_PPL="$skip_ppl" \
     SMOLVLM2_SKIP_HOST_REFERENCE="$skip_host" \
-    SOC3_FAIL_ON_MODEL_FAILURE=0 \
     "$repo_root/.github/ci/platform/deploy/soc3-benchmark.sh"
   pull_outputs "$target"
 }

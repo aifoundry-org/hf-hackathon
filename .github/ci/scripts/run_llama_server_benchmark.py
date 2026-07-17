@@ -24,6 +24,16 @@ from benchmark_config_helpers import load_config as load_benchmark_config
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 CONFIG_PATH = REPO_ROOT / ".github" / "ci" / "benchmark_config.json"
+MAX_SAFE_ET_GENERATION_TOKENS = 24
+ET_RUNTIME_FAILURE_MARKERS = (
+    "Stream error (event",
+    "Kernel aborted (event",
+    "ET: stream error callback",
+    "ET: kernel aborted callback",
+    "Couldn't dispatch event:",
+    "Error on kernel launch:",
+    "FATAL SIGNAL RECEIVED",
+)
 
 
 def load_config(path: Path | None = None) -> dict[str, Any]:
@@ -421,6 +431,10 @@ def post_completion(url: str, payload: dict[str, Any], timeout_s: int) -> tuple[
 
 def validate_log(log: str, request_path: str, require_full_offload: bool = True) -> list[str]:
     failures: list[str] = []
+    for marker in ET_RUNTIME_FAILURE_MARKERS:
+        if marker in log:
+            failures.append(f"ET runtime failure marker observed: {marker}")
+            break
     if "using device ET" not in log and "ET device 0" not in log:
         failures.append("ET device use not observed in server log")
     if require_full_offload:
@@ -577,6 +591,21 @@ def main() -> int:
     command_path = run_dir / "command.json"
 
     score = score_common(args.model, variant)
+    max_tokens = int(lcfg.get("max_tokens", 128))
+    min_completion_tokens = int(lcfg.get("min_completion_tokens", 1))
+    if max_tokens > MAX_SAFE_ET_GENERATION_TOKENS:
+        note = (
+            f"unsafe ET generation request: {max_tokens} tokens exceeds the "
+            f"per-process limit {MAX_SAFE_ET_GENERATION_TOKENS}"
+        )
+        score.update({"status": "fail", "passed": False, "note": note, "valid_note": note})
+        write_score(score_path, score)
+        return 2
+    if min_completion_tokens > max_tokens:
+        note = f"min_completion_tokens {min_completion_tokens} exceeds max_tokens {max_tokens}"
+        score.update({"status": "fail", "passed": False, "note": note, "valid_note": note})
+        write_score(score_path, score)
+        return 2
 
     try:
         if lcfg.get("server_artifact"):
@@ -595,15 +624,13 @@ def main() -> int:
         note = f"artifact setup failed: {exc}"
         score.update({"status": "fail", "note": note, "valid_note": note})
         write_score(score_path, score)
-        return 0
+        return 1
     host = str(env_value("LFM25_HOST", lcfg.get("host", "127.0.0.1")))
     port = int(env_value("LFM25_PORT", lcfg.get("port", 18080)))
     device = str(env_value("LFM25_DEVICE", lcfg.get("device", "ET")))
-    board_lock = Path(os.environ.get("BOARD_LOCK", "/var/lock/etsoc-shire0.lock"))
+    board_lock = Path(os.environ.get("BOARD_LOCK", "/var/lib/et-soc1-ci/board.lock"))
     ready_timeout_s = int(lcfg.get("ready_timeout_s", 120))
     request_timeout_s = int(lcfg.get("request_timeout_s", 240))
-    min_completion_tokens = int(lcfg.get("min_completion_tokens", 1))
-
     ppl_bin = None
     pcfg = lcfg.get("perplexity", {})
     if pcfg.get("enabled", False):
@@ -617,7 +644,7 @@ def main() -> int:
         note = f"artifact setup failed: {exc}"
         score.update({"status": "fail", "note": note, "valid_note": note})
         write_score(score_path, score)
-        return 0
+        return 1
 
     missing = []
     if not is_file(server_bin):
@@ -629,7 +656,7 @@ def main() -> int:
     if missing:
         score.update({"status": "skipped", "note": "; ".join(missing), "valid_note": "; ".join(missing)})
         write_score(score_path, score)
-        return 0
+        return 1
 
     cmd = [
         str(server_bin),
@@ -703,7 +730,7 @@ def main() -> int:
             if not ready:
                 score.update({"status": "fail", "note": ready_note, "valid_note": ready_note})
                 write_score(score_path, score)
-                return 0
+                return 1
 
             status, response = post_completion(
                 f"http://{host}:{port}{request_path}",
@@ -726,7 +753,7 @@ def main() -> int:
         note = f"llama-server benchmark error: {exc}"
         score.update({"status": "fail", "note": note, "valid_note": note})
         write_score(score_path, score)
-        return 0
+        return 1
     finally:
         terminate(proc)
         if lock_file is not None:
@@ -810,7 +837,7 @@ def main() -> int:
         }
     )
     write_score(score_path, score)
-    return 0
+    return 0 if passed else 1
 
 
 if __name__ == "__main__":

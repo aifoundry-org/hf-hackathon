@@ -59,14 +59,21 @@ ET_INSTALL = os.environ.get("ET_INSTALL", "/opt/et")
 ET_PLATFORM = os.environ.get("ET_PLATFORM", ET_INSTALL)
 ET_PLATFORM_SRC = os.environ.get("ET_PLATFORM_SRC", "")
 ET_LIB_PATH = os.environ.get("ET_LIB_PATH", "")
-BOARD_LOCK = os.environ.get("BOARD_LOCK", "/var/lock/etsoc-shire0.lock")
+BOARD_LOCK = os.environ.get("BOARD_LOCK", "/var/lib/et-soc1-ci/board.lock")
+BOARD_QUARANTINE_FILE = os.environ.get(
+    "ET_BOARD_QUARANTINE_FILE", "/var/lib/et-soc1-ci/quarantine"
+)
 DEFAULT_SHIRE = _int("DEFAULT_SHIRE", 0)
 KERNEL_TIMEOUT = _int("KERNEL_TIMEOUT", 120)
 MEM_SIZE = _int("MEM_SIZE", 16777216)
 ZERO_BIN = os.environ.get("ZERO_BIN", "")
 
 SMOKE_ELF = os.environ.get(
-    "SMOKE_ELF", "/opt/et/kernels/histogram.erbium-soc1sim.elf"
+    "SMOKE_ELF", "/opt/et/lib/esperanto-fw/kernels/empty.elf"
+)
+SMOKE_ELF_SHA256 = os.environ.get(
+    "SMOKE_ELF_SHA256",
+    "73756f7b4201f2becafdd561a0d3cfa15424799e63459038f13e439600e6c598",
 )
 
 SIM_ONLY_PUBLIC = os.environ.get("SIM_ONLY_PUBLIC", "1") == "1"

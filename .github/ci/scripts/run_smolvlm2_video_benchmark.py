@@ -52,6 +52,19 @@ def unsupported_vision_ops(log: str) -> set[str]:
 
 def log_failures(log: str, *, mode: str, request_count: int, allowed_ops: set[str]) -> list[str]:
     failures: list[str] = []
+    if mode == "board":
+        for marker in (
+            "Stream error (event",
+            "Kernel aborted (event",
+            "ET: stream error callback",
+            "ET: kernel aborted callback",
+            "Couldn't dispatch event:",
+            "Error on kernel launch:",
+            "FATAL SIGNAL RECEIVED",
+        ):
+            if marker in log:
+                failures.append(f"board: ET runtime failure marker observed: {marker}")
+                break
     observed_requests = log.count(f"done request: POST {REQUEST_PATH}")
     if observed_requests != request_count:
         failures.append(f"{mode}: observed {observed_requests}/{request_count} completed requests")
@@ -797,7 +810,7 @@ def main() -> int:
         write_score(score_path, score)
         return 0
 
-    board_lock = Path(os.environ.get("BOARD_LOCK", "/var/lock/etsoc-shire0.lock"))
+    board_lock = Path(os.environ.get("BOARD_LOCK", "/var/lib/et-soc1-ci/board.lock"))
     board_lock.parent.mkdir(parents=True, exist_ok=True)
     ppl_metrics: dict[str, Any] = {}
     cpu_ppl_metrics: dict[str, Any] = {}

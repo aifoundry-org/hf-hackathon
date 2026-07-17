@@ -1,14 +1,29 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
+import shlex
 import subprocess
 import sys
+from datetime import datetime, timezone
 from pathlib import Path
 
 from . import config
 from .db import job_log_dir
+
+ET_KERNEL_ERROR_RE = re.compile(
+    r"ET [0-9a-fA-F:.]+: Error Event Detected|OPS Kernel Launch|CM Runtime|"
+    r"MM2CMLaunch|KernelLaunch Failed|Execution error|illegal instruction|"
+    r"Couldn.t dispatch event:"
+)
+ET_RUNTIME_ERROR_RE = re.compile(
+    r"Stream error \(event|Kernel aborted \(event|Error on kernel launch:|"
+    r"FATAL SIGNAL RECEIVED|Couldn.t dispatch event:|OPS Kernel Launch|"
+    r"CM Runtime|MM2CMLaunch|KernelLaunch Failed|Execution error|illegal instruction"
+)
+SMOKE_DUMP_SIZE = 8192
 
 
 def _log_path(job_id: str, stage: str) -> Path:
@@ -21,6 +36,75 @@ def parse_kernel_wait(log_path: Path) -> float | None:
     text = log_path.read_text(errors="ignore")
     m = re.search(r"Kernel wait seconds:\s*([0-9.]+)", text)
     return float(m.group(1)) if m else None
+
+
+def _mark_board_quarantined(reason: str) -> None:
+    path = Path(config.BOARD_QUARANTINE_FILE)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    boot_id_path = Path("/proc/sys/kernel/random/boot_id")
+    boot_id = boot_id_path.read_text().strip() if boot_id_path.is_file() else "unknown"
+    path.write_text(
+        "\n".join(
+            [
+                f"time_utc={datetime.now(timezone.utc).isoformat()}",
+                f"host={os.uname().nodename}",
+                f"boot_id={boot_id}",
+                f"reason={reason}",
+                "",
+            ]
+        )
+    )
+
+
+def _kernel_error_lines() -> list[str]:
+    proc = subprocess.run(
+        ["dmesg"],
+        text=True,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        check=False,
+    )
+    if proc.returncode != 0:
+        raise RuntimeError(f"cannot inspect kernel log: {proc.stderr.strip()}")
+    return [line for line in proc.stdout.splitlines() if ET_KERNEL_ERROR_RE.search(line)]
+
+
+def _require_clean_board_state() -> None:
+    quarantine = Path(config.BOARD_QUARANTINE_FILE)
+    if quarantine.is_file():
+        raise RuntimeError(
+            "ET-SoC1 is quarantined; a maintainer must verify an external power cycle "
+            f"and clear {quarantine}"
+        )
+    try:
+        errors = _kernel_error_lines()
+    except Exception as exc:
+        _mark_board_quarantined(str(exc))
+        raise
+    if errors:
+        reason = "kernel log already contains ET runtime or firmware errors"
+        _mark_board_quarantined(reason)
+        raise RuntimeError(f"{reason}: {errors[-1]}")
+
+
+def _reject_board_errors(stage: str, log_path: Path | None = None) -> None:
+    failures: list[str] = []
+    if log_path is not None and log_path.is_file():
+        text = log_path.read_text(errors="replace")
+        match = ET_RUNTIME_ERROR_RE.search(text)
+        if match:
+            failures.append(f"runtime marker {match.group(0)!r}")
+    try:
+        kernel_errors = _kernel_error_lines()
+    except Exception as exc:
+        failures.append(str(exc))
+        kernel_errors = []
+    if kernel_errors:
+        failures.append(kernel_errors[-1])
+    if failures:
+        reason = f"{stage} produced an ET runtime or firmware error: {'; '.join(failures)}"
+        _mark_board_quarantined(reason)
+        raise RuntimeError(reason)
 
 
 def run_cmd(cmd: list[str], log_file: Path, env: dict[str, str] | None = None) -> int:
@@ -101,6 +185,7 @@ def run_kernel(
     elf: str,
     stage: str,
     extra_file_loads: list[str] | None = None,
+    verify_zero_dump: bool = False,
 ) -> dict:
     if config.DRY_RUN:
         return run_dry_run(job_id=job_id, device=device, elf=elf, stage=stage)
@@ -124,13 +209,32 @@ def run_kernel(
     if extra_file_loads:
         for fl in extra_file_loads:
             cmd.append(f"--file_load={fl}")
+    dump_path = log_file.with_suffix(".dump.bin")
+    if verify_zero_dump:
+        dump_path.unlink(missing_ok=True)
+        cmd.extend(
+            [
+                f"--dump_after={dump_path}",
+                f"--dump_size={SMOKE_DUMP_SIZE}",
+            ]
+        )
 
     lock = config.BOARD_LOCK
     if device == "soc1sim" and Path(lock).parent.is_dir():
-        shell_cmd = f"flock -x -w 600 {lock} {' '.join(cmd)}"
+        shell_cmd = f"flock -x -w 600 {shlex.quote(lock)} {shlex.join(cmd)}"
         rc = run_cmd(["bash", "-lc", shell_cmd], log_file, {"LD_LIBRARY_PATH": ld})
     else:
         rc = run_cmd(cmd, log_file, {"LD_LIBRARY_PATH": ld})
+
+    if rc == 0 and verify_zero_dump:
+        if not dump_path.is_file():
+            with log_file.open("a") as log:
+                log.write("error: deterministic smoke dump was not produced\n")
+            rc = 1
+        elif dump_path.read_bytes() != b"\0" * SMOKE_DUMP_SIZE:
+            with log_file.open("a") as log:
+                log.write("error: deterministic smoke dump does not match zero input\n")
+            rc = 1
 
     wait_s = parse_kernel_wait(log_file)
     return {
@@ -165,25 +269,40 @@ def run_sim_benchmark(job_id: str, model: str) -> dict:
 
 
 def run_sim_smoke(job_id: str) -> dict:
-    return run_kernel(job_id=job_id, device="sys_emu", elf=_resolve_smoke_elf(), stage="sim")
+    elf = config.SMOKE_ELF if config.DRY_RUN else _resolve_smoke_elf()
+    return run_kernel(job_id=job_id, device="sys_emu", elf=elf, stage="sim")
 
 
 def _resolve_smoke_elf() -> str:
     elf = config.SMOKE_ELF
-    if Path(elf).is_file():
-        return elf
-    for alt in [
-        config.REPO_ROOT / "local-artifacts/kernels/histogram.erbium-soc1sim.elf",
-        config.MODEL_PORT_ARTIFACTS / "yolo-bench/yolo_m30.elf",
-    ]:
-        if alt.is_file():
-            return str(alt)
-    raise FileNotFoundError(f"SMOKE_ELF missing: {config.SMOKE_ELF}")
+    path = Path(elf)
+    if not path.is_file():
+        raise FileNotFoundError(f"SMOKE_ELF missing: {config.SMOKE_ELF}")
+    actual = hashlib.sha256(path.read_bytes()).hexdigest()
+    if actual != config.SMOKE_ELF_SHA256:
+        raise RuntimeError(
+            f"SMOKE_ELF sha256 {actual} != pinned {config.SMOKE_ELF_SHA256}"
+        )
+    return elf
 
 
 def run_board_smoke(job_id: str) -> dict:
-    elf = _resolve_smoke_elf()
-    return run_kernel(job_id=job_id, device="soc1sim", elf=elf, stage="board")
+    if not config.DRY_RUN:
+        _require_clean_board_state()
+    elf = config.SMOKE_ELF if config.DRY_RUN else _resolve_smoke_elf()
+    result = run_kernel(
+        job_id=job_id,
+        device="soc1sim",
+        elf=elf,
+        stage="board-smoke",
+        verify_zero_dump=True,
+    )
+    if not config.DRY_RUN:
+        log_path = Path(result["log"])
+        if result["returncode"] != 0:
+            _mark_board_quarantined("deterministic board smoke launcher failed")
+        _reject_board_errors("deterministic board smoke", log_path)
+    return result
 
 
 def run_board_benchmark(job_id: str, model: str) -> dict:
@@ -192,6 +311,9 @@ def run_board_benchmark(job_id: str, model: str) -> dict:
     script = config.REPO_ROOT / ".github/ci/scripts/run_model_benchmark.sh"
     if not script.is_file():
         return run_board_benchmark_legacy(job_id, model)
+    smoke = run_board_smoke(job_id)
+    if smoke.get("returncode") != 0:
+        return {"returncode": 2, "preflight": smoke, "score": {}, "log": smoke["log"]}
     env = {
         "BENCHMARK_DEVICE": "soc1sim",
         "BOARD_BENCHMARK": "1",
@@ -210,11 +332,18 @@ def run_board_benchmark(job_id: str, model: str) -> dict:
     score: dict = {}
     if score_path.is_file():
         score = json.loads(score_path.read_text())
+    if not config.DRY_RUN:
+        _reject_board_errors(model, log_file)
+    if not score.get("passed") and rc == 0:
+        rc = 1
     return {"returncode": rc, "score": score, "log": str(log_file)}
 
 
 def run_board_benchmark_legacy(job_id: str, model: str) -> dict:
     """Fallback: single-kernel run when CI scripts are missing."""
+    smoke = run_board_smoke(job_id)
+    if smoke.get("returncode") != 0:
+        return {"returncode": 2, "preflight": smoke, "log": smoke["log"]}
     sys.path.insert(0, str(config.REPO_ROOT / ".github/ci/scripts"))
     from benchmark_config_helpers import load_config
 
@@ -225,12 +354,15 @@ def run_board_benchmark_legacy(job_id: str, model: str) -> dict:
     elf = config.MODEL_PORT_ARTIFACTS / bench_dir / elf_name
     if not elf.is_file():
         raise FileNotFoundError(f"ELF not found for board run: {elf_name}")
-    return run_kernel(
+    result = run_kernel(
         job_id=job_id,
         device="soc1sim",
         elf=str(elf),
         stage="board",
     )
+    if not config.DRY_RUN:
+        _reject_board_errors(model, Path(result["log"]))
+    return result
 
 
 def main() -> int:

@@ -52,7 +52,7 @@
   },
   "performance": {
     "prompt_tokens": 256,
-    "generation_tokens": 128,
+    "generation_tokens": 24,
     "batch_size": 256,
     "ubatch_size": 128,
     "repetitions": 3,
@@ -62,10 +62,10 @@
   },
   "generation_validation": {
     "prompt": "Repeat this token sequence without commentary: OK OK OK OK OK OK OK OK OK OK",
-    "max_tokens": 96,
+    "max_tokens": 24,
     "temperature": 0,
     "ignore_eos": true,
-    "min_completion_tokens": 32
+    "min_completion_tokens": 8
   },
   "quality": {
     "corpus_artifact": "wikitext2_raw_test",

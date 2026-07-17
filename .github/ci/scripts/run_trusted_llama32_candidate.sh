@@ -62,7 +62,6 @@ cp "$baseline_config" "$config"
 MODELS=llama32_1b \
 LLAMA_CPP_ET_SOURCE_REVISION="$main_runtime_sha" \
 TRUSTED_LLAMA_BUILD_KEY="$main_runtime_sha" \
-SOC3_FAIL_ON_MODEL_FAILURE=0 \
   "$repo_root/.github/ci/platform/deploy/soc3-benchmark.sh"
 pull_outputs "$output_dir/baseline"
 
@@ -95,7 +94,6 @@ MODELS="$models" \
 LLAMA_CPP_ET_SOURCE_REVISION="$candidate_runtime_sha" \
 TRUSTED_LLAMA_BUILD_KEY="$candidate_runtime_sha" \
 TRUSTED_LLAMA_CPU_PPL_BIN="$baseline_cpu_ppl" \
-SOC3_FAIL_ON_MODEL_FAILURE=0 \
   "$repo_root/.github/ci/platform/deploy/soc3-benchmark.sh"
 pull_outputs "$output_dir/candidate"
 

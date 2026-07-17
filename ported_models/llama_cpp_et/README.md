@@ -6,9 +6,10 @@ This folder owns GGUF model ports that run through the public ET-backed
 The framework source is committed under `src/llama.cpp-et` as a pinned git
 submodule, mirrored from:
 
-- `https://github.com/aifoundry-org/llama.cpp.git`
-- branch `et`
-- revision `cc4049d86b14e4ef72f827f3bb767b577f18fbcd`
+- `https://github.com/AFOliveira/llama.cpp.git`
+- branch `agent/fail-fast-et-runtime`
+- revision `27e3f108b759a6e4513ff73cb0f122ac50457b80`
+- upstream review: `https://github.com/aifoundry-org/llama.cpp/pull/18`
 
 **CI builds llama.cpp from the committed submodule.** A reviewer reading a PR
 can see exactly which framework version will run on the board. To change it,
@@ -26,6 +27,12 @@ present on the runner without any extra step.
 Each benchmark under `benchmarks/` selects one GGUF artifact, runs
 `llama-server` on the `ET` device, records decode tokens/second, and runs
 `llama-perplexity` on WikiText-2 raw.
+
+The pinned backend propagates every failed operation, records asynchronous
+runtime callbacks, and drains the ET stream after at most 4,096 queued kernels.
+That bound prevents the 16-bit runtime event namespace from wrapping while an
+older event is still live. The corresponding allocator fix is under upstream
+review in `aifoundry-org/et-platform#134`.
 
 The default main-branch board run only executes the canonical smoke set. Extra
 ET-supported candidates can be run explicitly, for example:

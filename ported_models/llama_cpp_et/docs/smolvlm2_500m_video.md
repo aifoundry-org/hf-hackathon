@@ -9,7 +9,7 @@ baseline, not a fully optimized vision implementation.
 - Hugging Face model: `HuggingFaceTB/SmolVLM2-500M-Video-Instruct`
 - Revision: `7b375e1b73b11138ff12fe22c8f2822d8fe03467`
 - Baseline artifacts: Q8_0 model and Q8_0 multimodal projector
-- Runtime revision: `cc4049d86b14e4ef72f827f3bb767b577f18fbcd`
+- Runtime revision: `27e3f108b759a6e4513ff73cb0f122ac50457b80`
 - Full hashes and public fixtures: `.github/ci/reference/smolvlm2_500m_video.json`
 
 The canonical GGUF files are pinned from

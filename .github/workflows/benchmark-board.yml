@@ -2,10 +2,10 @@ name: ET-SoC1 board benchmark
 
 # Runs leaderboard smoke on a self-hosted ET-SoC1 board runner (real silicon, soc1sim).
 #
-# External fork PRs only reach the board job after GitHub's required
-# external-contributor workflow approval gate has released the run. Same-repo
-# PRs and pushes to main select the changed configured board models and run them
-# on the self-hosted ET-SoC1 runner. Pushes to main can update data/*.json.
+# External fork PR code is never executed directly on the root-owned board
+# runner; those submissions use main-owned trusted gates. Maintainer PRs and
+# pushes to main select changed configured board models and run them on the
+# self-hosted ET-SoC1 runner. Pushes to main can update data/*.json.
 # Manual dispatches can run the default board suite or all configured models.
 
 on:
@@ -83,8 +83,8 @@ jobs:
                 allowed=1
                 reason="The main-owned trusted workflow applies only allowlisted YOLO implementation paths and exposes no repository secrets."
               elif [[ "$external_pr" == "1" ]]; then
-                allowed=1
-                reason="External fork PR workflow was released by GitHub's required external-contributor approval gate."
+                allowed=0
+                reason="External PR code is never executed directly as root on the board host; use the main-owned trusted model gate."
               else
                 allowed=0
                 reason="@${ACTOR} has ${permission} permission. Ask an admin or maintainer to run the board workflow."
@@ -336,6 +336,7 @@ jobs:
       MODELS: ${{ needs.select-board-models.outputs.models }}
       SOC3_LOCAL: ${{ vars.SOC3_LOCAL || '1' }}
       SOC3_HOST: ${{ vars.SOC3_HOST || 'local' }}
+      SOC3_REQUIRE_LOCAL: "1"
       SOC3_SSH_ALIAS: ${{ vars.SOC3_SSH_ALIAS || 'aifoundry1' }}
       SOC3_SSH_KEY: ${{ vars.SOC3_SSH_KEY || '/root/.ssh/id_rsa' }}
       USE_TAILSCALE_SSH: "0"
@@ -343,7 +344,6 @@ jobs:
       ET_INSTALL: ${{ vars.AIFOUNDRY1_SOC3_BUILD_ET || '/opt/et' }}
       SOC3_REMOTE_ET_INSTALL: ${{ vars.AIFOUNDRY1_SOC3_REMOTE_ET_INSTALL || '/opt/et' }}
       SOC3_REMOTE_ET_PLATFORM: ${{ vars.AIFOUNDRY1_SOC3_REMOTE_ET_PLATFORM || '/opt/et' }}
-      SOC3_FAIL_ON_MODEL_FAILURE: ${{ inputs.trusted_yolo && '1' || vars.AIFOUNDRY1_SOC3_FAIL_ON_MODEL_FAILURE || '0' }}
       ET_PLATFORM_SRC: ${{ vars.AIFOUNDRY1_ET_PLATFORM_SRC || '' }}
       LAUNCHER: ${{ vars.AIFOUNDRY1_SOC3_LAUNCHER || '' }}
       ET_LIB_PATH: ${{ vars.AIFOUNDRY1_SOC3_ET_LIB_PATH || '/opt/et/host:/opt/et/lib' }}
@@ -564,11 +564,6 @@ jobs:
       - name: Run board benchmarks
         id: board_run
         if: steps.board-access.outputs.run_board == '1'
-        # On PRs the board run is informational: per-model pass/fail is reported in
-        # the PR comment and scores, so a model that does not build yet must not
-        # red-X the PR. Pushes to main stay strict (the leaderboard update depends
-        # on a clean board run).
-        continue-on-error: ${{ github.event_name == 'pull_request' }}
         env:
           BENCHMARK_SHA: ${{ steps.bench.outputs.sha }}
           BENCHMARK_REF: ${{ steps.bench.outputs.ref }}

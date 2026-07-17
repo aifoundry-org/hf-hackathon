@@ -27,6 +27,9 @@ YOLO_DETECTION = struct.Struct("<I5f")
 RUNTIME_FAILURE_MARKERS = (
     "Stream error (event",
     "Kernel aborted (event",
+    "ET: stream error callback",
+    "ET: kernel aborted callback",
+    "Couldn't dispatch event:",
     "Error on kernel launch:",
     "FATAL SIGNAL RECEIVED",
 )

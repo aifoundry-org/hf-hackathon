@@ -25,6 +25,8 @@ from run_llama_server_benchmark import (
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 LEGACY_RUNNER = REPO_ROOT / ".github" / "ci" / "scripts" / "run_llama_server_benchmark.py"
+MAX_SAFE_ET_GENERATION_TOKENS = 24
+MAX_SAFE_ET_BENCH_DECODE_TOKENS = 72
 
 
 def contract_sha256(path: Path) -> str:
@@ -53,6 +55,19 @@ def effective_config(config_path: Path, contract: dict[str, Any], output: Path) 
     runtime = contract["runtime"]
     generation = contract["generation_validation"]
     quality = contract["quality"]
+    max_tokens = int(generation["max_tokens"])
+    if max_tokens > MAX_SAFE_ET_GENERATION_TOKENS:
+        raise RuntimeError(
+            f"generation contract requests {max_tokens} tokens; "
+            f"safe ET limit is {MAX_SAFE_ET_GENERATION_TOKENS}"
+        )
+    decode_tokens = int(contract["performance"]["generation_tokens"])
+    repetitions = int(contract["performance"]["repetitions"])
+    if decode_tokens * repetitions > MAX_SAFE_ET_BENCH_DECODE_TOKENS:
+        raise RuntimeError(
+            f"llama-bench requests {decode_tokens * repetitions} decode tokens "
+            f"in one process; safe ET limit is {MAX_SAFE_ET_BENCH_DECODE_TOKENS}"
+        )
     lcfg.update(
         {
             "device": runtime["required_device"],
@@ -60,7 +75,7 @@ def effective_config(config_path: Path, contract: dict[str, Any], output: Path) 
             "require_full_offload": runtime["require_full_offload"],
             "api": "completion",
             "prompt": generation["prompt"],
-            "max_tokens": generation["max_tokens"],
+            "max_tokens": max_tokens,
             "temperature": generation["temperature"],
             "ignore_eos": generation["ignore_eos"],
             "min_completion_tokens": generation["min_completion_tokens"],
@@ -380,7 +395,11 @@ def main() -> int:
     score["passed"] = not failures
     score["status"] = "pass" if not failures else "fail"
     score["valid_note"] = (
-        "trusted Llama ET/CPU quality and PP256/TG128 performance passed"
+        (
+            "trusted Llama ET/CPU quality and "
+            f"PP{contract['performance']['prompt_tokens']}/"
+            f"TG{contract['performance']['generation_tokens']} performance passed"
+        )
         if not failures
         else "; ".join(failures)
     )

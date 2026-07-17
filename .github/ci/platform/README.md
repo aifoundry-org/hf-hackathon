@@ -43,6 +43,27 @@ Board host: set `JOBS_API_URL=https://your-public-api` and run `worker --pool bo
 ## Board recovery policy
 
 CI never resets or power-cycles an ET-SoC1. Each direct board session runs a
-small preflight kernel and fails closed if the card is not healthy. After a
-firmware or kernel-launch failure, stop the queue, diagnose the first failure,
-and have a maintainer perform one external power cycle before rerunning CI.
+checksum-pinned SDK `empty.elf` preflight, verifies a deterministic memory dump,
+and fails closed if the card is not healthy. A runtime or firmware error writes
+`/var/lib/et-soc1-ci/quarantine`; every later job refuses to touch the card.
+
+Recovery is manual: stop the Actions runner, diagnose the first failure, perform
+one external power cycle, then run
+`.github/ci/platform/deploy/clear-board-quarantine.sh --after-external-power-cycle`.
+The command refuses to clear quarantine unless the host boot ID changed and the
+new boot has no ET errors. Re-enable the runner only after the deterministic
+preflight passes.
+
+The root-owned Actions service must also be provisioned with
+`deploy/install-actions-runner-safety.sh`. Its systemd policy makes kernel
+controls read-only, removes mount/reboot/module capabilities and syscalls, and
+denies network access to the iBoot controller. It applies the restriction to
+every process launched by CI. The installer never starts or restarts the
+runner. Board workflows also require local transport so they cannot escape
+that service sandbox through a second SSH session.
+
+The llama.cpp ET backend drains its stream before 4,096 queued kernels, far
+below the runtime's 65,536-value event namespace. The runtime allocator fix
+that safely skips live IDs at wraparound is tracked in
+`aifoundry-org/et-platform#134`; the backend-side bound protects CI even while a
+host still has the older SDK runtime.

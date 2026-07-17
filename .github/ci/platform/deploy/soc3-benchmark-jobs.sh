@@ -42,7 +42,10 @@ export ET_INSTALL="${ET_INSTALL:-/opt/et}"
 export ET_PLATFORM="${ET_PLATFORM:-$ET_INSTALL}"
 export LAUNCHER="${LAUNCHER:-/opt/et/bin/erbium_soc1sim_argbuf_dynmem}"
 export ET_LIB_PATH="${ET_LIB_PATH:-/opt/et/host:/opt/et/lib}"
-export BOARD_LOCK="${BOARD_LOCK:-/var/lock/etsoc-shire0.lock}"
+export BOARD_LOCK="${BOARD_LOCK:-/var/lib/et-soc1-ci/board.lock}"
+export SMOKE_ELF="${SMOKE_ELF:-/opt/et/lib/esperanto-fw/kernels/empty.elf}"
+export SMOKE_ELF_SHA256="${SMOKE_ELF_SHA256:-73756f7b4201f2becafdd561a0d3cfa15424799e63459038f13e439600e6c598}"
+export ET_BOARD_QUARANTINE_FILE="${ET_BOARD_QUARANTINE_FILE:-/var/lib/et-soc1-ci/quarantine}"
 export SIM_ONLY_PUBLIC=1
 
 for candidate in "$HOME/et-platform" "$HOME/et" /root/et-platform "$DEST/et-platform"; do
@@ -68,7 +71,8 @@ curl -sf "$JOBS_API_URL/health" >/dev/null
 nohup env PYTHONPATH="$PLATFORM" JOBS_API_URL="$JOBS_API_URL" JOBS_DATA_DIR="$JOBS_DATA_DIR" \
   WORKER_TOKENS="$WORKER_TOKENS" HOST_ID="$HOST_ID" JOBS_REPO_ROOT="$JOBS_REPO_ROOT" \
   LAUNCHER="$LAUNCHER" ET_INSTALL="$ET_INSTALL" ET_PLATFORM="$ET_PLATFORM" ET_PLATFORM_SRC="$ET_PLATFORM_SRC" \
-  ET_LIB_PATH="$ET_LIB_PATH" BOARD_LOCK="$BOARD_LOCK" \
+  ET_LIB_PATH="$ET_LIB_PATH" BOARD_LOCK="$BOARD_LOCK" SMOKE_ELF="$SMOKE_ELF" \
+  SMOKE_ELF_SHA256="$SMOKE_ELF_SHA256" ET_BOARD_QUARANTINE_FILE="$ET_BOARD_QUARANTINE_FILE" \
   ET_JOBS_DRY_RUN=0 KERNEL_TIMEOUT=600 \
   python3 -m et_jobs worker --pool board >"$JOBS_DATA_DIR/run/board.log" 2>&1 &
 echo $! >"$JOBS_DATA_DIR/run/board.pid"
