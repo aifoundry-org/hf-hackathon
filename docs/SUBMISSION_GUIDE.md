@@ -118,15 +118,25 @@ commit, and keeps the model identity, workloads, quality limits, runner, and
 leaderboard baselines under main-branch control. A passing result requires:
 
 - full ET offload and deterministic generation from the contracted model;
-- ET WikiText-2 PPL within 2% of a CPU run of the same GGUF;
+- a short WikiText-2 PPL check on the trusted CPU reference;
 - PPL no more than 20% worse than the best leaderboard PPL;
-- three stable PP256/TG24 runs, with decode throughput at least 1% faster than
-  paired current main and strictly faster than the best score made under the
-  same measurement contract;
-- for a shared runtime change, passing PPL and decode throughput no more than
-  1% below the trusted baseline for every existing `llama.cpp-et` leaderboard
-  text model. SmolVLM2 runtime compatibility is covered by its separate paired
-  trusted gate.
+- one bounded `llama-server` request (18 prompt tokens and 24 decode tokens),
+  with decode throughput at least 1% faster than paired current main and
+  strictly faster than the best score made under the same measurement contract;
+- for a shared runtime change, the same gate plus the bounded Qwen2.5-0.5B
+  cross-architecture sentinel. SmolVLM2 runtime compatibility is covered by
+  its separate paired trusted gate.
+
+The ET correctness/performance request is deliberately a single runtime
+process. The current device protocol has 16-bit event IDs; running an additional
+ET PPL/`llama-bench` process in the same score can alias a delayed response from
+an earlier event generation. CPU PPL still gates model quality without creating
+that unsafe second ET runtime.
+
+The SmolVLM2 video score follows the same safety boundary: its single profiled
+request is reused for correctness, so there is no warm-up or second board
+server. Firmware `device_cmd_exec_dur` cycles remain the primary speed metric;
+PPL runs through the candidate and current-main CPU reference binaries.
 
 Runtime optimizations repin
 `ported_models/llama_cpp_et/src/llama.cpp-et`. A different quantized GGUF is

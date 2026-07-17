@@ -485,7 +485,7 @@ if [[ -f "$_launcher_lib_dir/libetrt.so" \
 fi
 
 ET_KERNEL_ERROR_PATTERN='ET [0-9a-fA-F:.]+: Error Event Detected|OPS Kernel Launch|CM Runtime|MM2CMLaunch|KernelLaunch Failed|Execution error|illegal instruction|Couldn.t dispatch event:'
-ET_RUNTIME_ERROR_PATTERN='Stream error \(event|Kernel aborted \(event|Error on kernel launch:|FATAL SIGNAL RECEIVED|Couldn.t dispatch event:|OPS Kernel Launch|CM Runtime|MM2CMLaunch|KernelLaunch Failed|Execution error|illegal instruction'
+ET_RUNTIME_ERROR_PATTERN='Stream error \(event|Kernel aborted \(event|ET runtime did not terminate cleanly|Error on kernel launch:|FATAL SIGNAL RECEIVED|Couldn.t dispatch event:|OPS Kernel Launch|CM Runtime|MM2CMLaunch|KernelLaunch Failed|Execution error|illegal instruction'
 
 mark_board_quarantined() {
   local reason="$1"

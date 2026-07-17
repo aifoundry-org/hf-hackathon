@@ -359,7 +359,10 @@ assert actual == ["qwen25_05b"]
 assert cfg["models"][actual[0]]["framework"]["name"] == "llama.cpp-et"
 assert cfg["models"][actual[0]]["runner"] == "llama_server"
 build = target["artifacts"]["llama_cpp_build"]["build"]
-assert build["targets"] == ["llama-server", "llama-perplexity", "llama-bench"]
+assert build["targets"] == ["llama-server", "llama-perplexity"]
+assert contract["performance"]["tool"] == "llama-server"
+assert contract["performance"]["repetitions"] == 1
+assert contract["quality"]["reference_device"] == "CPU"
 
 rwkv = cfg["models"]["rwkv7_15b"]
 assert rwkv["reference_contract"] == ".github/ci/reference/rwkv7_15b.json"

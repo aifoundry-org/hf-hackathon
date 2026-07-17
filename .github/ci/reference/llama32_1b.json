@@ -5,7 +5,8 @@
   "legacy_quality_baseline_compatible": true,
   "base_model": {
     "name": "Llama-3.2-1B-Instruct",
-    "architecture_prefix": "llama 1B",
+    "architecture": "llama",
+    "model_type": "1B",
     "parameter_count": 1235814432,
     "license": "llama3.2",
     "tokenizer_must_match_base": true
@@ -46,13 +47,13 @@
     }
   },
   "performance": {
-    "prompt_tokens": 256,
+    "tool": "llama-server",
+    "prompt_tokens": 18,
     "generation_tokens": 24,
     "batch_size": 256,
     "ubatch_size": 128,
-    "repetitions": 3,
+    "repetitions": 1,
     "min_relative_improvement": 0.01,
-    "max_sample_cv": 0.05,
     "primary_metric": "tokens_per_second"
   },
   "generation_validation": {
@@ -69,7 +70,7 @@
     "ubatch_size": 128,
     "chunks": 4,
     "max_ppl_regression": 0.2,
-    "max_et_cpu_ppl_relative_difference": 0.02
+    "reference_device": "CPU"
   },
   "allowed_tuning": {
     "batch_size": {

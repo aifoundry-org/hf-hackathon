@@ -63,9 +63,12 @@ launched by CI. The installer never starts or restarts the runner. Board
 workflows also require local transport so they cannot escape that service
 sandbox through a second SSH session.
 
-The llama.cpp ET backend drains its stream before 4,096 queued kernels, far
-below the runtime's 65,536-value event namespace. This is defense in depth, not
-a substitute for the allocator fix merged in `aifoundry-org/et-platform#134`.
+The llama.cpp ET backend drains its stream before 4,096 queued kernels, and each
+text-model score launches exactly one bounded ET generation process. The latter
+is required because the 16-bit device event tag cannot distinguish a delayed
+response from a recycled ID in another event generation. CPU PPL supplies the
+short model-quality gate without opening a second ET runtime. The allocator fix
+merged in `aifoundry-org/et-platform#134` remains required defense in depth.
 Every board job verifies the exact source revision plus both the shared
 `libetrt.so` and static `libetrt_static.a` hashes in
 `.github/ci/reference/et_runtime.json` before building candidate code. The
@@ -73,3 +76,8 @@ static archive matters because `libggml-et.so` incorporates it at link time.
 Provision those audited libraries with `deploy/install-et-runtime-contract.sh`;
 the installer archives the previous libraries, writes a root-owned manifest,
 and never starts the runner or accesses the card.
+
+After any manual host build or runtime replacement, run `sync` and verify all
+expected ELF files are non-empty before an external power cycle. Otherwise a
+host power loss can persist zero-length build outputs even though the linker
+reported success.

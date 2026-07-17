@@ -90,8 +90,8 @@ def main() -> int:
         "",
         (
             f"Mode: **{args.mode}**. The candidate uses the main-owned model contract, CPU "
-            "reference, ET quality check, PP256/TG24 benchmark, and bounded shared-runtime "
-            "regression set."
+            "PPL reference, one bounded ET llama-server generation (18 prompt/24 decode "
+            "tokens), and the bounded shared-runtime regression set."
         ),
         "",
         "| Model | Decode tok/s | Baseline/best | PPL | Verdict | Notes |",

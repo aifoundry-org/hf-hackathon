@@ -78,6 +78,7 @@ for entry in "${libraries[@]}"; do
   temporary="${library}.tmp.$$"
   install -m 0644 "$staged_library" "$temporary"
   mv -f "$temporary" "$library"
+  sync -f "$library"
 done
 
 manifest_tmp="${manifest}.tmp.$$"
@@ -101,6 +102,7 @@ with open(path, "w", encoding="utf-8") as handle:
 PY
 chmod 0640 "$manifest_tmp"
 mv -f "$manifest_tmp" "$manifest"
+sync -f "$manifest"
 
 "$ROOT/.github/ci/platform/deploy/verify-et-runtime-contract.sh"
 echo "The runner was not started and the board was not accessed."

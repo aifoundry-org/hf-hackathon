@@ -314,6 +314,14 @@ def ensure_llama_cpp_build(mcfg: dict[str, Any], lcfg: dict[str, Any], server_bi
 
 def verify_et_backend_runtime_guard(server_bin: Path) -> None:
     """Ensure the final ET backend embeds the audited static-runtime guard."""
+    try:
+        with server_bin.open("rb") as handle:
+            if handle.read(4) != b"\x7fELF":
+                raise RuntimeError(
+                    f"llama-server is not a non-empty ELF executable: {server_bin}"
+                )
+    except OSError as exc:
+        raise RuntimeError(f"cannot read llama-server executable: {server_bin}: {exc}") from exc
     backend_dir = server_bin.parent
     candidates = sorted(backend_dir.glob("libggml-et.so*"))
     guarded = []
@@ -389,7 +397,7 @@ def write_score(path: Path, payload: dict[str, Any]) -> None:
 
 def is_file(path: Path) -> bool:
     try:
-        return path.is_file()
+        return path.is_file() and path.stat().st_size > 0
     except OSError:
         return False
 
@@ -401,13 +409,13 @@ def is_dir(path: Path) -> bool:
         return False
 
 
-def terminate(proc: subprocess.Popen[bytes] | None) -> None:
+def terminate(proc: subprocess.Popen[bytes] | None) -> bool:
     if proc is None or proc.poll() is not None:
-        return
+        return True
     proc.terminate()
     try:
-        proc.wait(timeout=4)
-        return
+        proc.wait(timeout=30)
+        return True
     except subprocess.TimeoutExpired:
         pass
     proc.kill()
@@ -415,6 +423,7 @@ def terminate(proc: subprocess.Popen[bytes] | None) -> None:
         proc.wait(timeout=2)
     except subprocess.TimeoutExpired:
         pass
+    return False
 
 
 def wait_ready(proc: subprocess.Popen[bytes], log_path: Path, timeout_s: int) -> tuple[bool, str]:
@@ -531,6 +540,25 @@ def run_perplexity(
         repeat = int(pcfg.get("repeat", 1))
         corpus_path.write_text(((corpus + " ") * repeat).strip() + "\n")
 
+    ppl_device = str(pcfg.get("device", lcfg.get("device", "ET")))
+    ppl_gpu_layers = int(
+        pcfg.get(
+            "gpu_layers",
+            lcfg.get("gpu_layers", 99) if ppl_device.upper() == "ET" else 0,
+        )
+    )
+    # Keep each score to one ET runtime process. The runtime's 16-bit event
+    # IDs can otherwise alias a delayed response from a previous process.
+    # Generation remains the end-to-end ET check; PPL validates model quality.
+    if (
+        os.environ.get("BOARD_BENCHMARK") == "1"
+        and str(lcfg.get("device", "ET")).upper() == "ET"
+        and ppl_device.upper() == "ET"
+    ):
+        print("Board safety: running PPL on CPU to keep this score to one ET process")
+        ppl_device = "CPU"
+        ppl_gpu_layers = 0
+
     cmd = [
         str(ppl_bin),
         "-m",
@@ -538,9 +566,9 @@ def run_perplexity(
         "-f",
         str(corpus_path),
         "-dev",
-        str(lcfg.get("device", "ET")),
+        ppl_device,
         "-ngl",
-        str(lcfg.get("gpu_layers", 99)),
+        str(ppl_gpu_layers),
         "-c",
         str(pcfg.get("ctx_size", 128)),
         "-b",
@@ -574,11 +602,23 @@ def run_perplexity(
 
     text = log_path.read_text(errors="replace")
     metrics = parse_perplexity_log(text)
+    metrics["perplexity_device"] = ppl_device
     if rc != 0:
         failures.append(f"llama-perplexity exited rc={rc}")
-    if "using device ET" not in text and "ET device 0" not in text:
+    for marker in ET_RUNTIME_FAILURE_MARKERS:
+        if marker in text:
+            failures.append(f"perplexity runtime failure marker observed: {marker}")
+            break
+    if (
+        ppl_device.upper() == "ET"
+        and "using device ET" not in text
+        and "ET device 0" not in text
+    ):
         failures.append("ET device use not observed in perplexity log")
-    if lcfg.get("require_full_offload", True):
+    require_ppl_full_offload = bool(
+        pcfg.get("require_full_offload", lcfg.get("require_full_offload", True))
+    )
+    if ppl_device.upper() == "ET" and require_ppl_full_offload:
         match = re.search(r"offloaded\s+([0-9]+)/([0-9]+)\s+layers to GPU", text)
         if not match:
             failures.append("GPU layer offload summary not observed in perplexity log")
@@ -765,7 +805,11 @@ def main() -> int:
                 request_timeout_s,
             )
             response_path.write_text(json.dumps(response, indent=2) + "\n")
-            terminate(proc)
+            if not terminate(proc):
+                (run_dir / "et-runtime-shutdown-failure.log").write_text(
+                    "ET runtime did not terminate cleanly\n"
+                )
+                raise RuntimeError("ET runtime did not terminate cleanly")
             proc = None
             ppl_metrics, ppl_failures = run_perplexity(
                 mcfg=mcfg,
@@ -856,6 +900,13 @@ def main() -> int:
             "perplexity_error": ppl_metrics.get("perplexity_error"),
             "perplexity_tokens": ppl_metrics.get("perplexity_tokens"),
             "perplexity_prompt_tokens_per_second": ppl_metrics.get("perplexity_prompt_tokens_per_second"),
+            "perplexity_device": ppl_metrics.get("perplexity_device"),
+            "et_process_count": (
+                1
+                if os.environ.get("BOARD_BENCHMARK") == "1"
+                and str(lcfg.get("device", "ET")).upper() == "ET"
+                else None
+            ),
             "elapsed_s": elapsed,
             "content_prefix": content[:200],
             "validation_contract_sha256": validation_contract_sha256,

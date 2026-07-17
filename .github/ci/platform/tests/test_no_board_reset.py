@@ -142,14 +142,16 @@ class BoardRecoveryPolicyTests(unittest.TestCase):
         self.assertIn("refusing runtime replacement", installer)
         self.assertIn("The runner was not started and the board was not accessed.", installer)
         llama_runner = (
-            ROOT / ".github/ci/scripts/run_llama_server_benchmark.py"
+            REPO_ROOT / ".github/ci/scripts/run_llama_server_benchmark.py"
         ).read_text()
         smolvlm2_runner = (
-            ROOT / ".github/ci/scripts/run_smolvlm2_video_benchmark.py"
+            REPO_ROOT / ".github/ci/scripts/run_smolvlm2_video_benchmark.py"
         ).read_text()
         self.assertIn("ET_EVENT_ID_GUARD", llama_runner)
         self.assertIn("verify_et_backend_runtime_guard(server_bin)", llama_runner)
         self.assertIn("verify_et_backend_runtime_guard(server_bin)", smolvlm2_runner)
+        self.assertIn("one ET runtime process", llama_runner)
+        self.assertIn('ppl_device = "CPU"', llama_runner)
 
     def test_board_workflows_cannot_escape_sandbox_over_ssh(self) -> None:
         runner = (

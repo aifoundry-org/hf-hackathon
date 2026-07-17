@@ -38,8 +38,7 @@
         ],
         "targets": [
           "llama-server",
-          "llama-perplexity",
-          "llama-bench"
+          "llama-perplexity"
         ]
       },
       "note": "Out-of-tree CMake build of the committed llama_cpp_source submodule. Decoupled from the source path so the submodule working tree stays clean."

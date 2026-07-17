@@ -1,17 +1,23 @@
 #!/usr/bin/env python3
 
 import json
+import struct
+import tempfile
 import unittest
 from pathlib import Path
 
 from prepare_trusted_llama32_candidate import evaluation_mode, validate_track_claim
 from merge_leaderboard import merge_entry
+from run_trusted_llama_benchmark import gguf_parameter_count
 from trusted_llama32_gate import regression_floor
 
 
 ROOT = Path(__file__).resolve().parents[3]
 POLICY = json.loads(
     (ROOT / ".github/ci/reference/llama32_1b_track.json").read_text()
+)
+CONTRACT = json.loads(
+    (ROOT / ".github/ci/reference/llama32_1b.json").read_text()
 )
 
 
@@ -70,6 +76,30 @@ class TrustedLlamaPolicyTests(unittest.TestCase):
 
     def test_regression_floor_allows_configured_noise_only(self):
         self.assertAlmostEqual(regression_floor(100.0, 0.01), 99.0)
+
+    def test_contract_uses_one_bounded_et_server_process(self):
+        self.assertEqual(CONTRACT["performance"]["tool"], "llama-server")
+        self.assertEqual(CONTRACT["performance"]["repetitions"], 1)
+        self.assertEqual(CONTRACT["performance"]["generation_tokens"], 24)
+        self.assertEqual(CONTRACT["quality"]["reference_device"], "CPU")
+
+    def test_gguf_parameter_count_uses_exact_tensor_shapes(self):
+        def string(value: bytes) -> bytes:
+            return struct.pack("<Q", len(value)) + value
+
+        payload = bytearray(b"GGUF")
+        payload += struct.pack("<IQQ", 3, 2, 1)
+        payload += string(b"general.name")
+        payload += struct.pack("<I", 8)
+        payload += string(b"fixture")
+        payload += string(b"tensor_a")
+        payload += struct.pack("<IQQIQ", 2, 2, 3, 0, 0)
+        payload += string(b"tensor_b")
+        payload += struct.pack("<IQIQ", 1, 5, 0, 64)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "fixture.gguf"
+            path.write_bytes(payload)
+            self.assertEqual(gguf_parameter_count(path), 11)
 
     def test_trusted_login_overrides_score_identity_and_deduplicates(self):
         existing = [
