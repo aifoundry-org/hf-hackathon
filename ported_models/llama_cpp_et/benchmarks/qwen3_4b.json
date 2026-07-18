@@ -23,14 +23,14 @@
     "port": 18087,
     "device": "ET",
     "gpu_layers": 99,
-    "ctx_size": 2048,
+    "ctx_size": 256,
     "batch_size": 256,
     "ubatch_size": 128,
     "parallel": 1,
     "cache_ram_mib": 0,
     "ready_timeout_s": 420,
     "request_timeout_s": 600,
-    "flash_attn": false,
+    "flash_attn": true,
     "api": "completion",
     "prompt": "Repeat this token sequence without commentary: OK OK OK OK OK OK OK OK OK OK",
     "max_tokens": 96,
@@ -48,6 +48,10 @@
       "min_ppl": 1.0,
       "max_ppl": 1000.0,
       "chunks": 4
-    }
-  }
+    },
+    "extra_args": [
+      "-nkvo"
+    ]
+  },
+  "note": "Qwen3 4B Q8 Gguf Q8_0. Optimizations: flash_attn, reduced ctx_size, -nkvo."
 }
