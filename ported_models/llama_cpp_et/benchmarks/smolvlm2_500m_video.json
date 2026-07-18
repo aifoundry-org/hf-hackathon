@@ -26,14 +26,14 @@
     "port": 18107,
     "device": "ET",
     "gpu_layers": 99,
-    "ctx_size": 2048,
+    "ctx_size": 256,
     "batch_size": 256,
     "ubatch_size": 128,
     "parallel": 1,
     "cache_ram_mib": 0,
     "ready_timeout_s": 180,
     "request_timeout_s": 300,
-    "flash_attn": false,
+    "flash_attn": true,
     "max_tokens": 12,
     "temperature": 0,
     "top_k": 1,
@@ -51,20 +51,94 @@
       "min_ppl": 1.0,
       "max_ppl": 26.739,
       "chunks": 4
-    }
+    },
+    "extra_args": [
+      "-nkvo"
+    ]
   },
   "multimodal": {
     "frames_per_second": 1.0,
     "prompt_template": "<|im_start|>User: {media_markers}\n{question}<end_of_utterance>\nAssistant:",
     "cases": [
-      {"name": "video_dog", "fixtures": ["video_dog"], "question": "What animal is shown? Answer one word.", "accepted_answers": ["dog"]},
-      {"name": "video_inside_car", "fixtures": ["video_inside_car"], "question": "Where is the camera located: inside or outside the car? Answer one word.", "accepted_answers": ["inside"]},
-      {"name": "video_bridge", "fixtures": ["video_bridge"], "question": "What large structure is visible over the water? Answer one word.", "accepted_answers": ["bridge"]},
-      {"name": "video_mascara", "fixtures": ["video_mascara"], "question": "What cosmetic is the woman showing? Answer one word.", "accepted_answers": ["mascara"]},
-      {"name": "video_cat", "fixtures": ["video_cat"], "question": "What animal is shown? Answer one word.", "accepted_answers": ["cat"]},
-      {"name": "cat_then_giraffes", "fixtures": ["coco_cat", "coco_giraffes"], "question": "Name the animal in the second image in one word.", "accepted_answers": ["giraffe", "giraffes"]},
-      {"name": "giraffes_then_cat", "fixtures": ["coco_giraffes", "coco_cat"], "question": "Name the animal in the second image in one word.", "accepted_answers": ["cat", "tabby"]}
+      {
+        "name": "video_dog",
+        "fixtures": [
+          "video_dog"
+        ],
+        "question": "What animal is shown? Answer one word.",
+        "accepted_answers": [
+          "dog"
+        ]
+      },
+      {
+        "name": "video_inside_car",
+        "fixtures": [
+          "video_inside_car"
+        ],
+        "question": "Where is the camera located: inside or outside the car? Answer one word.",
+        "accepted_answers": [
+          "inside"
+        ]
+      },
+      {
+        "name": "video_bridge",
+        "fixtures": [
+          "video_bridge"
+        ],
+        "question": "What large structure is visible over the water? Answer one word.",
+        "accepted_answers": [
+          "bridge"
+        ]
+      },
+      {
+        "name": "video_mascara",
+        "fixtures": [
+          "video_mascara"
+        ],
+        "question": "What cosmetic is the woman showing? Answer one word.",
+        "accepted_answers": [
+          "mascara"
+        ]
+      },
+      {
+        "name": "video_cat",
+        "fixtures": [
+          "video_cat"
+        ],
+        "question": "What animal is shown? Answer one word.",
+        "accepted_answers": [
+          "cat"
+        ]
+      },
+      {
+        "name": "cat_then_giraffes",
+        "fixtures": [
+          "coco_cat",
+          "coco_giraffes"
+        ],
+        "question": "Name the animal in the second image in one word.",
+        "accepted_answers": [
+          "giraffe",
+          "giraffes"
+        ]
+      },
+      {
+        "name": "giraffes_then_cat",
+        "fixtures": [
+          "coco_giraffes",
+          "coco_cat"
+        ],
+        "question": "Name the animal in the second image in one word.",
+        "accepted_answers": [
+          "cat",
+          "tabby"
+        ]
+      }
     ],
-    "order_pair": ["cat_then_giraffes", "giraffes_then_cat"]
-  }
+    "order_pair": [
+      "cat_then_giraffes",
+      "giraffes_then_cat"
+    ]
+  },
+  "note": "Smolvlm2 500M Video Q8 Gguf Q8_0. Optimizations: flash_attn, reduced ctx_size, -nkvo."
 }
