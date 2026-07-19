@@ -34,6 +34,8 @@ python3 -m unittest discover -s .github/ci/scripts -p 'test_trusted_smolvlm2_gat
   || bad "trusted SmolVLM2 gate tests failed"
 python3 -m unittest discover -s .github/ci/scripts -p 'test_trusted_llama32_policy.py' \
   || bad "trusted Llama track policy tests failed"
+python3 -m unittest discover -s .github/ci/scripts -p 'test_merge_leaderboard.py' \
+  || bad "leaderboard merge policy tests failed"
 python3 -m unittest discover -s .github/ci/scripts -p 'test_model_port_track.py' \
   || bad "trusted model-port track tests failed"
 python3 -m unittest discover -s .github/ci/scripts -p 'test_board_lock.py' \

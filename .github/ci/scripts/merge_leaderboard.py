@@ -138,7 +138,33 @@ def merge_entry(
     if metric not in new:
         new[metric] = score.get(metric)
 
-    # Replace the same canonical participant's prior entry, then sort.
+    participant_entries = [
+        entry
+        for entry in entries
+        if (entry.get("participant_login") or entry.get("team"))
+        == participant_login
+    ]
+    participant_metrics = [
+        entry.get(metric)
+        for entry in participant_entries
+        if entry.get(metric) is not None
+    ]
+    if participant_metrics:
+        incumbent = (
+            max(participant_metrics)
+            if higher_is_better
+            else min(participant_metrics)
+        )
+        improved = (
+            metric_value > incumbent
+            if higher_is_better
+            else metric_value < incumbent
+        )
+        if not improved:
+            return entries
+
+    # Replace the same canonical participant's prior entry only when the new
+    # score is strictly better, then sort.
     entries = [
         e
         for e in entries
