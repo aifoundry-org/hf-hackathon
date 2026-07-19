@@ -379,6 +379,24 @@
       "size_bytes": 175054528,
       "note": "SmolVLM 256M LLM Q8_0 (Idefics3 arch). LLM backbone is SmolLM2-135M-Instruct (already ported). Requires mmproj for vision."
     },
+    "smolvlm_256m_q4_k_m_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "SmolVLM-256M-Instruct-Q4_K_M",
+      "filename": "SmolVLM-256M-Instruct.i1-Q4_K_M.gguf",
+      "env": "SMOLVLM_256M_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "mradermacher/SmolVLM-256M-Instruct-i1-GGUF",
+        "revision": "2e5c0bce31219c1c55009f3877779b9fcf3acd58",
+        "filename": "SmolVLM-256M-Instruct.i1-Q4_K_M.gguf",
+        "url": "https://huggingface.co/mradermacher/SmolVLM-256M-Instruct-i1-GGUF/resolve/2e5c0bce31219c1c55009f3877779b9fcf3acd58/SmolVLM-256M-Instruct.i1-Q4_K_M.gguf"
+      },
+      "local_cache": "local-artifacts/models/smolvlm_256m/SmolVLM-256M-Instruct.i1-Q4_K_M.gguf",
+      "sha256": "e2c68191ea88b166206f37afbae73c66423619550119d9c51e0e7aabcc725113",
+      "size_bytes": 125053824,
+      "note": "SmolVLM 256M LLM Q4_K_M imatrix-quantized (Idefics3 arch). Half the memory bandwidth of Q8_0. LLM backbone is SmolLM2-135M-Instruct. Requires mmproj for vision."
+    },
     "smolvlm_256m_mmproj_q8": {
       "kind": "model",
       "framework": "llama.cpp-et",
