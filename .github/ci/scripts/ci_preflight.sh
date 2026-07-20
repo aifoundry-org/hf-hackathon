@@ -32,6 +32,8 @@ python3 -m unittest discover -s .github/ci/scripts -p 'test_prepare_trusted_smol
   || bad "trusted SmolVLM2 candidate scope tests failed"
 python3 -m unittest discover -s .github/ci/scripts -p 'test_trusted_smolvlm2_gate.py' \
   || bad "trusted SmolVLM2 gate tests failed"
+python3 -m unittest discover -s .github/ci/scripts -p 'test_trusted_smolvlm2_runtime_scope.py' \
+  || bad "trusted SmolVLM2 nested runtime scope tests failed"
 python3 -m unittest discover -s .github/ci/scripts -p 'test_trusted_llama32_policy.py' \
   || bad "trusted Llama track policy tests failed"
 python3 -m unittest discover -s .github/ci/scripts -p 'test_trusted_track_delegation.py' \
@@ -87,6 +89,16 @@ if ! grep -qF 'context=trusted-model/smolvlm2_500m_video' \
 fi
 if grep -qE '^[[:space:]]+paths:' .github/workflows/trusted-smolvlm2-pr.yml; then
   bad "trusted SmolVLM2 final check must run on every PR so it can be required"
+fi
+if ! grep -qF 'runtime-changes.json' \
+  .github/ci/scripts/run_trusted_smolvlm2_candidate.sh; then
+  bad "trusted SmolVLM2 gate does not retain its nested runtime change report"
+fi
+if ! grep -qF 'candidate-metadata.json' \
+  .github/ci/scripts/run_trusted_smolvlm2_candidate.sh \
+  || ! grep -qF 'runtime_url_changed' \
+    .github/workflows/trusted-smolvlm2-pr.yml; then
+  bad "trusted SmolVLM2 gate does not retain and surface runtime source provenance"
 fi
 if ! grep -qF 'pull_request_target:' .github/workflows/trusted-llama32-pr.yml; then
   bad "trusted Llama workflow must be loaded from the default branch"

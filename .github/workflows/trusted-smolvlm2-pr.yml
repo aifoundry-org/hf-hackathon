@@ -35,6 +35,7 @@ jobs:
       actor: ${{ steps.pr.outputs.actor }}
       merge_base: ${{ steps.candidate.outputs.merge_base }}
       targeted: ${{ steps.candidate.outputs.targeted }}
+      runtime_url_changed: ${{ steps.candidate.outputs.runtime_url_changed }}
       needs_approval: ${{ steps.pr.outputs.needs_approval }}
     steps:
       - name: Resolve pull request
@@ -91,6 +92,7 @@ jobs:
           {
             echo "merge_base=$merge_base"
             echo "targeted=$(jq -r 'if .targeted then 1 else 0 end' /tmp/candidate-metadata.json)"
+            echo "runtime_url_changed=$(jq -r 'if .runtime_url_changed then 1 else 0 end' /tmp/candidate-metadata.json)"
           } >> "$GITHUB_OUTPUT"
 
       - name: Publish pending status
@@ -194,6 +196,7 @@ jobs:
           RESOLVE_RESULT: ${{ needs.resolve.result }}
           TARGETED: ${{ needs.resolve.outputs.targeted }}
           NEEDS_APPROVAL: ${{ needs.resolve.outputs.needs_approval }}
+          RUNTIME_URL_CHANGED: ${{ needs.resolve.outputs.runtime_url_changed }}
           BOARD_RESULT: ${{ needs.board.result }}
           VERDICT_KIND: ${{ needs.board.outputs.verdict_kind }}
         run: |
@@ -208,7 +211,11 @@ jobs:
             description='First-time contributor: maintainer approval is required.'
           elif [[ "$BOARD_RESULT" == success ]]; then
             state=success
-            description='Correctness, PPL, paired cycles, and board drift passed.'
+            if [[ "$RUNTIME_URL_CHANGED" == 1 ]]; then
+              description='Smol passed; contributor runtime URL is recorded and must be normalized before merge.'
+            else
+              description='Smol qualification passed; shared-runtime regression is tracked separately.'
+            fi
           elif [[ "$VERDICT_KIND" == infrastructure-error ]]; then
             state=error
             description='Paired main failed or drifted; no candidate verdict produced.'
