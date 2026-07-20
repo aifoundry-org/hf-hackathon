@@ -34,6 +34,8 @@ python3 -m unittest discover -s .github/ci/scripts -p 'test_trusted_smolvlm2_gat
   || bad "trusted SmolVLM2 gate tests failed"
 python3 -m unittest discover -s .github/ci/scripts -p 'test_trusted_llama32_policy.py' \
   || bad "trusted Llama track policy tests failed"
+python3 -m unittest discover -s .github/ci/scripts -p 'test_trusted_track_delegation.py' \
+  || bad "trusted track delegation tests failed"
 python3 -m unittest discover -s .github/ci/scripts -p 'test_merge_leaderboard.py' \
   || bad "leaderboard merge policy tests failed"
 python3 -m unittest discover -s .github/ci/scripts -p 'test_model_port_track.py' \
@@ -92,6 +94,14 @@ fi
 if ! grep -qF 'context=trusted-model/llama32_1b' \
   .github/workflows/trusted-llama32-pr.yml; then
   bad "trusted Llama workflow does not publish its merge status on the participant commit"
+fi
+if ! grep -qF 'trusted-regression/llama32_1b' \
+  .github/workflows/trusted-llama32-pr.yml; then
+  bad "shared-runtime Llama regressions do not have a separate advisory status"
+fi
+if ! grep -qF 'trusted_track_delegation.py' \
+  .github/workflows/benchmark-board.yml; then
+  bad "generic leaderboard CI still duplicates trusted shared-runtime gates"
 fi
 if grep -qE '^[[:space:]]+paths:' .github/workflows/trusted-llama32-pr.yml; then
   bad "trusted Llama final check must run on every PR so it can be required"

@@ -153,6 +153,7 @@ jobs:
               .github/ci/scripts/trusted_llama32_input_hash.sh|\
               .github/ci/scripts/trusted_smolvlm2_gate.py|\
               .github/ci/scripts/trusted_smolvlm2_input_hash.sh|\
+              .github/ci/scripts/trusted_track_delegation.py|\
               .github/ci/scripts/trusted_yolo_input_hash.sh|\
               scripts/run_sysemu_model_ports.sh|\
               ported_models/llama_cpp_et/benchmarks/smolvlm2_500m_video.json|\
@@ -185,6 +186,7 @@ jobs:
       uncovered: ${{ steps.models.outputs.uncovered }}
       has_uncovered: ${{ steps.models.outputs.has_uncovered }}
       trusted_yolo: ${{ steps.models.outputs.trusted_yolo }}
+      trusted_runtime: ${{ steps.models.outputs.trusted_runtime }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -207,6 +209,7 @@ jobs:
           unregistered=""
           uncovered=""
           trusted_yolo=0
+          trusted_runtime=0
           zero_sha="0000000000000000000000000000000000000000"
           if [[ "$TRUSTED_YOLO_MODE" == "1" ]]; then
             git fetch --no-tags origin \
@@ -275,16 +278,25 @@ jobs:
           if [[ "$EVENT_NAME" == "pull_request" ]] \
             && git cat-file -e "$PR_BASE_SHA:.github/workflows/trusted-smolvlm2-pr.yml" 2>/dev/null \
             && [[ " $models " == *" smolvlm2_500m_video "* ]]; then
-            models="$(python3 - "$models" <<'PY'
+            if git cat-file -e "$PR_BASE_SHA:.github/workflows/trusted-llama32-pr.yml" 2>/dev/null \
+              && git diff --name-only --diff-filter=ACMRTUXB "$PR_BASE_SHA...$PR_HEAD_SHA" \
+                | grep -qx 'ported_models/llama_cpp_et/src/llama.cpp-et'; then
+              trusted_runtime=1
+              models="$(python3 .github/ci/scripts/trusted_track_delegation.py \
+                --models "$models" --format space)"
+            else
+              models="$(python3 - "$models" <<'PY'
           import sys
           print(" ".join(model for model in sys.argv[1].split() if model != "smolvlm2_500m_video"))
           PY
-          )"
+              )"
+            fi
           fi
           echo "models=$models" >> "$GITHUB_OUTPUT"
           echo "unregistered=$unregistered" >> "$GITHUB_OUTPUT"
           echo "uncovered=$uncovered" >> "$GITHUB_OUTPUT"
           echo "trusted_yolo=$trusted_yolo" >> "$GITHUB_OUTPUT"
+          echo "trusted_runtime=$trusted_runtime" >> "$GITHUB_OUTPUT"
           if [[ -n "$models" ]]; then
             echo "has_models=1" >> "$GITHUB_OUTPUT"
           else
@@ -319,6 +331,10 @@ jobs:
             if [[ "$trusted_yolo" == "1" ]]; then
               echo
               echo "YOLO is delegated to the main-controlled \`Trusted YOLO leaderboard gate\`."
+            fi
+            if [[ "$trusted_runtime" == "1" ]]; then
+              echo
+              echo "SmolVLM2 qualification and shared llama.cpp-et regressions are delegated to their main-controlled trusted gates."
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -657,6 +673,7 @@ jobs:
           HAS_UNREGISTERED: ${{ needs.select-board-models.outputs.has_unregistered }}
           HAS_UNCOVERED: ${{ needs.select-board-models.outputs.has_uncovered }}
           TRUSTED_YOLO: ${{ needs.select-board-models.outputs.trusted_yolo }}
+          TRUSTED_RUNTIME: ${{ needs.select-board-models.outputs.trusted_runtime }}
           SELECTED_MODELS: ${{ needs.select-board-models.outputs.models }}
           UNREGISTERED: ${{ needs.select-board-models.outputs.unregistered }}
           UNCOVERED: ${{ needs.select-board-models.outputs.uncovered }}
@@ -726,6 +743,10 @@ jobs:
               printf '\n_YOLO is evaluated separately by the main-controlled `Trusted YOLO leaderboard gate`._\n' \
                 >> /tmp/board-comment.md
             fi
+            if [[ "$TRUSTED_RUNTIME" == "1" ]]; then
+              printf '\n_SmolVLM2 qualification and shared llama.cpp-et regressions are evaluated by separate main-controlled trusted gates._\n' \
+                >> /tmp/board-comment.md
+            fi
             exit 0
           fi
 
@@ -749,6 +770,10 @@ jobs:
           fi
           if [[ "$TRUSTED_YOLO" == "1" ]]; then
             printf '\n_YOLO is evaluated separately by the main-controlled `Trusted YOLO leaderboard gate`._\n' \
+              >> /tmp/board-comment.md
+          fi
+          if [[ "$TRUSTED_RUNTIME" == "1" ]]; then
+            printf '\n_SmolVLM2 qualification and shared llama.cpp-et regressions are evaluated by separate main-controlled trusted gates._\n' \
               >> /tmp/board-comment.md
           fi
           python3 .github/ci/scripts/leaderboard_gate.py \
