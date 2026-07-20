@@ -1,0 +1,913 @@
+{
+  "schema_version": 1,
+  "plan_kind": "gap_free_schema_v2_sys_emu_ranges",
+  "source": {
+    "repo": "onnx-community/yolov10n",
+    "revision": "57657320425ee34056408a57ad9d29c4d4815bd8",
+    "filename": "onnx/model.onnx",
+    "sha256": "a77dd863933f184a19e84361c64b788228a7c7dacc2c78939239a96ad3efca3b"
+  },
+  "coverage": {
+    "first_node": "N000",
+    "last_node": "N307",
+    "node_count": 308,
+    "range_count": 21,
+    "gap_count": 0,
+    "overlap_count": 0,
+    "conv_matmul_macs": 3378720000
+  },
+  "constraints": {
+    "maximum_conv_matmul_macs_per_range": 250000000,
+    "target_retained_output_bytes_per_range": 24000000,
+    "measured_maximum_retained_output_bytes": 30105600,
+    "retained_output_budget_exception": "N271:N288 is kept as one DFL/decode architecture range; its 30,105,600-byte checkpoint arena still fits the repository-proven target allocation envelope",
+    "conv_sigmoid_mul_triples_kept_together": true,
+    "all_selected_node_outputs_compared": true,
+    "one_pmc_record_per_range": true,
+    "range_inputs": "captured exact-artifact ORT activations"
+  },
+  "architecture_stages": [
+    {
+      "name": "stem",
+      "first_node": "N000",
+      "last_node": "N005"
+    },
+    {
+      "name": "backbone",
+      "first_node": "N006",
+      "last_node": "N090"
+    },
+    {
+      "name": "sppf_psa",
+      "first_node": "N091",
+      "last_node": "N128"
+    },
+    {
+      "name": "neck",
+      "first_node": "N129",
+      "last_node": "N207"
+    },
+    {
+      "name": "three_scale_head",
+      "first_node": "N208",
+      "last_node": "N270"
+    },
+    {
+      "name": "dfl_decode",
+      "first_node": "N271",
+      "last_node": "N288"
+    },
+    {
+      "name": "topk_selection",
+      "first_node": "N289",
+      "last_node": "N307"
+    }
+  ],
+  "ranges": [
+    {
+      "range_index": 0,
+      "name": "n000_n002",
+      "selector": "N000:N002",
+      "first_node": 0,
+      "last_node": 2,
+      "node_count": 3,
+      "operator_histogram": {
+        "Conv": 1,
+        "Mul": 1,
+        "Sigmoid": 1
+      },
+      "conv_matmul_macs": 44236800,
+      "retained_output_bytes": 19660800,
+      "boundary_inputs": [
+        "images"
+      ],
+      "boundary_input_bytes": 4915200,
+      "initializer_count": 2,
+      "initializer_bytes": 1792,
+      "predicted_memory_map": {
+        "workspace_bytes": 19660800,
+        "pmc_device_offset": 19726336,
+        "dump_size": 19791872,
+        "input_device_offset": 19791872,
+        "weight_device_offset": 24707072,
+        "mem_size": 24772608
+      },
+      "architecture_overlaps": [
+        {
+          "stage": "stem",
+          "first_node": "N000",
+          "last_node": "N002"
+        }
+      ]
+    },
+    {
+      "range_index": 1,
+      "name": "n003_n009",
+      "selector": "N003:N009",
+      "first_node": 3,
+      "last_node": 9,
+      "node_count": 7,
+      "operator_histogram": {
+        "Conv": 2,
+        "Mul": 2,
+        "Sigmoid": 2,
+        "Split": 1
+      },
+      "conv_matmul_macs": 144179200,
+      "retained_output_bytes": 22937600,
+      "boundary_inputs": [
+        "/model.0/act/Mul_output_0"
+      ],
+      "boundary_input_bytes": 6553600,
+      "initializer_count": 5,
+      "initializer_bytes": 22848,
+      "predicted_memory_map": {
+        "workspace_bytes": 22937600,
+        "pmc_device_offset": 23003136,
+        "dump_size": 23068672,
+        "input_device_offset": 23068672,
+        "weight_device_offset": 29622272,
+        "mem_size": 29687808
+      },
+      "architecture_overlaps": [
+        {
+          "stage": "stem",
+          "first_node": "N003",
+          "last_node": "N005"
+        },
+        {
+          "stage": "backbone",
+          "first_node": "N006",
+          "last_node": "N009"
+        }
+      ]
+    },
+    {
+      "range_index": 2,
+      "name": "n010_n017",
+      "selector": "N010:N017",
+      "first_node": 10,
+      "last_node": 17,
+      "node_count": 8,
+      "operator_histogram": {
+        "Add": 1,
+        "Concat": 1,
+        "Conv": 2,
+        "Mul": 2,
+        "Sigmoid": 2
+      },
+      "conv_matmul_macs": 117964800,
+      "retained_output_bytes": 16384000,
+      "boundary_inputs": [
+        "/model.2/Split_output_1",
+        "/model.2/Split_output_0"
+      ],
+      "boundary_input_bytes": 3276800,
+      "initializer_count": 4,
+      "initializer_bytes": 18560,
+      "predicted_memory_map": {
+        "workspace_bytes": 16384000,
+        "pmc_device_offset": 16449536,
+        "dump_size": 16515072,
+        "input_device_offset": 16515072,
+        "weight_device_offset": 19791872,
+        "mem_size": 19857408
+      },
+      "architecture_overlaps": [
+        {
+          "stage": "backbone",
+          "first_node": "N010",
+          "last_node": "N017"
+        }
+      ]
+    },
+    {
+      "range_index": 3,
+      "name": "n018_n030",
+      "selector": "N018:N030",
+      "first_node": 18,
+      "last_node": 30,
+      "node_count": 13,
+      "operator_histogram": {
+        "Conv": 4,
+        "Mul": 4,
+        "Sigmoid": 4,
+        "Split": 1
+      },
+      "conv_matmul_macs": 242483200,
+      "retained_output_bytes": 23756800,
+      "boundary_inputs": [
+        "/model.2/Concat_output_0"
+      ],
+      "boundary_input_bytes": 4915200,
+      "initializer_count": 9,
+      "initializer_bytes": 133952,
+      "predicted_memory_map": {
+        "workspace_bytes": 23756800,
+        "pmc_device_offset": 23789568,
+        "dump_size": 23855104,
+        "input_device_offset": 23855104,
+        "weight_device_offset": 28770304,
+        "mem_size": 28966912
+      },
+      "architecture_overlaps": [
+        {
+          "stage": "backbone",
+          "first_node": "N018",
+          "last_node": "N030"
+        }
+      ]
+    },
+    {
+      "range_index": 4,
+      "name": "n031_n045",
+      "selector": "N031:N045",
+      "first_node": 31,
+      "last_node": 45,
+      "node_count": 15,
+      "operator_histogram": {
+        "Add": 2,
+        "Concat": 1,
+        "Conv": 4,
+        "Mul": 4,
+        "Sigmoid": 4
+      },
+      "conv_matmul_macs": 229376000,
+      "retained_output_bytes": 17203200,
+      "boundary_inputs": [
+        "/model.4/m.0/cv1/act/Mul_output_0",
+        "/model.4/Split_output_1",
+        "/model.4/Split_output_0"
+      ],
+      "boundary_input_bytes": 2457600,
+      "initializer_count": 8,
+      "initializer_bytes": 144000,
+      "predicted_memory_map": {
+        "workspace_bytes": 17203200,
+        "pmc_device_offset": 17235968,
+        "dump_size": 17301504,
+        "input_device_offset": 17301504,
+        "weight_device_offset": 19791872,
+        "mem_size": 19988480
+      },
+      "architecture_overlaps": [
+        {
+          "stage": "backbone",
+          "first_node": "N031",
+          "last_node": "N045"
+        }
+      ]
+    },
+    {
+      "range_index": 5,
+      "name": "n046_n060",
+      "selector": "N046:N060",
+      "first_node": 46,
+      "last_node": 60,
+      "node_count": 15,
+      "operator_histogram": {
+        "Add": 1,
+        "Conv": 5,
+        "Mul": 4,
+        "Sigmoid": 4,
+        "Split": 1
+      },
+      "conv_matmul_macs": 198451200,
+      "retained_output_bytes": 16793600,
+      "boundary_inputs": [
+        "/model.4/cv2/act/Mul_output_0"
+      ],
+      "boundary_input_bytes": 1638400,
+      "initializer_count": 11,
+      "initializer_bytes": 399936,
+      "predicted_memory_map": {
+        "workspace_bytes": 16793600,
+        "pmc_device_offset": 16842752,
+        "dump_size": 16908288,
+        "input_device_offset": 16908288,
+        "weight_device_offset": 18546688,
+        "mem_size": 19005440
+      },
+      "architecture_overlaps": [
+        {
+          "stage": "backbone",
+          "first_node": "N046",
+          "last_node": "N060"
+        }
+      ]
+    },
+    {
+      "range_index": 6,
+      "name": "n061_n079",
+      "selector": "N061:N079",
+      "first_node": 61,
+      "last_node": 79,
+      "node_count": 19,
+      "operator_histogram": {
+        "Add": 1,
+        "Concat": 1,
+        "Conv": 6,
+        "Mul": 5,
+        "Sigmoid": 5,
+        "Split": 1
+      },
+      "conv_matmul_macs": 249958400,
+      "retained_output_bytes": 13926400,
+      "boundary_inputs": [
+        "/model.6/m.0/Add_output_0",
+        "/model.6/Split_output_0",
+        "/model.6/Split_output_1"
+      ],
+      "boundary_input_bytes": 1228800,
+      "initializer_count": 13,
+      "initializer_bytes": 832576,
+      "predicted_memory_map": {
+        "workspace_bytes": 13926400,
+        "pmc_device_offset": 13959168,
+        "dump_size": 14024704,
+        "input_device_offset": 14024704,
+        "weight_device_offset": 15269888,
+        "mem_size": 16121856
+      },
+      "architecture_overlaps": [
+        {
+          "stage": "backbone",
+          "first_node": "N061",
+          "last_node": "N079"
+        }
+      ]
+    },
+    {
+      "range_index": 7,
+      "name": "n080_n104",
+      "selector": "N080:N104",
+      "first_node": 80,
+      "last_node": 104,
+      "node_count": 25,
+      "operator_histogram": {
+        "Add": 1,
+        "Concat": 2,
+        "Conv": 6,
+        "MaxPool": 3,
+        "Mul": 6,
+        "Sigmoid": 6,
+        "Split": 1
+      },
+      "conv_matmul_macs": 249036800,
+      "retained_output_bytes": 8192000,
+      "boundary_inputs": [
+        "/model.8/Split_output_1",
+        "/model.8/Split_output_0"
+      ],
+      "boundary_input_bytes": 409600,
+      "initializer_count": 13,
+      "initializer_bytes": 2495040,
+      "predicted_memory_map": {
+        "workspace_bytes": 8192000,
+        "pmc_device_offset": 8257536,
+        "dump_size": 8323072,
+        "input_device_offset": 8323072,
+        "weight_device_offset": 8781824,
+        "mem_size": 11337728
+      },
+      "architecture_overlaps": [
+        {
+          "stage": "backbone",
+          "first_node": "N080",
+          "last_node": "N090"
+        },
+        {
+          "stage": "sppf_psa",
+          "first_node": "N091",
+          "last_node": "N104"
+        }
+      ]
+    },
+    {
+      "range_index": 8,
+      "name": "n105_n137",
+      "selector": "N105:N137",
+      "first_node": 105,
+      "last_node": 137,
+      "node_count": 33,
+      "operator_histogram": {
+        "Add": 3,
+        "Concat": 2,
+        "Conv": 8,
+        "MatMul": 2,
+        "Mul": 5,
+        "Reshape": 3,
+        "Resize": 1,
+        "Sigmoid": 4,
+        "Softmax": 1,
+        "Split": 2,
+        "Transpose": 2
+      },
+      "conv_matmul_macs": 240896000,
+      "retained_output_bytes": 19763200,
+      "boundary_inputs": [
+        "/model.10/Split_output_1",
+        "/model.10/Split_output_0",
+        "/model.6/cv2/act/Mul_output_0"
+      ],
+      "boundary_input_bytes": 1228800,
+      "initializer_count": 22,
+      "initializer_bytes": 1075328,
+      "predicted_memory_map": {
+        "workspace_bytes": 19763200,
+        "pmc_device_offset": 19791872,
+        "dump_size": 19857408,
+        "input_device_offset": 19857408,
+        "weight_device_offset": 21102592,
+        "mem_size": 22216704
+      },
+      "architecture_overlaps": [
+        {
+          "stage": "sppf_psa",
+          "first_node": "N105",
+          "last_node": "N128"
+        },
+        {
+          "stage": "neck",
+          "first_node": "N129",
+          "last_node": "N137"
+        }
+      ]
+    },
+    {
+      "range_index": 9,
+      "name": "n138_n153",
+      "selector": "N138:N153",
+      "first_node": 138,
+      "last_node": 153,
+      "node_count": 16,
+      "operator_histogram": {
+        "Concat": 2,
+        "Conv": 4,
+        "Mul": 4,
+        "Resize": 1,
+        "Sigmoid": 4,
+        "Split": 1
+      },
+      "conv_matmul_macs": 235929600,
+      "retained_output_bytes": 22118400,
+      "boundary_inputs": [
+        "/model.13/m.0/cv1/act/Mul_output_0",
+        "/model.13/Split_output_0",
+        "/model.13/Split_output_1",
+        "/model.4/cv2/act/Mul_output_0"
+      ],
+      "boundary_input_bytes": 2867200,
+      "initializer_count": 10,
+      "initializer_bytes": 333056,
+      "predicted_memory_map": {
+        "workspace_bytes": 22118400,
+        "pmc_device_offset": 22151168,
+        "dump_size": 22216704,
+        "input_device_offset": 22216704,
+        "weight_device_offset": 25100288,
+        "mem_size": 25493504
+      },
+      "architecture_overlaps": [
+        {
+          "stage": "neck",
+          "first_node": "N138",
+          "last_node": "N153"
+        }
+      ]
+    },
+    {
+      "range_index": 10,
+      "name": "n154_n168",
+      "selector": "N154:N168",
+      "first_node": 154,
+      "last_node": 168,
+      "node_count": 15,
+      "operator_histogram": {
+        "Concat": 2,
+        "Conv": 4,
+        "Mul": 4,
+        "Sigmoid": 4,
+        "Split": 1
+      },
+      "conv_matmul_macs": 196608000,
+      "retained_output_bytes": 15564800,
+      "boundary_inputs": [
+        "/model.16/m.0/cv1/act/Mul_output_0",
+        "/model.16/Split_output_0",
+        "/model.16/Split_output_1",
+        "/model.13/cv2/act/Mul_output_0"
+      ],
+      "boundary_input_bytes": 3276800,
+      "initializer_count": 9,
+      "initializer_bytes": 308416,
+      "predicted_memory_map": {
+        "workspace_bytes": 15564800,
+        "pmc_device_offset": 15597568,
+        "dump_size": 15663104,
+        "input_device_offset": 15663104,
+        "weight_device_offset": 18939904,
+        "mem_size": 19267584
+      },
+      "architecture_overlaps": [
+        {
+          "stage": "neck",
+          "first_node": "N154",
+          "last_node": "N168"
+        }
+      ]
+    },
+    {
+      "range_index": 11,
+      "name": "n169_n196",
+      "selector": "N169:N196",
+      "first_node": 169,
+      "last_node": 196,
+      "node_count": 28,
+      "operator_histogram": {
+        "Concat": 2,
+        "Conv": 9,
+        "Mul": 8,
+        "Sigmoid": 8,
+        "Split": 1
+      },
+      "conv_matmul_macs": 241868800,
+      "retained_output_bytes": 14131200,
+      "boundary_inputs": [
+        "/model.19/Split_output_1",
+        "/model.19/Split_output_0",
+        "/model.10/cv2/act/Mul_output_0"
+      ],
+      "boundary_input_bytes": 1228800,
+      "initializer_count": 19,
+      "initializer_bytes": 1048128,
+      "predicted_memory_map": {
+        "workspace_bytes": 14131200,
+        "pmc_device_offset": 14155776,
+        "dump_size": 14221312,
+        "input_device_offset": 14221312,
+        "weight_device_offset": 15466496,
+        "mem_size": 16515072
+      },
+      "architecture_overlaps": [
+        {
+          "stage": "neck",
+          "first_node": "N169",
+          "last_node": "N196"
+        }
+      ]
+    },
+    {
+      "range_index": 12,
+      "name": "n197_n207",
+      "selector": "N197:N207",
+      "first_node": 197,
+      "last_node": 207,
+      "node_count": 11,
+      "operator_histogram": {
+        "Add": 1,
+        "Concat": 1,
+        "Conv": 3,
+        "Mul": 3,
+        "Sigmoid": 3
+      },
+      "conv_matmul_macs": 52889600,
+      "retained_output_bytes": 3276800,
+      "boundary_inputs": [
+        "/model.22/m.0/cv1/cv1.2/act/Mul_output_0",
+        "/model.22/Split_output_1",
+        "/model.22/Split_output_0"
+      ],
+      "boundary_input_bytes": 819200,
+      "initializer_count": 6,
+      "initializer_bytes": 530944,
+      "predicted_memory_map": {
+        "workspace_bytes": 3276800,
+        "pmc_device_offset": 3342336,
+        "dump_size": 3407872,
+        "input_device_offset": 3407872,
+        "weight_device_offset": 4259840,
+        "mem_size": 4849664
+      },
+      "architecture_overlaps": [
+        {
+          "stage": "neck",
+          "first_node": "N197",
+          "last_node": "N207"
+        }
+      ]
+    },
+    {
+      "range_index": 13,
+      "name": "n208_n210",
+      "selector": "N208:N210",
+      "first_node": 208,
+      "last_node": 210,
+      "node_count": 3,
+      "operator_histogram": {
+        "Conv": 1,
+        "Mul": 1,
+        "Sigmoid": 1
+      },
+      "conv_matmul_macs": 235929600,
+      "retained_output_bytes": 4915200,
+      "boundary_inputs": [
+        "/model.16/cv2/act/Mul_output_0"
+      ],
+      "boundary_input_bytes": 1638400,
+      "initializer_count": 2,
+      "initializer_bytes": 147712,
+      "predicted_memory_map": {
+        "workspace_bytes": 4915200,
+        "pmc_device_offset": 4980736,
+        "dump_size": 5046272,
+        "input_device_offset": 5046272,
+        "weight_device_offset": 6684672,
+        "mem_size": 6881280
+      },
+      "architecture_overlaps": [
+        {
+          "stage": "three_scale_head",
+          "first_node": "N208",
+          "last_node": "N210"
+        }
+      ]
+    },
+    {
+      "range_index": 14,
+      "name": "n211_n213",
+      "selector": "N211:N213",
+      "first_node": 211,
+      "last_node": 213,
+      "node_count": 3,
+      "operator_histogram": {
+        "Conv": 1,
+        "Mul": 1,
+        "Sigmoid": 1
+      },
+      "conv_matmul_macs": 235929600,
+      "retained_output_bytes": 4915200,
+      "boundary_inputs": [
+        "/model.23/one2one_cv2.0/one2one_cv2.0.0/act/Mul_output_0"
+      ],
+      "boundary_input_bytes": 1638400,
+      "initializer_count": 2,
+      "initializer_bytes": 147712,
+      "predicted_memory_map": {
+        "workspace_bytes": 4915200,
+        "pmc_device_offset": 4980736,
+        "dump_size": 5046272,
+        "input_device_offset": 5046272,
+        "weight_device_offset": 6684672,
+        "mem_size": 6881280
+      },
+      "architecture_overlaps": [
+        {
+          "stage": "three_scale_head",
+          "first_node": "N211",
+          "last_node": "N213"
+        }
+      ]
+    },
+    {
+      "range_index": 15,
+      "name": "n214_n223",
+      "selector": "N214:N223",
+      "first_node": 214,
+      "last_node": 223,
+      "node_count": 10,
+      "operator_histogram": {
+        "Conv": 4,
+        "Mul": 3,
+        "Sigmoid": 3
+      },
+      "conv_matmul_macs": 67276800,
+      "retained_output_bytes": 18841600,
+      "boundary_inputs": [
+        "/model.23/one2one_cv2.0/one2one_cv2.0.1/act/Mul_output_0",
+        "/model.16/cv2/act/Mul_output_0"
+      ],
+      "boundary_input_bytes": 3276800,
+      "initializer_count": 8,
+      "initializer_bytes": 43200,
+      "predicted_memory_map": {
+        "workspace_bytes": 18841600,
+        "pmc_device_offset": 18874368,
+        "dump_size": 18939904,
+        "input_device_offset": 18939904,
+        "weight_device_offset": 22216704,
+        "mem_size": 22282240
+      },
+      "architecture_overlaps": [
+        {
+          "stage": "three_scale_head",
+          "first_node": "N214",
+          "last_node": "N223"
+        }
+      ]
+    },
+    {
+      "range_index": 16,
+      "name": "n224_n231",
+      "selector": "N224:N231",
+      "first_node": 224,
+      "last_node": 231,
+      "node_count": 8,
+      "operator_histogram": {
+        "Concat": 1,
+        "Conv": 3,
+        "Mul": 2,
+        "Sigmoid": 2
+      },
+      "conv_matmul_macs": 199884800,
+      "retained_output_bytes": 13107200,
+      "boundary_inputs": [
+        "/model.23/one2one_cv3.0/one2one_cv3.0.1/one2one_cv3.0.1.0/act/Mul_output_0",
+        "/model.23/one2one_cv2.0/one2one_cv2.0.2/Conv_output_0",
+        "/model.19/cv2/act/Mul_output_0"
+      ],
+      "boundary_input_bytes": 4505600,
+      "initializer_count": 6,
+      "initializer_bytes": 347008,
+      "predicted_memory_map": {
+        "workspace_bytes": 13107200,
+        "pmc_device_offset": 13172736,
+        "dump_size": 13238272,
+        "input_device_offset": 13238272,
+        "weight_device_offset": 17760256,
+        "mem_size": 18153472
+      },
+      "architecture_overlaps": [
+        {
+          "stage": "three_scale_head",
+          "first_node": "N224",
+          "last_node": "N231"
+        }
+      ]
+    },
+    {
+      "range_index": 17,
+      "name": "n232_n249",
+      "selector": "N232:N249",
+      "first_node": 232,
+      "last_node": 249,
+      "node_count": 18,
+      "operator_histogram": {
+        "Concat": 1,
+        "Conv": 7,
+        "Mul": 5,
+        "Sigmoid": 5
+      },
+      "conv_matmul_macs": 105395200,
+      "retained_output_bytes": 10137600,
+      "boundary_inputs": [
+        "/model.23/one2one_cv2.1/one2one_cv2.1.0/act/Mul_output_0",
+        "/model.19/cv2/act/Mul_output_0"
+      ],
+      "boundary_input_bytes": 1228800,
+      "initializer_count": 14,
+      "initializer_bytes": 265792,
+      "predicted_memory_map": {
+        "workspace_bytes": 10137600,
+        "pmc_device_offset": 10158080,
+        "dump_size": 10223616,
+        "input_device_offset": 10223616,
+        "weight_device_offset": 11468800,
+        "mem_size": 11796480
+      },
+      "architecture_overlaps": [
+        {
+          "stage": "three_scale_head",
+          "first_node": "N232",
+          "last_node": "N249"
+        }
+      ]
+    },
+    {
+      "range_index": 18,
+      "name": "n250_n270",
+      "selector": "N250:N270",
+      "first_node": 250,
+      "last_node": 270,
+      "node_count": 21,
+      "operator_histogram": {
+        "Concat": 1,
+        "Conv": 8,
+        "Mul": 6,
+        "Sigmoid": 6
+      },
+      "conv_matmul_macs": 89888000,
+      "retained_output_bytes": 3456000,
+      "boundary_inputs": [
+        "/model.22/cv2/act/Mul_output_0"
+      ],
+      "boundary_input_bytes": 409600,
+      "initializer_count": 16,
+      "initializer_bytes": 901952,
+      "predicted_memory_map": {
+        "workspace_bytes": 3456000,
+        "pmc_device_offset": 3473408,
+        "dump_size": 3538944,
+        "input_device_offset": 3538944,
+        "weight_device_offset": 3997696,
+        "mem_size": 4915200
+      },
+      "architecture_overlaps": [
+        {
+          "stage": "three_scale_head",
+          "first_node": "N250",
+          "last_node": "N270"
+        }
+      ]
+    },
+    {
+      "range_index": 19,
+      "name": "n271_n288",
+      "selector": "N271:N288",
+      "first_node": 271,
+      "last_node": 288,
+      "node_count": 18,
+      "operator_histogram": {
+        "Add": 1,
+        "Concat": 3,
+        "Conv": 1,
+        "Mul": 1,
+        "Reshape": 5,
+        "Sigmoid": 1,
+        "Softmax": 1,
+        "Split": 2,
+        "Sub": 1,
+        "Transpose": 2
+      },
+      "conv_matmul_macs": 537600,
+      "retained_output_bytes": 30105600,
+      "boundary_inputs": [
+        "/model.23/Concat_output_0",
+        "/model.23/Concat_1_output_0",
+        "/model.23/Concat_2_output_0"
+      ],
+      "boundary_input_bytes": 4838400,
+      "initializer_count": 8,
+      "initializer_bytes": 101184,
+      "predicted_memory_map": {
+        "workspace_bytes": 30105600,
+        "pmc_device_offset": 30146560,
+        "dump_size": 30212096,
+        "input_device_offset": 30212096,
+        "weight_device_offset": 35061760,
+        "mem_size": 35192832
+      },
+      "architecture_overlaps": [
+        {
+          "stage": "dfl_decode",
+          "first_node": "N271",
+          "last_node": "N288"
+        }
+      ]
+    },
+    {
+      "range_index": 20,
+      "name": "n289_n307",
+      "selector": "N289:N307",
+      "first_node": 289,
+      "last_node": 307,
+      "node_count": 19,
+      "operator_histogram": {
+        "Cast": 1,
+        "Concat": 1,
+        "Div": 1,
+        "Flatten": 1,
+        "GatherElements": 3,
+        "Mod": 1,
+        "ReduceMax": 1,
+        "Split": 1,
+        "Tile": 3,
+        "TopK": 2,
+        "Unsqueeze": 4
+      },
+      "conv_matmul_macs": 0,
+      "retained_output_bytes": 3297920,
+      "boundary_inputs": [
+        "/model.23/Transpose_output_0"
+      ],
+      "boundary_input_bytes": 2822400,
+      "initializer_count": 6,
+      "initializer_bytes": 384,
+      "predicted_memory_map": {
+        "workspace_bytes": 3297920,
+        "pmc_device_offset": 3342336,
+        "dump_size": 3407872,
+        "input_device_offset": 3407872,
+        "weight_device_offset": 6291456,
+        "mem_size": 6356992
+      },
+      "architecture_overlaps": [
+        {
+          "stage": "topk_selection",
+          "first_node": "N289",
+          "last_node": "N307"
+        }
+      ]
+    }
+  ]
+}
