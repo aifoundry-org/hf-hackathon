@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "artifacts": {
+    "yolov10n_onnx": {
+      "kind": "model",
+      "format": "onnx",
+      "dtype": "fp32",
+      "source": {
+        "type": "huggingface",
+        "repo": "onnx-community/yolov10n",
+        "revision": "57657320425ee34056408a57ad9d29c4d4815bd8",
+        "filename": "onnx/model.onnx",
+        "url": "https://huggingface.co/onnx-community/yolov10n/resolve/57657320425ee34056408a57ad9d29c4d4815bd8/onnx/model.onnx?download=true"
+      },
+      "size_bytes": 9386116,
+      "sha256": "a77dd863933f184a19e84361c64b788228a7c7dacc2c78939239a96ad3efca3b",
+      "license": "AGPL-3.0",
+      "local_cache": "local-artifacts/yolov10n_hf_reference/model.onnx",
+      "source_of_truth": true,
+      "export": "none"
+    }
+  }
+}

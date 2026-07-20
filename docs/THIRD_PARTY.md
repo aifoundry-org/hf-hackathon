@@ -11,6 +11,7 @@ inventory; per-port `THIRD_PARTY.md` files hold the detailed records.
 |-----------|------|------|---------|-------|
 | ET `llama.cpp` fork | `ported_models/llama_cpp_et/src/llama.cpp-et` | git submodule (pointer) | MIT | Upstream `aifoundry-org/llama.cpp`, branch `et`. License travels with the submodule. See `ported_models/llama_cpp_et/THIRD_PARTY.md`. |
 | GGONNX | `ported_models/ggonnx/src/ggonnx` | vendored source | Pending (expected Apache-2.0) | Upstream `marty1885/ggonnx` had no LICENSE at vendoring time; license grant being secured with the author. See `ported_models/ggonnx/THIRD_PARTY.md`. |
+| YOLOv10n pinned ONNX | `local-artifacts/yolov10n_hf_reference/model.onnx` (not committed) | downloaded model graph and weights | AGPL-3.0 | `onnx-community/yolov10n` revision `57657320425ee34056408a57ad9d29c4d4815bd8`; see `ported_models/yolov10n_hf_reference/THIRD_PARTY.md`. |
 | Model weights (GGUF, ONNX) | not committed | downloaded at runtime | Per upstream model card | Fetched on the board host from Hugging Face / source URLs declared in each port's `artifacts.json`; each model retains its own license. |
 
 ## How licensing is structured here

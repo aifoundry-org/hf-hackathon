@@ -1,0 +1,230 @@
+{
+  "schema_version": 1,
+  "status": "PASS",
+  "kind": "strict_full_graph_real_etsoc1_evidence",
+  "source": {
+    "repo": "onnx-community/yolov10n",
+    "revision": "57657320425ee34056408a57ad9d29c4d4815bd8",
+    "filename": "onnx/model.onnx",
+    "sha256": "a77dd863933f184a19e84361c64b788228a7c7dacc2c78939239a96ad3efca3b",
+    "license": "AGPL-3.0"
+  },
+  "selection": {
+    "selector": "N000:N307",
+    "node_count": 308,
+    "output": {
+      "name": "output0",
+      "shape": [
+        1,
+        300,
+        6
+      ]
+    }
+  },
+  "device": {
+    "launcher_device": "soc1sim",
+    "hardware": true,
+    "runtime_backend": "DevicePcie",
+    "architecture": "ETSOC1",
+    "pcie_id": "1e0a:eb01",
+    "kernel_wait_seconds": 721.396,
+    "launcher_elapsed_seconds": 737
+  },
+  "compiler": {
+    "path": "/root/hf-hackathon-yolov10n-hf/ported_models/yolov10n_hf_reference/scripts/et_gcc_docker_wrapper.sh",
+    "version": "riscv64-unknown-elf-gcc (g5115c7e44) 15.2.0",
+    "docker_image": "et-gcc:24.04",
+    "docker_image_id": "sha256:6a811b9dcb63231c903d837fd969fbcee64aa2a6e8d685b8e0af3f9d92cfaa67"
+  },
+  "comparison": {
+    "checkpoint_count": 16,
+    "checkpoint_pass_count": 16,
+    "direct_output_required": true,
+    "output_mismatch_count": 0,
+    "output_unexplained_mismatch_count": 0,
+    "output_max_abs": 0.00042724609375,
+    "output_max_rel": 7.514777829110251e-05,
+    "selected_anchor_overlap": 300,
+    "final_anchor_class_overlap": 300,
+    "actual_output_sha256": "6822b795131436aa691a8db77c345f601969ba3e532262a9991b7bfb0153ee3a",
+    "reference_output_sha256": "f70492b34e410bfd712604a2cb2c453aa5fe8fb0a4122ac3d8f8452db2f5990c"
+  },
+  "real_image": {
+    "fixture": "coco_room_000139",
+    "input_sha256": "65afc38f381c09712cd9a6a78e8e7e9800c713d21679abee588b218a6a137c7b",
+    "display_threshold": 0.25,
+    "records_at_or_above_threshold": 10,
+    "top_record": {
+      "rank": 0,
+      "box_xyxy_canvas": [
+        4.693794250488281,
+        266.9769287109375,
+        155.10342407226562,
+        375.75567626953125
+      ],
+      "box_xyxy_original": [
+        4.693794250488281,
+        186.9769287109375,
+        155.10342407226562,
+        295.75567626953125
+      ],
+      "score": 0.899284303188324,
+      "class_id": 62
+    },
+    "class_labels": "numeric IDs only; the pinned ONNX does not provide human class names",
+    "postprocessing": "two-stage in-graph TopK/GatherElements; no NMS node"
+  },
+  "pmc": {
+    "status": "PASS",
+    "scope": "seven disjoint intervals around ONNX nodes only",
+    "stages": [
+      {
+        "name": "stem",
+        "first_node": "N000",
+        "last_node": "N005",
+        "minion_cycles": 15903571548,
+        "retired_instructions_thread_0": 4979902049,
+        "l2_miss_requests": 84187039,
+        "minion_icache_requests": 1175405374
+      },
+      {
+        "name": "backbone",
+        "first_node": "N006",
+        "last_node": "N090",
+        "minion_cycles": 150929916959,
+        "retired_instructions_thread_0": 47972885926,
+        "l2_miss_requests": 800627436,
+        "minion_icache_requests": 12048058410
+      },
+      {
+        "name": "sppf_psa",
+        "first_node": "N091",
+        "last_node": "N128",
+        "minion_cycles": 34916207890,
+        "retired_instructions_thread_0": 10503802878,
+        "l2_miss_requests": 211467863,
+        "minion_icache_requests": 2816053150
+      },
+      {
+        "name": "neck",
+        "first_node": "N129",
+        "last_node": "N207",
+        "minion_cycles": 124145435420,
+        "retired_instructions_thread_0": 39051788133,
+        "l2_miss_requests": 663706918,
+        "minion_icache_requests": 10039033455
+      },
+      {
+        "name": "three_scale_head",
+        "first_node": "N208",
+        "last_node": "N270",
+        "minion_cycles": 102548474177,
+        "retired_instructions_thread_0": 33249340626,
+        "l2_miss_requests": 534267342,
+        "minion_icache_requests": 8191298447
+      },
+      {
+        "name": "dfl_decode",
+        "first_node": "N271",
+        "last_node": "N288",
+        "minion_cycles": 1916064054,
+        "retired_instructions_thread_0": 431774722,
+        "l2_miss_requests": 5527353,
+        "minion_icache_requests": 135731010
+      },
+      {
+        "name": "topk_selection",
+        "first_node": "N289",
+        "last_node": "N307",
+        "minion_cycles": 675602783,
+        "retired_instructions_thread_0": 177731436,
+        "l2_miss_requests": 2164787,
+        "minion_icache_requests": 51979760
+      }
+    ]
+  },
+  "package_blobs": {
+    "inputs": {
+      "path": "local-artifacts/yolov10n_hf_reference/full_graph/coco_room_000139_full308_v3/inputs.bin",
+      "nbytes": 4915200,
+      "sha256": "65afc38f381c09712cd9a6a78e8e7e9800c713d21679abee588b218a6a137c7b"
+    },
+    "weights": {
+      "path": "local-artifacts/yolov10n_hf_reference/full_graph/coco_room_000139_full308_v3/weights.bin",
+      "nbytes": 9299136,
+      "sha256": "b6d5aa13ef3238328c19ff0f646f72841bcf44dc1651383d089f0d57e37cf850"
+    },
+    "goldens": {
+      "path": "local-artifacts/yolov10n_hf_reference/full_graph/coco_room_000139_full308_v3/goldens.bin",
+      "nbytes": 21594432,
+      "sha256": "e2c68a622fe151f29627b7b0ca62930e26ee7d86572f88e7bdd6a06aa0b85295"
+    }
+  },
+  "artifacts": {
+    "full_manifest": {
+      "path": "local-artifacts/yolov10n_hf_reference/full_graph/coco_room_000139_full308_v3/slice_manifest.json",
+      "nbytes": 481575,
+      "sha256": "1e3d783a28b276f9650c8a5375ad617adee43c33c677c0e91acea5b0c3372b5a"
+    },
+    "generated_header": {
+      "path": "local-artifacts/yolov10n_hf_reference/full_graph/coco_room_000139_full308_v3/slice_manifest.h",
+      "nbytes": 92881,
+      "sha256": "79be5b751842df025a3612ebb690e283813ea9ac8e373fd1bc44b706ca7a2a7e"
+    },
+    "elf": {
+      "path": "local-artifacts/yolov10n_hf_reference/results/full_board/coco_room_000139_full308_v3/slice.elf",
+      "nbytes": 177864,
+      "sha256": "278e1769020036ee835ba8838c1595f9f48d54dcd7ec6ff2c743fbff688409cc"
+    },
+    "build_record": {
+      "path": "local-artifacts/yolov10n_hf_reference/results/full_board/coco_room_000139_full308_v3/build_record.json",
+      "nbytes": 4030,
+      "sha256": "7989eb4cc83264e356bfe5f79f0e0cc0b53281efcc0f6a6a2783fbebba3bcd32"
+    },
+    "dump": {
+      "path": "local-artifacts/yolov10n_hf_reference/results/full_board/coco_room_000139_full308_v3/dump.bin",
+      "nbytes": 36306944,
+      "sha256": "b4975576d65ad90adced01a8e6ad16e456a8a644213edd8452e41bd7a50b1202"
+    },
+    "run_log": {
+      "path": "local-artifacts/yolov10n_hf_reference/results/full_board/coco_room_000139_full308_v3/run.log",
+      "nbytes": 5534,
+      "sha256": "304fe247ded872bb8c35205b61edc5bbc69347e97333e9116b08f495cbdde049"
+    },
+    "run_result": {
+      "path": "local-artifacts/yolov10n_hf_reference/results/full_board/coco_room_000139_full308_v3/run_result.json",
+      "nbytes": 4404,
+      "sha256": "98643c1c9a819415558750c5e076b6660176133e6d2f703497802e7aaf4af11d"
+    },
+    "device_evidence": {
+      "path": "local-artifacts/yolov10n_hf_reference/results/full_board/coco_room_000139_full308_v3/device_evidence.txt",
+      "nbytes": 319,
+      "sha256": "ca3dd65010d44550cffd9e2c059ad64fccb072a319ec6b0feb6fabb57bb4ee52"
+    },
+    "full_compare": {
+      "path": "local-artifacts/yolov10n_hf_reference/results/full_board/coco_room_000139_full308_v3/full_compare.json",
+      "nbytes": 25535,
+      "sha256": "6462bda97290918cb73c62b1fc08943f28316a53b8eedb782ca55b2a6c8b5f31"
+    },
+    "pmc_stages": {
+      "path": "local-artifacts/yolov10n_hf_reference/results/full_board/coco_room_000139_full308_v3/pmc_stages.json",
+      "nbytes": 175654,
+      "sha256": "c7c326d43f091781e4278e5354fa0d3775fedb6344bdb4c7127e23b82c990185"
+    },
+    "detections": {
+      "path": "local-artifacts/yolov10n_hf_reference/results/full_board/coco_room_000139_full308_v3/detections.json",
+      "nbytes": 5416,
+      "sha256": "d8ca730e19181fbf33b2e9b5f27fb8c49c6f96bb110f773c91f0f46d643e3299"
+    },
+    "instrumented_onnx": {
+      "path": "local-artifacts/yolov10n_hf_reference/full_graph/coco_room_000139_full308_v3/instrumented_full.onnx",
+      "nbytes": 9386974,
+      "sha256": "1ad416adc4528e37bece03d860dec1abf694006c55e31a57e41cf36b6030f77e"
+    },
+    "launcher": {
+      "path": "/root/afonso/demo/host/erbium_soc1sim_argbuf_dynmem",
+      "nbytes": 98008,
+      "sha256": "fa2e63f1fd1e2cfd2dd6e29106e57de7d208c6e64c391098115235a7a98bfb5f"
+    }
+  }
+}
