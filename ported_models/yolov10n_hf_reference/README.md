@@ -1,157 +1,217 @@
-# YOLOv10n pinned-ONNX FP32 correctness reference
+# YOLOv10n pinned-ONNX scalar reference
 
-This is a new, isolated scalar FP32 port for ET-SoC1. Its sole model source is
-the pinned Hugging Face ONNX artifact in `artifacts.json`; there is no PyTorch
-re-export and no graph or weight mapping shared with `ported_models/yolo`.
+This directory contains a readable FP32 C port of one exact Hugging Face ONNX
+artifact. It is a correctness and workshop baseline for ET-SoC1, not an
+optimized submission.
 
 | Source fact | Pinned value |
 |---|---|
 | Repository | `onnx-community/yolov10n` |
 | Revision | `57657320425ee34056408a57ad9d29c4d4815bd8` |
 | File | `onnx/model.onnx` |
-| Bytes | 9,386,116 |
+| Size | 9,386,116 bytes |
 | SHA-256 | `a77dd863933f184a19e84361c64b788228a7c7dacc2c78939239a96ad3efca3b` |
-| Upstream license | AGPL-3.0 |
+| License | AGPL-3.0 |
 
-The checked graph is ONNX opset 13 with input `images` FP32
-`[1,3,640,640]`, output `output0` FP32 `[1,300,6]`, 308 nodes, and 187
-initializers. The terminal graph contains the NMS-free two-stage
-TopK/GatherElements selection; it has no `NonMaxSuppression` node.
+The model is ONNX opset 13. Its interface is `images` FP32
+`[1,3,640,640]` to `output0` FP32 `[1,300,6]`. The graph has 308 nodes,
+187 initializers, 83 Conv nodes, and 22 operator types. It includes decode and
+NMS-free Top-300 selection; it does not contain a `NonMaxSuppression` node.
 
-## Implemented scope
+Every ONNX node is kept as a separate scalar operation. There is no VPU,
+TFMA, fusion, tiling, threading, fast-math, or other performance
+transformation.
 
-The schema-v2 reference runtime executes the complete inclusive
-`N000:N307` graph and produces `output0 [1,300,6]`. Its 22 checked operator
-types are:
+## Model parts
 
-```text
-Add Cast Concat Conv Div Flatten GatherElements MatMul MaxPool Mod Mul
-ReduceMax Reshape Resize Sigmoid Softmax Split Sub Tile TopK Transpose
-Unsqueeze
-```
+| Part | ONNX nodes | Purpose |
+|---|---:|---|
+| Stem | `N000:N005` | Two stride-2 Conv/SiLU steps |
+| Backbone | `N006:N090` | C2f-style features and P3/P4/P5 downsampling |
+| SPPF and partial attention | `N091:N128` | Spatial pyramid pooling and attention/FFN |
+| Neck | `N129:N207` | Top-down and bottom-up multiscale fusion |
+| Three-scale head | `N208:N270` | P3/P4/P5 box and class branches |
+| DFL and decode | `N271:N288` | Distribution expectation, boxes, and class sigmoid |
+| Top-300 selection | `N289:N307` | Two TopK stages and final `[box, score, class]` rows |
 
-That is the complete operator set actually present in the pin: Conv×83,
-Sigmoid×70, Mul×71, Concat×21, Split×13, Add×11, Reshape×8, Transpose×4,
-MaxPool×3, Tile×3, GatherElements×3, MatMul×2, Softmax×2, Resize×2, TopK×2,
-and one each of Sub, ReduceMax, Flatten, Mod, Div, and Cast. Implementations
-are deliberately graph-contract-specific and validate shapes, attributes,
-types, and broadcasts. An operator or form outside that contract still fails
-explicitly; it is never silently skipped or approximated.
+The first five parts are learned feature extraction and detection. The last
+two are output transformation implemented inside the ONNX. Preprocessing,
+score filtering, label names, drawing, and mapping boxes back to the original
+image are outside the model.
 
-Every node remains a separate scalar operation. There is no VPU, TFMA,
-fusion, tiling, threading, fast-math, or latency-oriented transformation.
-The legacy schema-v1 four-operator slices remain available unchanged as
-regression evidence alongside the full schema-v2 path.
+`manifests/layers.tsv` provides stable `Nxxx`, high-level `Lxxx`, and
+per-operator IDs. `manifests/graph_inventory.json` contains every node,
+attribute, inferred tensor, and initializer.
 
-The port remains intentionally absent from the leaderboard. The complete
-real-image graph now passes on real ET-SoC1, but this scalar implementation is
-a correctness reference rather than a latency submission. No registration,
-publication, or leaderboard change is part of this work.
+## Supported workflows
 
-## What is validated
+There are only two execution modes:
 
-All comparisons use ONNX Runtime 1.16.3 with graph optimizations disabled,
-one thread, and intermediates exposed from the checksum-verified artifact.
-The default gate is
-`abs(actual-reference) <= 5e-5 + 1e-4*abs(reference)`; the decoded `N288`
-checkpoint alone has an explicit `2e-4` absolute override. INT64 outputs are
-exact, and non-finite values always fail.
+1. `generate_full_graph.py` creates an end-to-end `N000:N307` package.
+2. `capture_range.py` creates one node or any contiguous range, such as
+   `N003:N003` or `N271:N288`.
 
-| Path | Scope | Current result |
-|---|---|---|
-| Full host, deterministic input | all 308 nodes; 16 pinned checkpoints; `output0` | PASS, zero unexplained mismatches |
-| Full host, real COCO-room fixture | preprocessing through all 308 nodes and `output0` | strict direct PASS, 0/1,800 mismatches; max abs `0.00042724609375` |
-| Host resumable ranges | 21 gap-free ranges covering `N000:N307`; all 324 node outputs | PASS, 0/75,592,700 mismatches |
-| System emulator, original slices | `N263:N265` and `N266:N268` | PASS, zero mismatches, PMC PASS |
-| System emulator, schema-v2 tail | `N289:N307` | PASS, all 22 outputs exact, PMC PASS |
-| System emulator, all 21 ranges | planned gap-free coverage | in progress; do not infer completion from the plan |
-| ET-SoC1 PCIe hardware, preserved slices | `N263:N265` and `N263:N270` | PASS, zero mismatches, PMC PASS |
-| ET-SoC1 PCIe hardware, full graph | real image, `N000:N307`, 16 checkpoints, seven stage PMCs | PASS, strict direct 0/1,800 mismatches; all PMCs PASS |
+Both use the same hand-written runtime in `src/ref_runtime.c`. Generated ONNX
+instrumentation, headers, weights, inputs, goldens, ELFs, dumps, and logs stay
+under ignored `local-artifacts/`.
 
-The deterministic fixture contains exact score ties at both TopK cutoffs.
-Direct positional comparison therefore differs in 1,091/1,800 fields even
-though the two independently replayed `N289:N307` programs match their C and
-ORT outputs bitwise and leave zero unexplained mismatches. The real-image
-fixture has nonzero cutoff margins and is the strict final-output gate:
-`--require-direct-output` passes with all 300 selected anchor/class pairs
-aligned.
+### 1. Set up and verify the pinned model
 
-Preserved hardware slice evidence records `device=soc1sim`, both ET character
-devices, PCI ID `1e0a:eb01`, saved ELF/build hashes, exact launcher commands,
-board-lock/reset logs, dumps, and comparison reports. Those historical runs
-remain regression evidence. The full run separately records `DevicePcie`,
-`/dev/et0_ops`, ETSOC1, `hardware=true`, PCI `1e0a:eb01`, a 721.396-second
-kernel wait, strict output agreement, and seven valid stage PMC records. Raw
-binaries and logs remain under ignored `local-artifacts/`.
-
-`manifests/board_full_summary_strict.json` is the tracked compact evidence
-index. `tools/collect_board_summary.py` regenerates it only after rechecking
-the pin, generated header, blobs, compiler/build inputs, saved run-artifact
-hashes, hardware/reset log, strict 16-checkpoint comparison, detections, and
-all seven PMCs.
-
-## Full execution package and memory plan
-
-`tools/generate_full_graph.py` emits a readable schema-v2 manifest plus a
-small generated descriptor header, not a monolithic generated kernel. The
-hand-written runtime consumes 512 typed tensor descriptors and the original
-aligned initializer package.
-
-- A deterministic 64-byte-aligned first-fit liveness plan allocates node
-  outputs before releasing inputs whose last consumer is that node.
-- Sixteen architecture checkpoints remain pinned for final comparison.
-- The measured workspace arena is 35,788,800 bytes.
-- The launcher dump is 36,306,944 bytes and includes the `YRF1` result,
-  workspace, and seven independent 64 KiB PMC slots.
-- The FP32 input starts at 36,306,944, the 9,299,136-byte weight package at
-  41,222,144, and total target memory is 50,528,256 bytes.
-
-For bounded range execution, `manifests/sys_emu_coverage_plan.json` partitions
-the graph into 21 exact, non-overlapping ranges. Every selected node output is
-retained and compared. Ranges target at most 24,000,000 retained-output bytes
-and 250 million Conv/MatMul MACs; the deliberate `N271:N288` DFL/decode range
-uses 30,105,600 retained bytes, and the measured maximum range workload is
-249,958,400 MACs.
-
-## Start here
-
-- [RECIPE.md](docs/RECIPE.md): exact download, generation, host, emulator,
-  board, validation, and troubleshooting commands.
-- [ARCHITECTURE.md](docs/ARCHITECTURE.md): graph-measured workshop explanation
-  of preprocessing boundaries, backbone, C2f-style blocks, SPPF, attention,
-  neck, head, DFL decode, and NMS-free Top-300.
-- [VALIDATION.md](docs/VALIDATION.md): measured host/emulator/hardware results
-  and provenance.
-- `manifests/layers.tsv`: readable stable `Nxxx`, `Lxxx`, and per-op IDs.
-- `manifests/graph_inventory.json`: nodes, attributes, inferred tensors, and
-  initializers.
-- `manifests/weights_manifest.json`: deterministic little-endian initializer
-  package layout; the binary stays in `local-artifacts/`.
-- `manifests/board_full_summary_strict.json`: hash-bound strict real-ET-SoC1
-  full-run evidence summary.
-
-Minimal host setup:
+Run from the repository root:
 
 ```bash
-ported_models/yolov10n_hf_reference/tools/setup_host_env.sh
-python3 ported_models/yolov10n_hf_reference/tools/download_model.py
-local-artifacts/yolov10n_hf_reference/venv/bin/python \
-  ported_models/yolov10n_hf_reference/tools/inspect_onnx.py
-local-artifacts/yolov10n_hf_reference/venv/bin/python \
-  ported_models/yolov10n_hf_reference/tools/pack_initializers.py
-local-artifacts/yolov10n_hf_reference/venv/bin/python \
-  ported_models/yolov10n_hf_reference/tools/generate_full_graph.py \
-  --name deterministic_full308_v3
-ported_models/yolov10n_hf_reference/scripts/run_host_full.sh \
-  local-artifacts/yolov10n_hf_reference/full_graph/deterministic_full308_v3
+PORT=ported_models/yolov10n_hf_reference
+PY=local-artifacts/yolov10n_hf_reference/venv/bin/python
+
+"$PORT/tools/setup_host_env.sh"
+"$PY" "$PORT/tools/download_model.py"
+"$PY" "$PORT/tools/inspect_onnx.py"
+"$PY" "$PORT/tools/pack_initializers.py"
 ```
 
-For the strict real-image gate, bounded system-emulator ranges, full board
-command, expected markers, record semantics, and recovery instructions, use
-[RECIPE.md](docs/RECIPE.md). The original
-`capture_slice.py`/`run_host_slice.sh` examples remain documented there and
-must continue to pass as regressions.
+The environment is pinned in `requirements-host.txt` and supports Python
+3.8–3.11. The download and every generator reject the wrong model checksum.
 
-The model graph and weights retain AGPL-3.0 terms and are not committed. The
-new runtime and tooling are first-party repository source; see
-`THIRD_PARTY.md` for the exact upstream record.
+### 2. Run the full graph on the host
+
+```bash
+"$PY" "$PORT/tools/generate_full_graph.py" --name deterministic
+"$PORT/scripts/run_host_full.sh" \
+  local-artifacts/yolov10n_hf_reference/full_graph/deterministic
+```
+
+This compares 16 architecture checkpoints and final `output0` against ONNX
+Runtime with graph optimization disabled. FP32 values use
+`abs(actual-reference) <= 5e-5 + 1e-4*abs(reference)`, except for the
+documented `N288` decode checkpoint override. INT64 comparisons are exact.
+
+### 3. Run one layer or a small range
+
+This example captures and checks nodes `N003:N005`:
+
+```bash
+NAME=n003_n005
+RANGE=local-artifacts/yolov10n_hf_reference/ranges/$NAME
+
+"$PY" "$PORT/tools/capture_range.py" \
+  --range N003:N005 \
+  --name "$NAME"
+"$PORT/scripts/run_host_range.sh" "$RANGE"
+```
+
+Every output of every selected node is retained and compared. Boundary
+tensors are captured from the same pinned model through ONNX Runtime. A
+single node is selected by repeating it or using it once:
+
+```bash
+"$PY" "$PORT/tools/capture_range.py" \
+  --range N003 \
+  --name n003
+```
+
+### 4. Build and run that range in `sys_emu`
+
+The ET compiler requires a valid `ET_PLATFORM` or `ET_INSTALL`. Set
+`LAUNCHER` to the system-emulator launcher installed on the ET host.
+
+```bash
+ELF="$RANGE/yolov10n_hf_range.elf"
+RUN=local-artifacts/yolov10n_hf_reference/results/sys_emu_$NAME
+
+"$PORT/scripts/build_et_slice.sh" "$RANGE" "$ELF"
+"$PORT/scripts/run_et_slice.sh" \
+  --device sys_emu \
+  --slice-dir "$RANGE" \
+  --elf "$ELF" \
+  --launcher "$LAUNCHER" \
+  --output-dir "$RUN" \
+  --outer-timeout 1800 \
+  --launcher-timeout 1740
+"$PORT/scripts/validate_device_run.sh" "$RANGE" "$RUN" sys_emu
+```
+
+`sys_emu` is intentionally slow. Use it for one layer or a bounded range,
+not for routine end-to-end inference. The validator checks the saved command,
+ELF, input and weight identities, every selected output, and the PMC record.
+
+### 5. Run the complete graph on ET-SoC1
+
+On a configured ET board host:
+
+```bash
+FULL=local-artifacts/yolov10n_hf_reference/full_graph/deterministic
+ELF="$FULL/yolov10n_hf_full.elf"
+RUN=local-artifacts/yolov10n_hf_reference/results/full_board
+MODEL=local-artifacts/yolov10n_hf_reference/model.onnx
+
+"$PORT/scripts/build_et_full.sh" "$FULL" "$ELF"
+"$PORT/scripts/run_et_full.sh" \
+  --device soc1sim \
+  --full-dir "$FULL" \
+  --elf "$ELF" \
+  --launcher "$LAUNCHER" \
+  --output-dir "$RUN"
+"$PORT/scripts/validate_et_full.sh" \
+  "$FULL" "$RUN" soc1sim "$MODEL" 1
+```
+
+The real board path obtains the repository board lock, resets ET-SoC1, and
+stores hash-bound run evidence. It never registers the port with the
+leaderboard.
+
+## PMCs
+
+`src/ref_pmc.h` programs and reads these counters:
+
+- `hpmcounter3`: minion cycles
+- `hpmcounter4/5`: retired instructions on thread 0/1
+- `hpmcounter6`: L2 miss requests
+- `hpmcounter7`: minion I-cache requests
+- `hpmcounter8`: I-cache ET-link requests
+
+A range has one PMC interval around exactly its selected nodes. Full
+execution has seven intervals matching the model-parts table above. Input
+loading, launcher startup, dumping, and host comparison are outside those
+intervals. `validate_device_run.sh` and `validate_et_full.sh` decode and check
+the records automatically; `tools/decode_pmc.py` is available for manual
+inspection.
+
+Simulator PMCs prove execution and instrumentation. Use real-board PMCs for
+performance conclusions.
+
+## Current validation
+
+| Path | Result |
+|---|---|
+| Full host, deterministic input | PASS, all 308 nodes and 16 checkpoints |
+| Full host, checked real image | PASS, strict `output0` 0/1,800 mismatches |
+| Host arbitrary ranges | PASS, including every supported operator |
+| `sys_emu` bounded ranges | PASS, selected outputs and PMC records |
+| ET-SoC1 full real image | PASS, strict `output0`, 16 checkpoints, seven PMCs |
+
+The measured full-board kernel wait for this unoptimized scalar baseline was
+721.396 seconds. This is correctness evidence, not a target latency.
+`manifests/board_full_summary_strict.json` is the compact, hash-bound record;
+raw binaries and logs are deliberately not committed.
+
+## Repository contents
+
+- `src/`: scalar runtime, host/ET runners, and PMC support.
+- `tools/`: model download, graph generation, comparison, preprocessing, and
+  evidence utilities.
+- `scripts/`: small host and ET build/run/validate entry points.
+- `manifests/`: pinned graph, layer, weight, execution, and board facts.
+- `tools/tests/`: tamper and contract regression tests.
+- [THIRD_PARTY.md](THIRD_PARTY.md): upstream artifact and license record.
+
+Run lightweight source checks with:
+
+```bash
+python3 -m compileall -q "$PORT/tools"
+for script in "$PORT"/scripts/*.sh "$PORT"/tools/*.sh; do
+  bash -n "$script"
+done
+```
+
+The complete graph and weight package are generated locally because the model
+artifact remains under its upstream AGPL-3.0 terms.

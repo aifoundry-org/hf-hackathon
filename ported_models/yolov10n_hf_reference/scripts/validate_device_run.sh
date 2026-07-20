@@ -20,7 +20,7 @@ import json, sys
 manifest = json.load(open(sys.argv[1]))
 print(
     manifest["schema_version"],
-    manifest.get("manifest_kind", "legacy_slice"),
+    manifest["manifest_kind"],
     manifest["memory_map"]["pmc_device_offset"],
 )
 PY
@@ -150,19 +150,14 @@ print(
 )
 PY
 
-if [[ "$schema_version" == "2" \
-      && "$manifest_kind" == "contiguous_node_range" ]]; then
-  "$python" "$port_root/tools/compare_range_v2.py" \
-    "$slice_dir" "$run_dir/dump.bin" \
-    --json "$run_dir/tensor_compare.json"
-elif [[ "$schema_version" == "1" ]]; then
-  "$python" "$port_root/tools/compare_slice.py" \
-    "$slice_dir" "$run_dir/dump.bin" \
-    --json "$run_dir/tensor_compare.json"
-else
+if [[ "$schema_version" != "2" \
+      || "$manifest_kind" != "contiguous_node_range" ]]; then
   echo "error: unsupported device-validation manifest schema=$schema_version kind=$manifest_kind" >&2
   exit 2
 fi
+"$python" "$port_root/tools/compare_range.py" \
+  "$slice_dir" "$run_dir/dump.bin" \
+  --json "$run_dir/tensor_compare.json"
 "$python" "$port_root/tools/decode_pmc.py" \
   "$run_dir/dump.bin" --offset "$pmc_offset" --format json \
   > "$run_dir/pmc.json"

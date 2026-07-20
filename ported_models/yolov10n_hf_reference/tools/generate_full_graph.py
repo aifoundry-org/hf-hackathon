@@ -138,7 +138,7 @@ ALLOWED_ATTRIBUTES = {
     "Unsqueeze": set(),
 }
 
-# These are the measured architecture boundaries in architecture_stages.json.
+# Measured architecture boundaries used for full-graph PMC intervals.
 CHECKPOINT_NODES = (
     5,
     20,

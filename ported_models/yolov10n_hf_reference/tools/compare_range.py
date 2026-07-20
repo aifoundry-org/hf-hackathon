@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare every schema-v2 range output with its pinned ONNX Runtime golden."""
+"""Compare every range output with its pinned ONNX Runtime golden."""
 
 from __future__ import annotations
 
@@ -773,7 +773,7 @@ def main() -> int:
             args.rtol,
         )
     except (CompareError, OSError, ValueError, KeyError) as exc:
-        print("RANGE_V2_COMPARE FAIL {}".format(exc), file=sys.stderr)
+        print("RANGE_COMPARE FAIL {}".format(exc), file=sys.stderr)
         return 2
     if args.json is not None:
         args.json.parent.mkdir(parents=True, exist_ok=True)
@@ -783,7 +783,7 @@ def main() -> int:
         )
     summary = report["summary"]
     print(
-        "RANGE_V2_COMPARE {} selector={} outputs={}/{} "
+        "RANGE_COMPARE {} selector={} outputs={}/{} "
         "mismatches={}/{} report={}".format(
             "PASS" if report["pass"] else "FAIL",
             report["selector"],
