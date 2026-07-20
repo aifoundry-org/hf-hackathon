@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Capture any contiguous pinned-ONNX node range for schema-v2 C execution.
+"""Capture any contiguous pinned-ONNX node range for scalar C execution.
 
-Unlike the legacy four-operator slice workflow, this tool accepts every
-operator in the full scalar runtime.  It preserves every selected node output
-at a distinct workspace offset, including all outputs of multi-output nodes.
+This tool accepts every operator in the full scalar runtime. It preserves
+every selected node output at a distinct workspace offset, including all
+outputs of multi-output nodes.
 Inputs whose producers are outside the range are captured from ONNX Runtime;
 initializers are copied directly from the checksum-verified ONNX artifact.
 """
@@ -50,7 +50,7 @@ PORT_ROOT = Path(__file__).resolve().parents[1]
 REPO_ROOT = PORT_ROOT.parents[1]
 DEFAULT_MODEL = REPO_ROOT / "local-artifacts/yolov10n_hf_reference/model.onnx"
 DEFAULT_OUTPUT_ROOT = (
-    REPO_ROOT / "local-artifacts/yolov10n_hf_reference/ranges_v2"
+    REPO_ROOT / "local-artifacts/yolov10n_hf_reference/ranges"
 )
 EXPECTED_REPO = "onnx-community/yolov10n"
 EXPECTED_REVISION = "57657320425ee34056408a57ad9d29c4d4815bd8"
@@ -247,7 +247,7 @@ def write_header(
     lines = [
         (
             "/* Generated directly from the pinned ONNX by "
-            "tools/capture_range_v2.py. */"
+            "tools/capture_range.py. */"
         ),
         "#ifndef YOLOV10N_HF_SLICE_MANIFEST_H",
         "#define YOLOV10N_HF_SLICE_MANIFEST_H",
@@ -726,7 +726,7 @@ def generate(args: argparse.Namespace) -> Dict[str, Any]:
     )
 
     print(
-        "RANGE_V2_CAPTURE PASS selector={} nodes={} outputs={} "
+        "RANGE_CAPTURE PASS selector={} nodes={} outputs={} "
         "boundary={} initializers={}".format(
             manifest["selection"]["selector"],
             len(selected_nodes),
@@ -746,7 +746,7 @@ def generate(args: argparse.Namespace) -> Dict[str, Any]:
             )
         )
     print(
-        "RANGE_V2_MEMORY PASS workspace={} dump=0x{:x} "
+        "RANGE_MEMORY PASS workspace={} dump=0x{:x} "
         "input=0x{:x} weights=0x{:x} total=0x{:x}".format(
             workspace_bytes,
             dump_size,
@@ -756,7 +756,7 @@ def generate(args: argparse.Namespace) -> Dict[str, Any]:
         )
     )
     print(
-        "RANGE_V2_BLOBS PASS inputs={} weights={} goldens={} out={}".format(
+        "RANGE_BLOBS PASS inputs={} weights={} goldens={} out={}".format(
             input_size, weight_size, golden_size, output_dir
         )
     )
@@ -797,7 +797,7 @@ def main() -> int:
         KeyError,
         onnx.checker.ValidationError,
     ) as exc:
-        print("RANGE_V2_CAPTURE FAIL {}".format(exc), file=sys.stderr)
+        print("RANGE_CAPTURE FAIL {}".format(exc), file=sys.stderr)
         return 2
     return 0
 

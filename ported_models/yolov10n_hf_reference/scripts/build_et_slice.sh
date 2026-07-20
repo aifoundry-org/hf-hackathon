@@ -9,7 +9,7 @@ et_install="${ET_INSTALL:-${ET_PLATFORM:-/opt/et}}"
 gcc="${ET_GCC:-$et_install/bin/riscv64-unknown-elf-gcc}"
 
 test -f "$slice_dir/slice_manifest.h" || {
-  echo "error: run tools/capture_slice.py first; missing $slice_dir/slice_manifest.h" >&2
+  echo "error: generate the full graph or run tools/capture_range.py first; missing $slice_dir/slice_manifest.h" >&2
   exit 2
 }
 test -x "$gcc" || {

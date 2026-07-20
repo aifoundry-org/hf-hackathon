@@ -50,7 +50,8 @@ int main(int argc, char **argv)
     struct yr_result_header *result;
     uint32_t status;
     if (argc != 4) {
-        fprintf(stderr, "usage: %s INPUTS.BIN WEIGHTS.BIN DUMP.BIN\n", argv[0]);
+        fprintf(stderr, "usage: %s INPUTS.BIN WEIGHTS.BIN DUMP.BIN\n",
+                argv[0]);
         return 2;
     }
     memory = (uint8_t *)calloc(1, YR_MEM_SIZE);
@@ -68,7 +69,7 @@ int main(int argc, char **argv)
     result = (struct yr_result_header *)(memory + YR_RESULT_DEVICE_OFFSET);
     status = yr_prepare_result(memory, result);
     if (status != YR_STATUS_OK) {
-        fprintf(stderr, "error: generated slice manifest is invalid\n");
+        fprintf(stderr, "error: generated range is invalid\n");
         free(memory);
         return 1;
     }
@@ -79,7 +80,7 @@ int main(int argc, char **argv)
         return 2;
     }
     printf(
-        "HOST_SLICE %s nodes=N%03u:N%03u status=%u "
+        "HOST_RANGE %s nodes=N%03u:N%03u status=%u "
         "workspace_fnv1a=%016llx dump=%s\n",
         status == YR_STATUS_OK ? "PASS" : "FAIL",
         YR_FIRST_NODE, YR_LAST_NODE, status,
