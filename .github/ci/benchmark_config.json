@@ -95,7 +95,9 @@
         },
         {
           "address": "0x02000000",
-          "paths": ["yolo/weights_region.bin"],
+          "paths": [
+            "yolo/weights_region.bin"
+          ],
           "required": true
         },
         {
@@ -134,7 +136,9 @@
           "file_loads": [
             {
               "address": "0x04A00000",
-              "paths": ["yolo/coco_cat_524280_raw_480x640x3_uint8_rgb.bin"],
+              "paths": [
+                "yolo/coco_cat_524280_raw_480x640x3_uint8_rgb.bin"
+              ],
               "required": true
             }
           ],
@@ -150,7 +154,9 @@
           "file_loads": [
             {
               "address": "0x04A00000",
-              "paths": ["yolo/coco_giraffes_296969_raw_480x640x3_uint8_rgb.bin"],
+              "paths": [
+                "yolo/coco_giraffes_296969_raw_480x640x3_uint8_rgb.bin"
+              ],
               "required": true
             }
           ],
@@ -166,7 +172,9 @@
           "file_loads": [
             {
               "address": "0x04A00000",
-              "paths": ["yolo/coco_elephants_445248_raw_480x640x3_uint8_rgb.bin"],
+              "paths": [
+                "yolo/coco_elephants_445248_raw_480x640x3_uint8_rgb.bin"
+              ],
               "required": true
             }
           ],
@@ -182,7 +190,9 @@
           "file_loads": [
             {
               "address": "0x04A00000",
-              "paths": ["yolo/coco_baseball_043816_raw_480x640x3_uint8_rgb.bin"],
+              "paths": [
+                "yolo/coco_baseball_043816_raw_480x640x3_uint8_rgb.bin"
+              ],
               "required": true
             }
           ],
@@ -300,6 +310,24 @@
     },
     "smolvlm2_500m_video": {
       "config": "ported_models/llama_cpp_et/benchmarks/smolvlm2_500m_video.json"
+    },
+    "gemma3_270m": {
+      "config": "ported_models/llama_cpp_et/benchmarks/gemma3_270m.json"
+    },
+    "lfm25_230m": {
+      "config": "ported_models/llama_cpp_et/benchmarks/lfm25_230m.json"
+    },
+    "qwen25_coder_05b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/qwen25_coder_05b.json"
+    },
+    "llama32_1b_q4": {
+      "config": "ported_models/llama_cpp_et/benchmarks/llama32_1b_q4.json"
+    },
+    "qwen25_05b_q4": {
+      "config": "ported_models/llama_cpp_et/benchmarks/qwen25_05b_q4.json"
+    },
+    "smollm2_360m_q4": {
+      "config": "ported_models/llama_cpp_et/benchmarks/smollm2_360m_q4.json"
     }
   }
 }
