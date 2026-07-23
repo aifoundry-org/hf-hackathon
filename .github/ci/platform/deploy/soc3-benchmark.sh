@@ -22,7 +22,7 @@ et_platform_src_complete() {
 
 if [[ -z "${LLAMA_CPP_ET_SOURCE_REVISION:-}" ]]; then
   _llama_source="${ROOT}/ported_models/llama_cpp_et/src/llama.cpp-et"
-  if [[ -d "${_llama_source}" ]]; then
+  if [[ -e "${_llama_source}/.git" ]]; then
     LLAMA_CPP_ET_SOURCE_REVISION="$(git -C "${_llama_source}" rev-parse HEAD 2>/dev/null || true)"
   fi
   if [[ -z "${LLAMA_CPP_ET_SOURCE_REVISION:-}" ]]; then
@@ -53,7 +53,8 @@ else
   "${SSH_CMD[@]}" "rm -rf ${output_dir} && mkdir -p ${output_dir}"
 fi
 
-if [[ -x "${SOC3_BUILD_ET:-$HOME/et}/bin/riscv64-unknown-elf-gcc" ]]; then
+_local_riscv_gcc="${SOC3_BUILD_ET:-$HOME/et}/bin/riscv64-unknown-elf-gcc"
+if [[ -x "$_local_riscv_gcc" ]] && "$_local_riscv_gcc" --version >/dev/null 2>&1; then
   _etp="${ET_PLATFORM_SRC:-}"
   if [[ -n "$_etp" ]] && ! et_platform_src_complete "$_etp"; then
     echo "WARN: local ET_PLATFORM_SRC=$_etp is incomplete; searching for a usable et-platform tree" >&2
@@ -95,6 +96,8 @@ PY
     done
     export SOC3_PREBUILT=1
   fi
+elif [[ -x "$_local_riscv_gcc" ]]; then
+  echo "WARN: skipping local ELF prebuild because $_local_riscv_gcc cannot run on this host; the board-side Docker wrapper will be used" >&2
 fi
 
 echo "==> soc3 transport: ${TRANSPORT} (set USE_TAILSCALE_SSH=0 to force OpenSSH)"
@@ -160,6 +163,18 @@ for name in \
   BENCHMARK_SHA \
   BENCHMARK_REF \
   BENCHMARK_RUN_URL \
+  ET_BOARD_EPOCH \
+  ET_BOARD_ID \
+  ET_BOARD_HOSTNAME \
+  ET_MINION_FREQUENCY_MHZ \
+  ET_NOC_FREQUENCY_MHZ \
+  ET_BOARD_TDP_W \
+  ET_BOARD_CLOCK_RETRIES \
+  ET_BOARD_CLOCK_RETRY_DELAY_S \
+  ET_BOARD_CLOCK_COMMAND_TIMEOUT_S \
+  ET_BOARD_DEVICE_PATH \
+  ET_DEV_MNGT_SERVICE \
+  LLAMA_CPP_ET_BUILD_JOBS \
   TRUSTED_BOARD_LAUNCHER_TIMEOUT_CAP \
   TRUSTED_BOARD_OUTER_TIMEOUT_CAP; do
   if [[ -n "${!name:-}" ]]; then
@@ -455,19 +470,6 @@ if [[ -f "$_launcher_lib_dir/libetrt.so" \
   export LD_LIBRARY_PATH="$_launcher_lib_dir:$LD_LIBRARY_PATH"
 fi
 
-reset_board() {
-  local reset
-  for reset in /sys/devices/pci0000:00/0000:00:01.0/0000:01:00.0/soc_reset/reinitiate \
-    /sys/bus/pci/devices/*/soc_reset/reinitiate; do
-    if [[ -w "$reset" ]]; then
-      echo "Resetting ET-SoC1 via $reset"
-      echo 1 > "$reset" || true
-      sleep 2
-      return
-    fi
-  done
-}
-
 board_smoke() {
   local smoke_elf="${BOARD_SMOKE_ELF:-/opt/et/kernels/histogram.erbium-soc1sim.elf}"
   local smoke_dir="$BENCHMARK_OUTPUT/board-smoke"
@@ -481,7 +483,6 @@ board_smoke() {
 
   mkdir -p "$smoke_dir"
   rm -f "$smoke_log" "$smoke_dump"
-  reset_board
   echo ""
   echo "========== board smoke: $(basename "$smoke_elf") =========="
   if python3 .github/ci/scripts/board_lock.py \
@@ -520,6 +521,14 @@ fi
 echo "Host: $(hostname) device=$(stat -c '%a %U:%G' /dev/et0_mgmt) launcher=$LAUNCHER"
 
 chmod +x .github/ci/scripts/*.sh scripts/*.sh 2>/dev/null || true
+echo ""
+echo "========== ET board clock preflight =========="
+python3 .github/ci/scripts/board_lock.py \
+  --lock "$BOARD_LOCK" \
+  --timeout 60 \
+  -- \
+  bash .github/ci/scripts/configure_board_clock.sh
+
 FAIL=0
 if [[ "${SOC3_SKIP_BOARD_SMOKE:-0}" != "1" ]] && ! board_smoke; then
   FAIL=1
@@ -527,7 +536,6 @@ fi
 for model in $MODELS; do
   echo ""
   echo "========== benchmark: $model =========="
-  reset_board
   if ! bash .github/ci/scripts/run_model_benchmark.sh "$model"; then
     echo "WARN: $model benchmark script returned non-zero" >&2
     FAIL=1

@@ -23,6 +23,108 @@ def configured_models() -> list[str]:
     return list(cfg.get("models", {}).keys())
 
 
+def hardware_epoch() -> str:
+    value = load_config(CONFIG_PATH).get("board", {}).get("hardware", {}).get("epoch")
+    if not value:
+        raise RuntimeError("benchmark config has no board.hardware.epoch")
+    return str(value)
+
+
+def validate_score_set(scores_dir: Path, models: list[str]) -> dict[str, dict]:
+    """Load a complete, passing score set before mutating leaderboard files."""
+    cfg = load_config(CONFIG_PATH)
+    policy = cfg.get("board", {}).get("hardware", {})
+    expected_hardware = {
+        "hardware_epoch": policy.get("epoch"),
+        "board_id": policy.get("board_id"),
+        "minion_frequency_mhz": policy.get("minion_frequency_mhz"),
+        "noc_frequency_mhz": policy.get("noc_frequency_mhz"),
+        "tdp_w": policy.get("tdp_w"),
+    }
+    scores: dict[str, dict] = {}
+    errors: list[str] = []
+
+    for model in models:
+        score_path = scores_dir / f"score-{model}.json"
+        if not score_path.is_file():
+            errors.append(f"{model}: missing score artifact")
+            continue
+        try:
+            score = json.loads(score_path.read_text())
+        except (OSError, json.JSONDecodeError) as exc:
+            errors.append(f"{model}: invalid score artifact ({exc})")
+            continue
+        if not isinstance(score, dict):
+            errors.append(f"{model}: score artifact is not an object")
+            continue
+
+        model_errors: list[str] = []
+        if score.get("model") != model:
+            model_errors.append(f"model={score.get('model')!r}")
+        if not score.get("passed"):
+            model_errors.append("passed is not true")
+        if score.get("ref") != "refs/heads/main":
+            model_errors.append(f"ref={score.get('ref')!r}")
+        if not score.get("sha"):
+            model_errors.append("sha is missing")
+        if not score.get("run_url"):
+            model_errors.append("run_url is missing")
+
+        metric, _ = metric_config(model)
+        if not isinstance(score.get(metric), (int, float)):
+            model_errors.append(f"{metric} is missing or non-numeric")
+
+        hardware = score.get("hardware")
+        actual_hardware = {
+            "hardware_epoch": score.get("hardware_epoch"),
+            "board_id": hardware.get("board_id") if isinstance(hardware, dict) else None,
+            "minion_frequency_mhz": (
+                hardware.get("minion_frequency_mhz")
+                if isinstance(hardware, dict)
+                else None
+            ),
+            "noc_frequency_mhz": (
+                hardware.get("noc_frequency_mhz")
+                if isinstance(hardware, dict)
+                else None
+            ),
+            "tdp_w": hardware.get("tdp_w") if isinstance(hardware, dict) else None,
+        }
+        mismatches = [
+            key
+            for key, expected in expected_hardware.items()
+            if actual_hardware.get(key) != expected
+        ]
+        if mismatches:
+            model_errors.append("hardware mismatch: " + ", ".join(mismatches))
+        if not isinstance(hardware, dict) or not hardware.get("boot_id"):
+            model_errors.append("hardware boot_id is missing")
+
+        required_variant = baseline_variant(model)
+        if required_variant and score.get("variant") != required_variant:
+            model_errors.append(
+                f"variant={score.get('variant')!r}, expected {required_variant!r}"
+            )
+        required_contract_sha = validation_contract_sha256(model)
+        if (
+            required_contract_sha
+            and score.get("validation_contract_sha256") != required_contract_sha
+        ):
+            model_errors.append("validation contract does not match")
+
+        if model_errors:
+            errors.append(f"{model}: " + "; ".join(model_errors))
+        else:
+            scores[model] = score
+
+    if errors:
+        raise SystemExit(
+            "refusing a partial or untrusted leaderboard update:\n- "
+            + "\n- ".join(errors)
+        )
+    return scores
+
+
 def metric_config(model: str) -> tuple[str, bool]:
     cfg = load_config(CONFIG_PATH)
     model_cfg = cfg.get("models", {}).get(model, {})
@@ -67,26 +169,49 @@ def selected_models(value: str | None) -> list[str]:
     return selected
 
 
-def load_board(model: str) -> list:
-    path = LEADERBOARD_DIR / f"{model}.json"
-    if not path.is_file():
-        return []
-    data = json.loads(path.read_text())
-    entries = data if isinstance(data, list) else data.get("entries", [])
+def eligible_entries(model: str, entries: list) -> list:
+    values = [entry for entry in entries if isinstance(entry, dict)]
     required_variant = baseline_variant(model)
     if required_variant:
-        entries = [entry for entry in entries if entry.get("variant") == required_variant]
+        values = [entry for entry in values if entry.get("variant") == required_variant]
     required_contract_sha = validation_contract_sha256(model)
     if required_contract_sha:
-        entries = [
+        values = [
             entry
-            for entry in entries
+            for entry in values
             if entry.get("validation_contract_sha256") == required_contract_sha
         ]
+    return values
+
+
+def load_board_state(model: str) -> tuple[list, list]:
+    path = LEADERBOARD_DIR / f"{model}.json"
+    if not path.is_file():
+        return [], []
+    data = json.loads(path.read_text())
+    entries = data if isinstance(data, list) else data.get("entries", [])
+    existing_legacy = [] if isinstance(data, list) else data.get("legacy_entries", [])
+    current_epoch = hardware_epoch()
+    active_candidates = [
+        entry for entry in entries
+        if isinstance(entry, dict) and entry.get("hardware_epoch") == current_epoch
+    ]
+    active = eligible_entries(model, active_candidates)
+    active_ids = {id(entry) for entry in active}
+    legacy = [entry for entry in existing_legacy if isinstance(entry, dict)]
+    legacy.extend(
+        entry for entry in entries
+        if isinstance(entry, dict) and id(entry) not in active_ids
+    )
+    return active, legacy
+
+
+def load_board(model: str) -> list:
+    entries, _ = load_board_state(model)
     return entries
 
 
-def save_board(model: str, entries: list) -> None:
+def save_board(model: str, entries: list, legacy_entries: list | None = None) -> None:
     LEADERBOARD_DIR.mkdir(parents=True, exist_ok=True)
     path = LEADERBOARD_DIR / f"{model}.json"
     metric, higher = metric_config(model)
@@ -94,10 +219,32 @@ def save_board(model: str, entries: list) -> None:
         "model": model,
         "metric": metric,
         "lower_is_better": not higher,
+        "hardware_epoch": hardware_epoch(),
         "updated_at": datetime.now(timezone.utc).isoformat(),
         "entries": entries,
     }
+    if legacy_entries:
+        payload["legacy_entries"] = legacy_entries
     path.write_text(json.dumps(payload, indent=2) + "\n")
+
+
+def bootstrap_participant(model: str, score: dict, legacy_entries: list) -> str | None:
+    """Keep the incumbent owner when main establishes a new hardware epoch."""
+    if score.get("ref") != "refs/heads/main":
+        return None
+    if score.get("hardware_epoch") != hardware_epoch():
+        return None
+    candidates = eligible_entries(model, legacy_entries)
+    metric, higher = metric_config(model)
+    candidates = [
+        entry for entry in candidates if isinstance(entry.get(metric), (int, float))
+    ]
+    if not candidates:
+        return None
+    incumbent = (max if higher else min)(
+        candidates, key=lambda entry: float(entry[metric])
+    )
+    return str(incumbent.get("participant_login") or incumbent.get("team") or "") or None
 
 
 def merge_entry(
@@ -130,6 +277,8 @@ def merge_entry(
         "perplexity_tokens": score.get("perplexity_tokens"),
         "perplexity_prompt_tokens_per_second": score.get("perplexity_prompt_tokens_per_second"),
         "validation_contract_sha256": score.get("validation_contract_sha256"),
+        "hardware_epoch": score.get("hardware_epoch"),
+        "hardware": score.get("hardware"),
         "sha": sha,
         "ref": score.get("ref"),
         "run_url": score.get("run_url"),
@@ -186,20 +335,25 @@ def main() -> int:
     args = parser.parse_args()
 
     scores_dir = Path(args.scores_dir)
+    models = selected_models(args.models)
+    scores = validate_score_set(scores_dir, models)
     changed = False
-    for model in selected_models(args.models):
-        score_path = scores_dir / f"score-{model}.json"
-        if not score_path.is_file():
-            continue
-        score = json.loads(score_path.read_text())
-        before = load_board(model)
+    for model in models:
+        score = scores[model]
+        before, legacy_entries = load_board_state(model)
+        participant_login = args.participant_login or None
+        if not before:
+            participant_login = (
+                bootstrap_participant(model, score, legacy_entries)
+                or participant_login
+            )
         after = merge_entry(
             before,
             score,
-            participant_login=args.participant_login or None,
+            participant_login=participant_login,
         )
         if after != before:
-            save_board(model, after)
+            save_board(model, after, legacy_entries)
             changed = True
             print(f"updated leaderboard for {model}")
         else:

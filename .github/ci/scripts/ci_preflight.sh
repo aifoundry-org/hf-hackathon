@@ -46,6 +46,8 @@ python3 -m unittest discover -s .github/ci/scripts -p 'test_model_port_history.p
   || bad "historical model-port review tests failed"
 python3 -m unittest discover -s .github/ci/scripts -p 'test_board_lock.py' \
   || bad "shared board lock tests failed"
+python3 -m unittest discover -s .github/ci/scripts -p 'test_changed_benchmark_models.py' \
+  || bad "hardware migration selector tests failed"
 python3 -m py_compile ported_models/yolo/tools/host_reference.py \
   || bad "YOLO host-reference compile errors"
 
@@ -58,7 +60,7 @@ step "Workflow YAML parses"
 for yml in .github/workflows/*.yml; do
   python3 -c "import yaml,sys; yaml.safe_load(open(sys.argv[1]))" "$yml" || bad "invalid YAML: $yml"
 done
-python3 - <<'PY' || bad "ET-SoC1 workflows are not pinned exclusively to aifoundry2"
+python3 - <<'PY' || bad "ET-SoC1 workflows are not pinned exclusively to the guarded aifoundry3 epoch"
 from pathlib import Path
 
 import yaml
@@ -71,9 +73,18 @@ targets = {
 }
 for filename, job_name in targets.items():
     workflow = yaml.safe_load((Path(".github/workflows") / filename).read_text())
-    labels = workflow["jobs"][job_name]["runs-on"]
-    assert "aifoundry2" in labels, f"{filename} is not pinned to aifoundry2"
-    assert "aifoundry3" not in labels, f"{filename} still selects aifoundry3"
+    job = workflow["jobs"][job_name]
+    labels = job["runs-on"]
+    assert "aifoundry3" in labels, f"{filename} is not pinned to aifoundry3"
+    assert "aifoundry2" not in labels, f"{filename} still selects aifoundry2"
+    env = job.get("env", {})
+    assert env.get("ET_BOARD_EPOCH") == "et-soc1-aifoundry3-600-400-tdp0-v1"
+    assert env.get("ET_BOARD_ID") == "aifoundry3"
+    assert str(env.get("ET_MINION_FREQUENCY_MHZ")) == "600"
+    assert str(env.get("ET_NOC_FREQUENCY_MHZ")) == "400"
+    assert str(env.get("ET_BOARD_TDP_W")) == "0"
+    if filename == "benchmark-board.yml":
+        assert str(env.get("SOC3_FAIL_ON_MODEL_FAILURE")) == "1"
 PY
 if ! grep -qF 'uses: aifoundry-org/hf-hackathon/.github/workflows/benchmark-board.yml@main' \
   .github/workflows/trusted-yolo-pr.yml; then
@@ -868,6 +879,16 @@ scores_dir = Path(sys.argv[2])
 contract_path = Path(".github/ci/reference/llama32_1b.json")
 contract = json.loads(contract_path.read_text())
 contract_sha = hashlib.sha256(contract_path.read_bytes()).hexdigest()
+hardware_identity = {
+    "hardware_epoch": "et-soc1-aifoundry2-legacy-v1",
+    "hardware": {
+        "board_id": "aifoundry2",
+        "boot_id": "ci-fixture-boot",
+        "minion_frequency_mhz": 600,
+        "noc_frequency_mhz": 400,
+        "tdp_w": 0,
+    },
+}
 
 
 def best(model, key, *, higher):
@@ -880,6 +901,7 @@ model = contract["model"]
 target_speed = best(model, "tokens_per_second", higher=True)
 target_ppl = best(model, "perplexity", higher=False)
 baseline_path.write_text(json.dumps({
+    **hardware_identity,
     "model": model,
     "passed": True,
     "tokens_per_second": target_speed,
@@ -887,6 +909,7 @@ baseline_path.write_text(json.dumps({
     "validation_contract_sha256": contract_sha,
 }) + "\n")
 (scores_dir / f"score-{model}.json").write_text(json.dumps({
+    **hardware_identity,
     "model": model,
     "passed": True,
     "team": "ci-fixture",
@@ -900,6 +923,7 @@ for regression in contract["runtime"]["regression_models"]:
     speed = best(regression, "tokens_per_second", higher=True)
     ppl = best(regression, "perplexity", higher=False)
     (scores_dir / f"score-{regression}.json").write_text(json.dumps({
+        **hardware_identity,
         "model": regression,
         "passed": True,
         "tokens_per_second": speed * 1.01,

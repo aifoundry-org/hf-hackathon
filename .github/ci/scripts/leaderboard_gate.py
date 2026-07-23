@@ -295,7 +295,9 @@ def load_json_from_ref(path: str, base_ref: str) -> Any | None:
     return json.loads(local.read_text())
 
 
-def leaderboard_entries(model: str, base_ref: str) -> list[dict[str, Any]]:
+def leaderboard_entries(
+    model: str, base_ref: str, *, include_legacy: bool = False
+) -> list[dict[str, Any]]:
     data = load_json_from_ref(f"data/{model}.json", base_ref)
     if data is None:
         return []
@@ -303,9 +305,41 @@ def leaderboard_entries(model: str, base_ref: str) -> list[dict[str, Any]]:
         return [entry for entry in data if isinstance(entry, dict)]
     if isinstance(data, dict):
         entries = data.get("entries", [])
+        if include_legacy:
+            entries = list(entries) + list(data.get("legacy_entries", []))
         if isinstance(entries, list):
             return [entry for entry in entries if isinstance(entry, dict)]
     return []
+
+
+def hardware_policy(cfg: dict[str, Any]) -> dict[str, Any]:
+    policy = cfg.get("board", {}).get("hardware", {})
+    return policy if isinstance(policy, dict) else {}
+
+
+def hardware_mismatches(score: dict[str, Any], cfg: dict[str, Any]) -> list[str]:
+    policy = hardware_policy(cfg)
+    hardware = score.get("hardware")
+    if not isinstance(hardware, dict):
+        return ["hardware"]
+    expected = {
+        "hardware_epoch": policy.get("epoch"),
+        "board_id": policy.get("board_id"),
+        "minion_frequency_mhz": policy.get("minion_frequency_mhz"),
+        "noc_frequency_mhz": policy.get("noc_frequency_mhz"),
+        "tdp_w": policy.get("tdp_w"),
+    }
+    actual = {
+        "hardware_epoch": score.get("hardware_epoch"),
+        "board_id": hardware.get("board_id"),
+        "minion_frequency_mhz": hardware.get("minion_frequency_mhz"),
+        "noc_frequency_mhz": hardware.get("noc_frequency_mhz"),
+        "tdp_w": hardware.get("tdp_w"),
+    }
+    mismatches = [key for key, value in expected.items() if actual.get(key) != value]
+    if not hardware.get("boot_id"):
+        mismatches.append("boot_id")
+    return mismatches
 
 
 def best_entry(entries: list[dict[str, Any]], metric: str, higher: bool) -> dict[str, Any] | None:
@@ -389,6 +423,11 @@ def main() -> int:
     parser.add_argument("--expected-ref", default="")
     parser.add_argument("--expected-run-url", default="")
     parser.add_argument(
+        "--enforce-hardware-epoch",
+        action="store_true",
+        help="Require scores and performance baselines from board.hardware.epoch.",
+    )
+    parser.add_argument(
         "--min-relative-improvement",
         type=float,
         default=float(os.environ.get("LEADERBOARD_MIN_RELATIVE_IMPROVEMENT", "0")),
@@ -462,8 +501,14 @@ def main() -> int:
     for model in models:
         metric, label, higher = metric_config(cfg, model)
         score_path = scores_dir / f"score-{model}.json"
-        entries = leaderboard_entries(model, args.base_ref)
-        quality_entries = list(entries)
+        all_entries = leaderboard_entries(
+            model, args.base_ref, include_legacy=args.enforce_hardware_epoch
+        )
+        quality_entries = list(all_entries)
+        expected_epoch = hardware_policy(cfg).get("epoch")
+        entries = list(all_entries)
+        if args.enforce_hardware_epoch:
+            entries = [entry for entry in entries if entry.get("hardware_epoch") == expected_epoch]
         required_variant = baseline_variant(cfg, model)
         if required_variant:
             entries = [entry for entry in entries if entry.get("variant") == required_variant]
@@ -519,6 +564,15 @@ def main() -> int:
                 f"Score provenance does not match this workflow run: {cell(', '.join(mismatches))}. |"
             )
             continue
+
+        if args.enforce_hardware_epoch:
+            board_mismatches = hardware_mismatches(score, cfg)
+            if board_mismatches:
+                failed = True
+                lines.append(
+                    f"| {model} | {cell(label)} | - | {baseline_text} | fail | Score is not from the required hardware epoch: {cell(', '.join(board_mismatches))}. |"
+                )
+                continue
 
         value = score_value(score, metric)
         score_text = fmt_metric(value, metric)

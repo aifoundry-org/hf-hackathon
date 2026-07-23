@@ -1,11 +1,72 @@
 #!/usr/bin/env python3
 
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
-from merge_leaderboard import merge_entry
+from merge_leaderboard import (
+    bootstrap_participant,
+    hardware_epoch,
+    merge_entry,
+    metric_config,
+    validate_score_set,
+)
 
 
 class MergeLeaderboardTests(unittest.TestCase):
+    @staticmethod
+    def valid_score(model: str) -> dict:
+        metric, _ = metric_config(model)
+        return {
+            "model": model,
+            "passed": True,
+            metric: 1.0,
+            "hardware_epoch": hardware_epoch(),
+            "hardware": {
+                "board_id": "aifoundry3",
+                "minion_frequency_mhz": 600,
+                "noc_frequency_mhz": 400,
+                "tdp_w": 0,
+                "boot_id": "test-boot",
+            },
+            "sha": "candidate",
+            "ref": "refs/heads/main",
+            "run_url": "https://github.example/actions/runs/1",
+        }
+
+    def test_complete_passing_score_set_is_accepted(self):
+        models = ["lfm25", "tinyllama11b"]
+        with tempfile.TemporaryDirectory() as raw:
+            scores_dir = Path(raw)
+            for model in models:
+                (scores_dir / f"score-{model}.json").write_text(
+                    json.dumps(self.valid_score(model))
+                )
+            scores = validate_score_set(scores_dir, models)
+        self.assertEqual(set(scores), set(models))
+
+    def test_missing_score_rejects_entire_set(self):
+        with tempfile.TemporaryDirectory() as raw:
+            scores_dir = Path(raw)
+            (scores_dir / "score-lfm25.json").write_text(
+                json.dumps(self.valid_score("lfm25"))
+            )
+            with self.assertRaisesRegex(SystemExit, "tinyllama11b: missing"):
+                validate_score_set(scores_dir, ["lfm25", "tinyllama11b"])
+
+    def test_failed_or_wrong_epoch_score_rejects_entire_set(self):
+        score = self.valid_score("lfm25")
+        score["passed"] = False
+        score["hardware_epoch"] = "some-other-board"
+        with tempfile.TemporaryDirectory() as raw:
+            scores_dir = Path(raw)
+            (scores_dir / "score-lfm25.json").write_text(json.dumps(score))
+            with self.assertRaisesRegex(
+                SystemExit, "passed is not true.*hardware mismatch"
+            ):
+                validate_score_set(scores_dir, ["lfm25"])
+
     def test_lower_is_better_score_must_strictly_improve(self):
         existing = [
             {
@@ -79,6 +140,42 @@ class MergeLeaderboardTests(unittest.TestCase):
         self.assertEqual(len(improved), 1)
         self.assertEqual(improved[0]["tokens_per_second"], 11.0)
         self.assertEqual(improved[0]["sha"], "candidate")
+
+    def test_main_epoch_bootstrap_preserves_the_incumbent_owner(self):
+        legacy = [
+            {
+                "team": "Display Name",
+                "participant_login": "incumbent",
+                "variant": "dncnn20l64",
+                "kernel_wait_s": 1.0,
+            }
+        ]
+        score = {
+            "model": "dncnn",
+            "passed": True,
+            "hardware_epoch": hardware_epoch(),
+            "ref": "refs/heads/main",
+            "kernel_wait_s": 0.9,
+        }
+        self.assertEqual(
+            bootstrap_participant("dncnn", score, legacy),
+            "incumbent",
+        )
+
+    def test_pull_request_cannot_claim_the_epoch_bootstrap(self):
+        legacy = [
+            {
+                "participant_login": "incumbent",
+                "variant": "dncnn20l64",
+                "kernel_wait_s": 1.0,
+            }
+        ]
+        score = {
+            "model": "dncnn",
+            "hardware_epoch": hardware_epoch(),
+            "ref": "refs/pull/123/head",
+        }
+        self.assertIsNone(bootstrap_participant("dncnn", score, legacy))
 
 
 if __name__ == "__main__":
