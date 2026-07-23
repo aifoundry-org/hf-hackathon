@@ -15,6 +15,10 @@ from merge_leaderboard import (
 
 
 class MergeLeaderboardTests(unittest.TestCase):
+    EXPECTED_SHA = "candidate"
+    EXPECTED_REF = "refs/heads/main"
+    EXPECTED_RUN_URL = "https://github.example/actions/runs/1"
+
     @staticmethod
     def valid_score(model: str) -> dict:
         metric, _ = metric_config(model)
@@ -30,10 +34,19 @@ class MergeLeaderboardTests(unittest.TestCase):
                 "tdp_w": 0,
                 "boot_id": "test-boot",
             },
-            "sha": "candidate",
-            "ref": "refs/heads/main",
-            "run_url": "https://github.example/actions/runs/1",
+            "sha": MergeLeaderboardTests.EXPECTED_SHA,
+            "ref": MergeLeaderboardTests.EXPECTED_REF,
+            "run_url": MergeLeaderboardTests.EXPECTED_RUN_URL,
         }
+
+    def validate_scores(self, scores_dir: Path, models: list[str]) -> dict[str, dict]:
+        return validate_score_set(
+            scores_dir,
+            models,
+            expected_sha=self.EXPECTED_SHA,
+            expected_ref=self.EXPECTED_REF,
+            expected_run_url=self.EXPECTED_RUN_URL,
+        )
 
     def test_complete_passing_score_set_is_accepted(self):
         models = ["lfm25", "tinyllama11b"]
@@ -43,7 +56,7 @@ class MergeLeaderboardTests(unittest.TestCase):
                 (scores_dir / f"score-{model}.json").write_text(
                     json.dumps(self.valid_score(model))
                 )
-            scores = validate_score_set(scores_dir, models)
+            scores = self.validate_scores(scores_dir, models)
         self.assertEqual(set(scores), set(models))
 
     def test_missing_score_rejects_entire_set(self):
@@ -53,7 +66,7 @@ class MergeLeaderboardTests(unittest.TestCase):
                 json.dumps(self.valid_score("lfm25"))
             )
             with self.assertRaisesRegex(SystemExit, "tinyllama11b: missing"):
-                validate_score_set(scores_dir, ["lfm25", "tinyllama11b"])
+                self.validate_scores(scores_dir, ["lfm25", "tinyllama11b"])
 
     def test_failed_or_wrong_epoch_score_rejects_entire_set(self):
         score = self.valid_score("lfm25")
@@ -65,7 +78,22 @@ class MergeLeaderboardTests(unittest.TestCase):
             with self.assertRaisesRegex(
                 SystemExit, "passed is not true.*hardware mismatch"
             ):
-                validate_score_set(scores_dir, ["lfm25"])
+                self.validate_scores(scores_dir, ["lfm25"])
+
+    def test_score_provenance_must_match_exact_commit_ref_and_run(self):
+        for field, value in (
+            ("sha", "newer-main"),
+            ("ref", "refs/heads/other"),
+            ("run_url", "https://github.example/actions/runs/2"),
+        ):
+            with self.subTest(field=field):
+                score = self.valid_score("lfm25")
+                score[field] = value
+                with tempfile.TemporaryDirectory() as raw:
+                    scores_dir = Path(raw)
+                    (scores_dir / "score-lfm25.json").write_text(json.dumps(score))
+                    with self.assertRaisesRegex(SystemExit, field):
+                        self.validate_scores(scores_dir, ["lfm25"])
 
     def test_lower_is_better_score_must_strictly_improve(self):
         existing = [

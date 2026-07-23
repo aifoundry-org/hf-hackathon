@@ -30,8 +30,28 @@ def hardware_epoch() -> str:
     return str(value)
 
 
-def validate_score_set(scores_dir: Path, models: list[str]) -> dict[str, dict]:
+def validate_score_set(
+    scores_dir: Path,
+    models: list[str],
+    *,
+    expected_sha: str,
+    expected_ref: str,
+    expected_run_url: str,
+) -> dict[str, dict]:
     """Load a complete, passing score set before mutating leaderboard files."""
+    expected_provenance = {
+        "sha": expected_sha,
+        "ref": expected_ref,
+        "run_url": expected_run_url,
+    }
+    missing_expectations = [
+        key for key, value in expected_provenance.items() if not value
+    ]
+    if missing_expectations:
+        raise ValueError(
+            "expected score provenance is missing: " + ", ".join(missing_expectations)
+        )
+
     cfg = load_config(CONFIG_PATH)
     policy = cfg.get("board", {}).get("hardware", {})
     expected_hardware = {
@@ -63,12 +83,10 @@ def validate_score_set(scores_dir: Path, models: list[str]) -> dict[str, dict]:
             model_errors.append(f"model={score.get('model')!r}")
         if not score.get("passed"):
             model_errors.append("passed is not true")
-        if score.get("ref") != "refs/heads/main":
-            model_errors.append(f"ref={score.get('ref')!r}")
-        if not score.get("sha"):
-            model_errors.append("sha is missing")
-        if not score.get("run_url"):
-            model_errors.append("run_url is missing")
+        for key, expected in expected_provenance.items():
+            actual = score.get(key)
+            if actual != expected:
+                model_errors.append(f"{key}={actual!r}, expected {expected!r}")
 
         metric, _ = metric_config(model)
         if not isinstance(score.get(metric), (int, float)):
@@ -332,11 +350,20 @@ def main() -> int:
     parser.add_argument("--scores-dir", required=True)
     parser.add_argument("--models", default="")
     parser.add_argument("--participant-login", default="")
+    parser.add_argument("--expected-sha", required=True)
+    parser.add_argument("--expected-ref", required=True)
+    parser.add_argument("--expected-run-url", required=True)
     args = parser.parse_args()
 
     scores_dir = Path(args.scores_dir)
     models = selected_models(args.models)
-    scores = validate_score_set(scores_dir, models)
+    scores = validate_score_set(
+        scores_dir,
+        models,
+        expected_sha=args.expected_sha,
+        expected_ref=args.expected_ref,
+        expected_run_url=args.expected_run_url,
+    )
     changed = False
     for model in models:
         score = scores[model]

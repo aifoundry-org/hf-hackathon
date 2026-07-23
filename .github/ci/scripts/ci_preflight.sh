@@ -128,6 +128,12 @@ if ! grep -qF 'trusted_track_delegation.py' \
   .github/workflows/benchmark-board.yml; then
   bad "generic leaderboard CI still duplicates trusted shared-runtime gates"
 fi
+if ! grep -qF 'from changed_benchmark_models import board_hardware_changed' \
+  .github/workflows/benchmark-board.yml \
+  || [[ "$(grep -cF '[[ "$hardware_migration" != "1" ]]' \
+    .github/workflows/benchmark-board.yml)" -ne 2 ]]; then
+  bad "hardware migration smoke can be removed by trusted-track delegation"
+fi
 if grep -qE '^[[:space:]]+paths:' .github/workflows/trusted-llama32-pr.yml; then
   bad "trusted Llama final check must run on every PR so it can be required"
 fi
@@ -170,9 +176,21 @@ fi
 if grep -qF '.removeprefix(' .github/ci/scripts/score_results.py; then
   bad "board scorer must remain compatible with the Python 3.8 board host"
 fi
-if ! grep -qF -- '--expected-claim-paths' .github/workflows/benchmark-board.yml \
-  || ! grep -qF 'git switch --detach origin/main' .github/workflows/benchmark-board.yml; then
-  bad "merge-time model-port credit must bind to PR files and current ledger state"
+if ! grep -qF -- '--expected-claim-paths' .github/workflows/benchmark-board.yml; then
+  bad "merge-time model-port credit must bind to PR files"
+fi
+for token in \
+  'if [[ "$current_main" != "$GITHUB_SHA" ]]' \
+  '--expected-sha "$GITHUB_SHA"' \
+  '--expected-ref "refs/heads/main"' \
+  '--expected-run-url "$EXPECTED_RUN_URL"'; do
+  if ! grep -qF -- "$token" .github/workflows/benchmark-board.yml; then
+    bad "leaderboard publication is not bound to measured provenance: $token"
+  fi
+done
+if grep -qF 'git merge-base --is-ancestor "$GITHUB_SHA" origin/main' \
+  .github/workflows/benchmark-board.yml; then
+  bad "leaderboard publication still permits main to advance after measurement"
 fi
 if ! grep -qF 'run-name: "Trusted YOLO PR #' .github/workflows/trusted-yolo-pr.yml; then
   bad "trusted YOLO run name must retain the PR number and head SHA"

@@ -212,6 +212,7 @@ jobs:
           uncovered=""
           trusted_yolo=0
           trusted_runtime=0
+          hardware_migration=0
           zero_sha="0000000000000000000000000000000000000000"
           if [[ "$TRUSTED_YOLO_MODE" == "1" ]]; then
             git fetch --no-tags origin \
@@ -251,6 +252,16 @@ jobs:
               --uncovered-out uncovered.txt)"
             unregistered="$(cat unregistered.txt 2>/dev/null || true)"
             uncovered="$(cat uncovered.txt 2>/dev/null || true)"
+            hardware_migration="$(python3 - "$PR_BASE_SHA" <<'PY'
+          import sys
+          from pathlib import Path
+
+          sys.path.insert(0, str(Path(".github/ci/scripts").resolve()))
+          from changed_benchmark_models import board_hardware_changed
+
+          print(1 if board_hardware_changed(sys.argv[1]) else 0)
+          PY
+          )"
           elif [[ "$EVENT_NAME" == "push" && -n "$PUSH_BEFORE_SHA" && "$PUSH_BEFORE_SHA" != "$zero_sha" ]]; then
             models="$(python3 .github/ci/scripts/changed_benchmark_models.py \
               --target board \
@@ -270,6 +281,7 @@ jobs:
               --format space)"
           fi
           if [[ "$TRUSTED_YOLO_MODE" != "1" && "$EVENT_NAME" == "pull_request" ]] \
+            && [[ "$hardware_migration" != "1" ]] \
             && git cat-file -e "$PR_BASE_SHA:.github/workflows/trusted-yolo-pr.yml" 2>/dev/null \
             && [[ " $models " == *" yolo "* ]]; then
             trusted_yolo=1
@@ -280,6 +292,7 @@ jobs:
           )"
           fi
           if [[ "$EVENT_NAME" == "pull_request" ]] \
+            && [[ "$hardware_migration" != "1" ]] \
             && git cat-file -e "$PR_BASE_SHA:.github/workflows/trusted-smolvlm2-pr.yml" 2>/dev/null \
             && [[ " $models " == *" smolvlm2_500m_video "* ]]; then
             if git cat-file -e "$PR_BASE_SHA:.github/workflows/trusted-llama32-pr.yml" 2>/dev/null \
@@ -331,6 +344,10 @@ jobs:
             if [[ -n "$uncovered" ]]; then
               echo
               echo "Changed runtime source not covered by an adequate benchmark row: \`$uncovered\`"
+            fi
+            if [[ "$hardware_migration" == "1" ]]; then
+              echo
+              echo "Hardware migration smoke retains all representative board runners in this workflow."
             fi
             if [[ "$trusted_yolo" == "1" ]]; then
               echo
@@ -963,17 +980,25 @@ jobs:
         run: |
           set -euo pipefail
           git fetch --no-tags origin main
-          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
-          git switch --detach origin/main
+          current_main="$(git rev-parse origin/main)"
+          if [[ "$current_main" != "$GITHUB_SHA" ]]; then
+            echo "Main advanced from measured commit $GITHUB_SHA to $current_main; refusing stale board scores." >&2
+            exit 1
+          fi
+          git switch --detach "$GITHUB_SHA"
 
       - name: Merge board scores into leaderboard
         env:
           SELECTED_MODELS: ${{ needs.select-board-models.outputs.models }}
+          EXPECTED_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           python3 .github/ci/scripts/merge_leaderboard.py \
             --scores-dir board-scores \
             --models "$SELECTED_MODELS" \
-            --participant-login "$PARTICIPANT_LOGIN"
+            --participant-login "$PARTICIPANT_LOGIN" \
+            --expected-sha "$GITHUB_SHA" \
+            --expected-ref "refs/heads/main" \
+            --expected-run-url "$EXPECTED_RUN_URL"
 
       - name: Validate and issue model-port credits
         env:
