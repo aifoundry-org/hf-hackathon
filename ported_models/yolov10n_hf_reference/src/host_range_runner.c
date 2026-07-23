@@ -7,6 +7,30 @@
 #include "slice_manifest.h"
 
 
+uint32_t yr_hart_id(void)
+{
+    return 0u;
+}
+
+
+uint32_t yr_hart_count(void)
+{
+    return 1u;
+}
+
+
+void yr_publish(const void *address, uint32_t bytes)
+{
+    (void)address;
+    (void)bytes;
+}
+
+
+void yr_hart_barrier(void)
+{
+}
+
+
 static int read_exact(const char *path, uint8_t *destination, size_t expected)
 {
     FILE *file = fopen(path, "rb");

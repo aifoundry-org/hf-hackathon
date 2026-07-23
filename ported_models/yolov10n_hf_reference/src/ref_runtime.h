@@ -70,4 +70,48 @@ uint32_t yr_run_node_span(
  */
 void yr_finalize_result(uint8_t *device_base, struct yr_result_header *result);
 
+/*
+ * Hart topology and cross-hart synchronization hooks. Each runner supplies
+ * its own definitions so ref_runtime.c stays free of platform headers and
+ * behaves identically on host and device once yr_hart_count() returns 1.
+ */
+uint32_t yr_hart_id(void);
+uint32_t yr_hart_count(void);
+void yr_publish(const void *address, uint32_t bytes);
+void yr_hart_barrier(void);
+
+/*
+ * Optional fast path for a single Conv node, tried before the portable
+ * scalar yr_conv(). Returns 1 if it computed the node and wrote output,
+ * 0 if it declined (caller falls back to the scalar path unchanged).
+ * ref_runtime.c supplies a weak stub that always declines, so the host
+ * build and any ET build without a tensor-path source stay exactly as
+ * they are today. An ET-only source file can override this symbol with
+ * a real tensor-unit implementation without ref_runtime.c ever
+ * including a platform or tensor header.
+ *
+ * On multi-hart builds each hart calls this independently and, when it
+ * returns 1, may have only computed its own slice of output channels
+ * (tile-aligned to the tensor unit's native width, not the raw per-hart
+ * channel split yr_conv() itself uses). hart_oc_lo and hart_oc_hi report
+ * that slice in output-channel units so the caller publishes exactly what
+ * this hart wrote instead of assuming a different split. Both are set to
+ * 0 before anything else runs, so a decline (return 0) or a hart that owns
+ * no tiles this call always leaves them as an empty [0,0) range.
+ */
+struct yr_node_desc;
+struct yr_tensor_desc;
+uint32_t yr_conv_tensor(
+    const struct yr_node_desc *node,
+    const struct yr_tensor_desc *input_desc,
+    const struct yr_tensor_desc *weight_desc,
+    const struct yr_tensor_desc *bias_desc,
+    const struct yr_tensor_desc *output_desc,
+    const float *input,
+    const float *weight,
+    const float *bias,
+    float *output,
+    uint32_t *hart_oc_lo,
+    uint32_t *hart_oc_hi);
+
 #endif

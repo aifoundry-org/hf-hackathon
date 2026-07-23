@@ -29,21 +29,31 @@ read -r -a include_flags <<<"${ERBIUM_GCC_INCLUDE_FLAGS}"
 read -r -a extra_cflags <<<"${YR_ET_EXTRA_CFLAGS:-}"
 mkdir -p "$(dirname "$output")"
 
+# Default stays the 16-hart configuration already validated tonight. Override
+# YR_ET_NUM_HARTS (and pass -DYR_NHART=... via YR_ET_EXTRA_CFLAGS) to build a
+# single-hart image, e.g. for the tensor-unit fast path in
+# yr_conv_tensor_et.c, which only ever runs with yr_hart_count() == 1.
+et_num_harts="${YR_ET_NUM_HARTS:-16}"
+link_flags=(
+  "-Wl,--gc-sections" "-Wl,--no-warn-rwx-segments" "-Wl,--emit-relocs"
+  "-Wl,--defsym=NUM_HARTS=${et_num_harts}" "-Wl,--defsym=region0_size=0x00400000"
+  -T"$ERBIUM_LD"
+)
+if [[ -n "${YR_ET_STACK_SIZE:-}" ]]; then
+  link_flags+=("-Wl,--defsym=STACK_SIZE=${YR_ET_STACK_SIZE}")
+fi
+
 compile_flags=(
   "-std=gnu11" -O1 -fno-fast-math "-ffp-contract=off" -fno-tree-vectorize
   "-march=rv64imfc" "-mabi=lp64f" "-mcmodel=medany" -nostdlib
   -fno-zero-initialized-in-bss -ffunction-sections -fdata-sections
 )
 define_flags=(
-  "-DNUM_HARTS=16" -DYR_PMC
-)
-link_flags=(
-  "-Wl,--gc-sections" "-Wl,--no-warn-rwx-segments" "-Wl,--emit-relocs"
-  "-Wl,--defsym=NUM_HARTS=16" "-Wl,--defsym=region0_size=0x00400000"
-  -T"$ERBIUM_LD"
+  "-DNUM_HARTS=${et_num_harts}" -DYR_PMC
 )
 sources=(
   "$port_root/src/ref_runtime.c"
+  "$port_root/src/yr_conv_tensor_et.c"
   "$port_root/src/et_slice_runner.c"
   "$repo_root/.github/ci/support/hart_report_crt.S"
   "$ERBIUM_LAYOUT"
@@ -78,6 +88,7 @@ python3 - \
   "$ERBIUM_LAYOUT" "$repo_root/.github/ci/support/hart_report_crt.S" \
   "$port_root/src/ref_runtime.c" "$port_root/src/ref_runtime.h" \
   "$port_root/src/ref_pmc.h" "$port_root/src/et_slice_runner.c" \
+  "$port_root/src/yr_conv_tensor_et.c" \
   "${command[@]}" <<'PY'
 import datetime
 import hashlib
@@ -88,6 +99,7 @@ import sys
 (
     record, elf, compiler, compiler_version, docker_image, docker_image_id,
     manifest, linker, layout, crt, runtime_c, runtime_h, pmc_h, runner_c,
+    conv_tensor_c,
     *command,
 ) = sys.argv[1:]
 
@@ -124,6 +136,7 @@ payload = {
             "runtime_h": runtime_h,
             "pmc_h": pmc_h,
             "et_runner_c": runner_c,
+            "conv_tensor_c": conv_tensor_c,
         }.items()
     },
     "elf": identity(elf),
