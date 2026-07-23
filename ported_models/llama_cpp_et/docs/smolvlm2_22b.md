@@ -1,113 +1,108 @@
-# SmolVLM2-2.2B-Instruct Q4_K_M — llama.cpp-et board benchmark
+# SmolVLM2-2.2B-Instruct — llama.cpp-et vision board benchmark
 
-## The flagship VLM
+## Overview
 
-SmolVLM2-2.2B-Instruct is the largest variant in the SmolVLM family and the
-first with native video support (frame sequences, no separate video decoder).
-It uses the Idefics3 architecture with a significantly larger SigLIP vision
-encoder (~400M params, shape-optimized compared to the ~93M encoder in the
-256M/500M variants) and an MLP projector with pixel-shuffle 3×3. The LLM
-backbone is SmolLM2-1.7B-Instruct, already proven on ET-SoC1 as
-`smollm2_17b_q8_gguf`.
+SmolVLM2-2.2B-Instruct is the largest SmolVLM family variant (Idefics3 + larger
+SigLIP vision encoder + SmolLM2-1.7B backbone). This port exercises **real
+vision** on ET-SoC1: it loads the pinned `mmproj`, runs pinned COCO image
+fixtures, and requires a visual-answer/oracle gate via the same
+`smolvlm2_video` harness used by `smolvlm_500m` / `smolvlm2_500m_video`.
+
+Pinned quantization is **Q4_K_M LLM + Q8_0 mmproj** (~1.59 GiB total) to fit
+board DRAM.
 
 ## Hugging Face base
 
 | Field | Value |
 |-------|-------|
-| Repo | [ggml-org/SmolVLM2-2.2B-Instruct-GGUF](https://huggingface.co/ggml-org/SmolVLM2-2.2B-Instruct-GGUF) |
-| Revision | `1bc3c9f74ceafd4c8d4411cc9cf188bba3798f91` |
-| LLM file | `SmolVLM2-2.2B-Instruct-Q4_K_M.gguf` (~1.04 GiB / 1,112,602,656 bytes) |
-| mmproj file | `mmproj-SmolVLM2-2.2B-Instruct-Q8_0.gguf` (~565 MiB / 592,523,200 bytes) |
-| Total Q4_K_M + Q8_0 mmproj | ~1.59 GiB (1,705,125,856 bytes) |
+| Base repo | [HuggingFaceTB/SmolVLM2-2.2B-Instruct](https://huggingface.co/HuggingFaceTB/SmolVLM2-2.2B-Instruct) @ `482adb537c021c86670beed01cd58990d01e72e4` |
+| GGUF repo | [ggml-org/SmolVLM2-2.2B-Instruct-GGUF](https://huggingface.co/ggml-org/SmolVLM2-2.2B-Instruct-GGUF) |
+| GGUF revision | `1bc3c9f74ceafd4c8d4411cc9cf188bba3798f91` |
+| LLM file | `SmolVLM2-2.2B-Instruct-Q4_K_M.gguf` (1,112,602,656 B) |
+| mmproj file | `mmproj-SmolVLM2-2.2B-Instruct-Q8_0.gguf` (592,523,200 B) |
 | License | Apache-2.0 |
-| Export step | None (upstream GGUF used as-is) |
 
-## Architecture
+## Vision correctness
 
-- **Architecture family**: Idefics3 (projector type `idefics3`)
-- **Vision encoder**: SigLIP ~400M parameters (shape-optimized, larger than 256M/500M variants)
-- **LLM backbone**: SmolLM2-1.7B-Instruct (HuggingFace transformer decoder, already ported)
-- **Projector**: MLP (2 layers) with pixel-shuffle 3×3, bridging SigLIP vision tokens to LLM embedding space
-- **Input patches**: 384×384, 81 visual tokens per image
-- **Context**: 8,192 tokens (v2)
-- **Video support**: Frame sequences (no separate video decoder module)
-- **llama.cpp support**: PR [#13050](https://github.com/ggerganov/llama.cpp/pull/13050) merged April 22, 2025
+| Case | Fixture(s) | Expected |
+|------|------------|----------|
+| `coco_cat` (CI + perf) | COCO `000000524280.jpg` | cat / tabby |
+| `coco_giraffes` | COCO `000000296969.jpg` | giraffe(s) |
+| order pair | cat↔giraffes | second-image animal must flip |
 
-## ET backend settings
+Fixtures reuse the pinned artifacts already on main:
+`smolvlm2_coco_cat_jpg`, `smolvlm2_coco_giraffes_jpg`.
 
-Extends the SmolVLM family pattern with higher context and longer timeouts for
-the larger model:
-`device=ET`, `gpu_layers=99`, completion API, `ctx_size=4096`.
+Reference contract: `.github/ci/reference/smolvlm2_22b.json`.
+
+Prompt template (SmolVLM / #27 pattern):
+
+```text
+<|im_start|>User: {media_markers}
+{question}<end_of_utterance>
+Assistant:
+```
+
+`processor_image_size` / vision `image_size` = **384** (not 512).
+
+## Loader identity fingerprints
+
+Grounded in llama.cpp loader output for the ggml-org GGUF pair (language Q8_0
+log + Q8_0 mmproj; Q4_K_M language GGUF shares the same architecture metadata /
+tensor count):
+
+| Field | Value |
+|-------|-------|
+| language `general.architecture` | `llama` |
+| language `general.name` | `SmolVLM2 2.2B Instruct` |
+| language params | loader prints `1.81 B` → contract `parameter_count_millions: 1810.0` |
+| language tensor count | 219 |
+| language block / emb / ff / heads / kv / vocab | 24 / 2048 / 8192 / 32 / 32 / 49280 |
+| vision projector | `idefics3` |
+| vision n_tensors / n_embd / n_head / n_ff / n_layer | 438 / 1152 / 16 / 4304 / 27 |
+| vision projection_dim / image_size / patch_size | 2048 / 384 / 14 |
+
+### Known identity-gate gaps (honest TBD)
+
+1. **`parameter_count_millions` unit**: `smolvlm2_video` identity regex expects
+   `model params = X.XX M`, but this GGUF's loader prints `model params = 1.81 B`.
+   Contract stores the million-equivalent (`1810.0`) and does **not** invent
+   HF's 2246.8M total. A main-owned runner tweak is needed for B-scale llama
+   models (this PR does not edit protected runners).
+2. **`llama.attention.head_count_kv`**: `print_info` reports `n_head_kv = 32`,
+   but published KV dumps omit that metadata key when GQA=1. Confirm with local
+   GGUF dump; identity regex may fail until then.
+3. **WikiText PPL**: `maximum_perplexity` / `max_ppl` are consistent placeholders
+   (`80.0` / `96.0`) until a host measure on the pinned Q4_K_M artifact.
+
+## ET settings
 
 | Parameter | Value |
 |-----------|-------|
+| runner | `smolvlm2_video` |
 | device | ET |
 | gpu_layers | 99 |
-| ctx_size | 4096 |
-| batch_size | 256 |
-| ubatch_size | 128 |
-| port | 18106 |
-| ready_timeout_s | 300 |
-| request_timeout_s | 600 |
+| mmproj_artifact | `smolvlm2_22b_mmproj_q8` |
+| require_full_offload | true |
+| require_zero_vision_fallbacks | true |
+| primary metric | `pmc_cycles` (lower is better) |
+| port | **18106** |
 
-## Total deployment size
+## Files
 
-At Q4_K_M (LLM) + Q8_0 (mmproj) the full VLM stack weighs approximately
-1.59 GiB — tight but feasible on the ET-SoC1 board DRAM. The Q4_K_M
-quantization was chosen specifically to keep the total under the board's
-memory budget while maintaining acceptable quality for the 1.7B backbone.
+- `ported_models/llama_cpp_et/artifacts.json` — `smolvlm2_22b_q4_gguf` + `smolvlm2_22b_mmproj_q8`
+- `ported_models/llama_cpp_et/benchmarks/smolvlm2_22b.json` — multimodal board config
+- `.github/ci/reference/smolvlm2_22b.json` — vision/oracle contract
+- `.github/ci/benchmark_config.json` — `smolvlm2_22b` registration
+- `docs/HF_REFERENCES.md` — HF pin
 
-## Benchmarks
-
-SmolVLM2-2.2B achieves the best scores in the SmolVLM family:
-
-| Benchmark | Score |
-|-----------|-------|
-| OCRBench | 72.9 |
-| DocVQA | 79.98 |
-| ScienceQA | 90.0 |
-| Video-MME | 52.1 |
-
-These represent a significant quality jump over the 500M variant and make it
-the most capable VLM in the SmolVLM lineup for document understanding, OCR,
-visual question answering, and video comprehension.
-
-## Prerequisites
-
-- **SmolLM2-1.7B text-only benchmark**: The LLM backbone (`smollm2_17b_q8_gguf`)
-  is already registered in artifacts.json. A text-only benchmark for
-  SmolLM2-1.7B should exist (`smollm2_17b` in benchmark_config.json) to
-  validate the backbone before running the full VLM benchmark.
-
-## Infrastructure reuse
-
-This port reuses infrastructure already established for the SmolLM2-1.7B row:
-- Same llama-server binary and ET backend
-- Same WikiText-2 perplexity harness
-- Same board deployment workflow
-- Vision projector loaded via `--mmproj` flag in llama-server
-- Same Idefics3 architecture support as SmolVLM 256M/500M
-
-## Files added/changed
-
-- `ported_models/llama_cpp_et/artifacts.json` — `smolvlm2_22b_q4_gguf` and `smolvlm2_22b_mmproj_q8` artifacts
-- `ported_models/llama_cpp_et/benchmarks/smolvlm2_22b.json` — board runner config
-- `.github/ci/benchmark_config.json` — `smolvlm2_22b` model key
-- `docs/HF_REFERENCES.md` — HuggingFace reference row
-
-## Verification
+## Verify
 
 ```bash
-bash .github/ci/scripts/ci_preflight.sh
+python -m json.tool ported_models/llama_cpp_et/benchmarks/smolvlm2_22b.json >/dev/null
+python -m json.tool .github/ci/reference/smolvlm2_22b.json >/dev/null
 python .github/ci/scripts/benchmark_config_helpers.py --target board --models smolvlm2_22b --format space
 ```
 
-Board CI runs decode tokens/s and WikiText-2 raw PPL via `run_llamaserver_benchmark.py`.
-
-## References
-
-- [SUBMISSION_GUIDE.md](../../../docs/SUBMISSION_GUIDE.md)
-- [HF_REFERENCES.md](../../../docs/HF_REFERENCES.md)
-- Same LLM backbone: `benchmarks/smollm2_17b.json`
-- Smaller variants: `benchmarks/smolvlm_256m.json`, `benchmarks/smolvlm_500m.json`
-- llama.cpp Idefics3 support: PR #13050
+Host COCO cat smoke (when llama-server + pinned GGUFs are available): expect a
+one-word `cat` / `tabby` answer on fixture `000000524280.jpg`.

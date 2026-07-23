@@ -1,30 +1,33 @@
 {
-  "runner": "llama_server",
+  "runner": "smolvlm2_video",
   "board": true,
   "benchmark_default": false,
   "framework": {
     "name": "llama.cpp-et",
-    "runner": "llama_server",
+    "runner": "smolvlm2_video",
     "source_artifact": "llama_cpp_source"
   },
   "artifacts_file": "../artifacts.json",
-  "canonical_variant": "SmolVLM2-2.2B-Instruct-Q4_K_M",
+  "reference_contract": ".github/ci/reference/smolvlm2_22b.json",
+  "canonical_variant": "SmolVLM2-2.2B-Instruct",
   "score": {
-    "metric": "tokens_per_second",
-    "label": "Decode tokens/s",
-    "higher_is_better": true
+    "metric": "pmc_cycles",
+    "label": "ET firmware cycles",
+    "higher_is_better": false,
+    "baseline_variant": "SmolVLM2-2.2B-Instruct"
   },
-  "note": "SmolVLM2 2.2B VLM with video support (frame sequences). Idefics3 arch, SmolLM2-1.7B backbone. Best quality in SmolVLM family. Q4_K_M to fit board DRAM (~1.5 GB total).",
+  "note": "SmolVLM2-2.2B-Instruct VLM (Idefics3 + larger SigLIP, SmolLM2-1.7B backbone). Exercises real vision: loads mmproj, runs pinned COCO image fixtures, and requires an ET-SoC1 visual-answer/oracle gate (same harness as smolvlm_500m / smolvlm2_500m_video). Q4_K_M LLM + Q8_0 mmproj for board DRAM.",
   "llama_server": {
     "source_artifact": "llama_cpp_source",
     "model_artifact": "smolvlm2_22b_q4_gguf",
+    "mmproj_artifact": "smolvlm2_22b_mmproj_q8",
     "server_artifact": "llama_server",
     "workdir_artifact": "llama_cpp_build",
     "host": "127.0.0.1",
     "port": 18106,
     "device": "ET",
     "gpu_layers": 99,
-    "ctx_size": 4096,
+    "ctx_size": 2048,
     "batch_size": 256,
     "ubatch_size": 128,
     "parallel": 1,
@@ -32,12 +35,12 @@
     "ready_timeout_s": 300,
     "request_timeout_s": 600,
     "flash_attn": false,
-    "api": "completion",
-    "prompt": "Repeat this token sequence without commentary: OK OK OK OK OK OK OK OK OK OK",
-    "max_tokens": 96,
+    "max_tokens": 12,
     "temperature": 0,
-    "ignore_eos": true,
-    "min_completion_tokens": 32,
+    "top_k": 1,
+    "require_full_offload": true,
+    "require_zero_vision_fallbacks": true,
+    "allowed_vision_fallback_ops": [],
     "perplexity": {
       "enabled": true,
       "perplexity_artifact": "llama_perplexity",
@@ -47,8 +50,39 @@
       "ubatch_size": 128,
       "timeout_s": 600,
       "min_ppl": 1.0,
-      "max_ppl": 1000.0,
+      "max_ppl": 96.0,
       "chunks": 4
     }
+  },
+  "multimodal": {
+    "frames_per_second": 1.0,
+    "prompt_template": "<|im_start|>User: {media_markers}\n{question}<end_of_utterance>\nAssistant:",
+    "cases": [
+      {
+        "name": "coco_cat",
+        "fixtures": ["coco_cat"],
+        "question": "What animal is shown? Answer one word.",
+        "accepted_answers": ["cat", "tabby"]
+      },
+      {
+        "name": "coco_giraffes",
+        "fixtures": ["coco_giraffes"],
+        "question": "What animal is shown? Answer one word.",
+        "accepted_answers": ["giraffe", "giraffes"]
+      },
+      {
+        "name": "cat_then_giraffes",
+        "fixtures": ["coco_cat", "coco_giraffes"],
+        "question": "Name the animal in the second image in one word.",
+        "accepted_answers": ["giraffe", "giraffes"]
+      },
+      {
+        "name": "giraffes_then_cat",
+        "fixtures": ["coco_giraffes", "coco_cat"],
+        "question": "Name the animal in the second image in one word.",
+        "accepted_answers": ["cat", "tabby"]
+      }
+    ],
+    "order_pair": ["cat_then_giraffes", "giraffes_then_cat"]
   }
 }
