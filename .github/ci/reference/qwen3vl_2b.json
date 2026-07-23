@@ -40,7 +40,10 @@
   "architecture": {
     "language": {
       "general_architecture": "qwen3vl",
-      "parameter_count_millions": 1720.57,
+      "metadata_key_prefix": "qwen3vl",
+      "parameter_count": { "value": 1.72, "unit": "B" },
+      "require_model_name": false,
+      "vocabulary": { "source": "n_vocab", "size": 151936 },
       "tensor_count": 310,
       "block_count": 28,
       "embedding_length": 2048,
@@ -49,6 +52,7 @@
       "attention_kv_heads": 8
     },
     "vision": {
+      "require_model_name": false,
       "projector": "qwen3vl_merger",
       "tensor_count": 316,
       "embedding_length": 1024,

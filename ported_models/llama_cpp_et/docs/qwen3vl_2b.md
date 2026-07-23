@@ -20,7 +20,8 @@ SHA256:
 
 ## Architecture
 
-- `qwen3vl` — Qwen3 text decoder (~1720.57 M params in GGUF) + native Qwen3-VL vision encoder + `qwen3vl_merger`.
+- `qwen3vl` — Qwen3 text decoder (**1.72 B** params, `n_vocab` 151936) + native Qwen3-VL vision encoder + `qwen3vl_merger`.
+- Identity contract (must match #112): `metadata_key_prefix=qwen3vl`, `require_model_name=false`, nested `parameter_count` / `vocabulary` (no `parameter_count_millions`).
 - Language: 28 blocks, emb 2048, ff 6144, 16/8 heads, 310 tensors.
 - Vision: 24 layers, emb 1024, ff 4096, 16 heads, image 768 / patch 16, projection_dim 2048, 316 tensors.
 - Same family as **ZwZ-4B** (#30); Qwen3 decoder path shared with **Qwen3-8B** (#11).

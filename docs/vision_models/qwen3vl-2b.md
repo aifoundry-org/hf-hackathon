@@ -13,8 +13,9 @@
 
 | Property | Value |
 |----------|-------|
-| Parameters | ~2B LLM + native Qwen3-VL vision encoder |
-| Architecture | `qwen3vl` — Qwen3 text decoder + vision encoder + merger |
+| Parameters | **1.72 B** LLM (`n_vocab` 151936) + native Qwen3-VL vision encoder |
+| Architecture | `qwen3vl` — Qwen3 text decoder + vision encoder + `qwen3vl_merger` |
+| Identity schema | Locked to #112 (`metadata_key_prefix`, nested `parameter_count`/`vocabulary`, empty `general.name` OK) |
 | License | Apache-2.0 |
 | HF base | `Qwen/Qwen3-VL-2B-Instruct` |
 | GGUF repo | `ggml-org/Qwen3-VL-2B-Instruct-GGUF` |
@@ -43,7 +44,8 @@
 4. Registered `qwen3vl_2b` in `.github/ci/benchmark_config.json`.
 5. Wrote submission recipe `ported_models/llama_cpp_et/docs/qwen3vl_2b.md`.
 6. Switched board path to main-owned `smolvlm2_video` + `.github/ci/reference/qwen3vl_2b.json` (COCO oracle, `pmc_cycles`).
-7. Opened companion [#112](https://github.com/aifoundry-org/hf-hackathon/pull/112) so identity accepts `qwen3vl.*` GGUF keys.
+7. Opened companion [#112](https://github.com/aifoundry-org/hf-hackathon/pull/112) so identity accepts `qwen3vl.*` GGUF keys / new schema.
+8. Aligned `.github/ci/reference/qwen3vl_2b.json` architecture to the #112 identity schema; board path stays on `smolvlm2_video` (not text-only).
 
 ## Risks / follow-ups
 
