@@ -1,70 +1,57 @@
-# ZwZ-4B — llama.cpp-et board benchmark
+# ZwZ-4B — llama.cpp-et Submission Recipe
 
-## Hugging Face base
+**Path:** GGUF (llama.cpp-et) — VLM (text + image → text)
+**Model ID:** `zwz_4b`
+**Port:** 18105
+**License:** Apache-2.0
 
-| Field | Value |
-|-------|-------|
-| Repo | [inclusionAI/ZwZ-4B-GGUF](https://huggingface.co/inclusionAI/ZwZ-4B-GGUF) |
-| Revision | `af96680eb7d0978e4844e8395cb6fd727f0a1d84` |
-| LLM file | `ZwZ-4B-Q4_K_M.gguf` (~2.72 GB / 2,716,069,408 bytes) |
-| mmproj file | `mmproj-ZwZ-4B-Q8_0.gguf` (~451 MB / 450,828,416 bytes) |
-| Total | ~3.32 GB (Q4_K_M + Q8_0 mmproj) |
-| License | Apache-2.0 |
-| Export step | None (official GGUF with quantized mmproj) |
+## Source
+
+| Component | Value |
+|-----------|-------|
+| HF base | `inclusionAI/ZwZ-4B` @ `e43981c19904b4ee4ec48efc21c9a77bf4e7838c` |
+| GGUF repo | `inclusionAI/ZwZ-4B-GGUF` @ `af96680eb7d0978e4844e8395cb6fd727f0a1d84` |
+| LLM file | `ZwZ-4B-Q4_K_M.gguf` (2,716,069,408 B) |
+| mmproj file | `mmproj-ZwZ-4B-Q8_0.gguf` (450,828,416 B) |
+
+SHA256:
+- LLM: `0c1e633a544708ff3d52060f764ddeccba8a98535f223c40361fddeb59c79d33`
+- mmproj: `ba2f4e1b792ce56bbfc78a322e99fd0efbbbe8ea23479894851ab7a060872f6c`
 
 ## Architecture
 
-ZwZ-4B is a fine-grained perception vision-language model with three components:
+- `qwen3vl` — Qwen3 text decoder (**4.41 B** params from GGUF tensor element sum, `n_vocab` 151936) + Qwen3-VL vision encoder + `qwen3vl_merger`.
+- Identity contract (must match #112): `metadata_key_prefix=qwen3vl`, `require_model_name=false`, nested `parameter_count` / `vocabulary` (no `parameter_count_millions`).
+- Language: 36 blocks, emb 2560, ff 9728, 32/8 heads, **399** tensors.
+- Vision: 24 layers, emb 1024, ff 4096, 16 heads, image 768 / patch 16, projection_dim **2560**, **316** tensors.
+- Same family as **Qwen3-VL-2B** (#73); Qwen3 decoder path shared with **Qwen3-8B** (#11).
+- Footprint ~3.17 GB total (Q4_K_M + Q8_0 mmproj) — within the ~10 GiB GGUF budget.
 
-| Component | Model | Details |
-|-----------|-------|---------|
-| LLM | Qwen3 text decoder | ~4B params, 36 layers, hidden 2560, 32Q/8KV heads, SwiGLU, tied embeddings |
-| Vision encoder | SigLIP2-Large | ~300M params, 24 layers, hidden 1024, patch 16, temporal patch 2 |
-| Projector | DeepStack injection | Multi-level feature injection at layers [5,11,17], interleaved MRoPE |
+## Benchmark (vision)
 
-**Total parameters**: ~4.7B
+- Runner: main-owned **`smolvlm2_video`** (same harness as `smolvlm2_500m_video` / SmolVLM-500M / Qwen3-VL-2B).
+- Loads `--mmproj`, pinned COCO cat/giraffe fixtures, ET visual-answer/oracle + order-pair gate.
+- Contract: `.github/ci/reference/zwz_4b.json`
+- Metric: `pmc_cycles` (firmware cycles, lower better).
+- Prompt: Qwen chat template with `<|im_end|>`:
+  `<|im_start|>user\n{media_markers}\n{question}<|im_end|>\n<|im_start|>assistant\n`
+- Extra: `--image-min-tokens 1024` (needed for reliable COCO answers offline).
+- Port **18105**.
+- PPL gate: WikiText-2, loose `max_ppl=100` until host smoke fills first-run baselines.
 
-**Architecture family**: `qwen3vl` — same as Qwen3-VL, sharing infrastructure with the existing Qwen3-8B port.
+## Dependency / sequencing
 
-**llama.cpp support**: Fully supported as `qwen3vl` architecture.
+1. Merge [#112](https://github.com/aifoundry-org/hf-hackathon/pull/112) (identity `{arch}.*` + nested schema).
+2. Host CPU smoke green (identity + COCO correctness).
+3. Prefer waiting for [#73](https://github.com/aifoundry-org/hf-hackathon/pull/73) ET-green before requesting ZwZ ET (shared `qwen3vl` vision path).
 
-## ET backend settings
+## Quantization notes
 
-Mirrors the `qwen3_8b` configuration (same `qwen3vl` architecture family):
-`device=ET`, `gpu_layers=99`, completion API, `ctx_size=4096`.
+- Q4_K_M LLM + Q8_0 mmproj — pinned verbatim from `inclusionAI/ZwZ-4B-GGUF`; no local requantization.
+- Q8_0 LLM would exceed comfortable board DRAM headroom for this size class.
 
-| Parameter | Value |
-|-----------|-------|
-| device | ET |
-| gpu_layers | 99 |
-| ctx_size | 4096 |
-| batch_size | 512 |
-| ubatch_size | 256 |
-| port | 18105 |
-| ready_timeout_s | 900 |
-| request_timeout_s | 1200 |
-| flash_attn | false |
-
-## Files added/changed
-
-- `ported_models/llama_cpp_et/artifacts.json` — `zwz_4b_q4_gguf` and `zwz_4b_mmproj_q8` artifacts
-- `ported_models/llama_cpp_et/benchmarks/zwz_4b.json` — board runner config
-- `.github/ci/benchmark_config.json` — `zwz_4b` model key
-- `docs/HF_REFERENCES.md` — HuggingFace reference row
-
-## Verification
+## Reproduce
 
 ```bash
-bash .github/ci/scripts/ci_preflight.sh
 python .github/ci/scripts/benchmark_config_helpers.py --target board --models zwz_4b --format space
 ```
-
-Board CI runs decode tokens/s and WikiText-2 raw PPL via `run_llama_server_benchmark.py`.
-
-## References
-
-- [SUBMISSION_GUIDE.md](../../../docs/SUBMISSION_GUIDE.md)
-- [HF_REFERENCES.md](../../../docs/HF_REFERENCES.md)
-- Similar architecture: `benchmarks/qwen3_8b.json`
-- Official HF repo: https://huggingface.co/inclusionAI/ZwZ-4B
-- Official GGUF: https://huggingface.co/inclusionAI/ZwZ-4B-GGUF

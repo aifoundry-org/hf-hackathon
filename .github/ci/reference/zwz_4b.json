@@ -1,0 +1,171 @@
+{
+  "schema_version": 2,
+  "model": {
+    "repo": "inclusionAI/ZwZ-4B",
+    "revision": "e43981c19904b4ee4ec48efc21c9a77bf4e7838c",
+    "license": "apache-2.0",
+    "files": {
+      "model-00001-of-00002.safetensors": {
+        "sha256": "3f0b99847c175d7a123f496f7fc0f2cfad1dd50bf05e61053f1dc01798cc94e6",
+        "size_bytes": 4999582872
+      },
+      "model-00002-of-00002.safetensors": {
+        "sha256": "6d9408c9711d43079fc3b1280789f1c3fc9c2b4f8ccee4878d5fe5c95fbdb7e5",
+        "size_bytes": 4654048968
+      },
+      "config.json": {
+        "sha256": "d13aea464820c1fe74de8607d9011859f3a8f002ec45e4cbc0c56b569200eb9e"
+      },
+      "preprocessor_config.json": {
+        "sha256": "93585062a80db5e8ca038efc7726a3e6411d9db948472d81d63c6303993be8c5"
+      },
+      "tokenizer.json": {
+        "sha256": "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4"
+      },
+      "chat_template.jinja": {
+        "sha256": "3636d0f0bd6bef02654cdffdc447b79cb2cef8ab02cc75267345946291a489e4"
+      },
+      "model.safetensors.index.json": {
+        "sha256": "dd03327cc2a07e4be3bb727b452799faa9c1b85821ef3f51d4832c9ab58f8277"
+      }
+    }
+  },
+  "baseline_artifacts": {
+    "model": {
+      "filename": "ZwZ-4B-Q4_K_M.gguf",
+      "sha256": "0c1e633a544708ff3d52060f764ddeccba8a98535f223c40361fddeb59c79d33",
+      "size_bytes": 2716069408
+    },
+    "projector": {
+      "filename": "mmproj-ZwZ-4B-Q8_0.gguf",
+      "sha256": "ba2f4e1b792ce56bbfc78a322e99fd0efbbbe8ea23479894851ab7a060872f6c",
+      "size_bytes": 450828416
+    },
+    "source_repo": "inclusionAI/ZwZ-4B-GGUF",
+    "source_revision": "af96680eb7d0978e4844e8395cb6fd727f0a1d84"
+  },
+  "architecture": {
+    "language": {
+      "general_architecture": "qwen3vl",
+      "metadata_key_prefix": "qwen3vl",
+      "parameter_count": { "value": 4.41, "unit": "B" },
+      "require_model_name": false,
+      "vocabulary": { "source": "n_vocab", "size": 151936 },
+      "tensor_count": 399,
+      "block_count": 36,
+      "embedding_length": 2560,
+      "feed_forward_length": 9728,
+      "attention_heads": 32,
+      "attention_kv_heads": 8
+    },
+    "vision": {
+      "require_model_name": false,
+      "projector": "qwen3vl_merger",
+      "tensor_count": 316,
+      "embedding_length": 1024,
+      "attention_heads": 16,
+      "feed_forward_length": 4096,
+      "block_count": 24,
+      "projection_dimension": 2560,
+      "image_size": 768,
+      "patch_size": 16
+    }
+  },
+  "candidate_policy": {
+    "artifacts_must_match_baseline": true
+  },
+  "runtime": {
+    "submodule_path": "ported_models/llama_cpp_et/src/llama.cpp-et"
+  },
+  "input_contract": {
+    "frames_per_second": 1.0,
+    "processor_image_size": 768,
+    "prompt_template": "<|im_start|>user\n{media_markers}\n{question}<|im_end|>\n<|im_start|>assistant\n",
+    "fixtures": {
+      "coco_cat": {
+        "artifact": "smolvlm2_coco_cat_jpg",
+        "source": "http://images.cocodataset.org/val2017/000000524280.jpg",
+        "sha256": "3b83ffd2d2ce4c28a05b1dcd486edf8a06542584a05c9a66cf208df9ed6e2c7d"
+      },
+      "coco_giraffes": {
+        "artifact": "smolvlm2_coco_giraffes_jpg",
+        "source": "http://images.cocodataset.org/val2017/000000296969.jpg",
+        "sha256": "1032b203f4b7faf2ea0268dddc1d9568e7ad8cbc39eb077b62ecf7b171bf90ff"
+      }
+    },
+    "cases": [
+      {
+        "name": "coco_cat",
+        "fixtures": ["coco_cat"],
+        "question": "What animal is shown? Answer one word.",
+        "accepted_answers": ["cat", "tabby"]
+      },
+      {
+        "name": "coco_giraffes",
+        "fixtures": ["coco_giraffes"],
+        "question": "What animal is shown? Answer one word.",
+        "accepted_answers": ["giraffe", "giraffes"]
+      },
+      {
+        "name": "cat_then_giraffes",
+        "fixtures": ["coco_cat", "coco_giraffes"],
+        "question": "Name the animal in the second image in one word.",
+        "accepted_answers": ["giraffe", "giraffes"]
+      },
+      {
+        "name": "giraffes_then_cat",
+        "fixtures": ["coco_giraffes", "coco_cat"],
+        "question": "Name the animal in the second image in one word.",
+        "accepted_answers": ["cat", "tabby"]
+      }
+    ],
+    "order_pair": ["cat_then_giraffes", "giraffes_then_cat"]
+  },
+  "correctness": {
+    "host_reference": "CPU execution of the candidate artifact through the main-owned runtime harness",
+    "answer_comparison": "lowercase alphanumeric tokens, exact match",
+    "minimum_task_accuracy": 1.0,
+    "minimum_host_agreement": 1.0,
+    "ci_cases": ["coco_cat"],
+    "require_order_pair_difference": true,
+    "require_full_offload": true,
+    "require_zero_vision_fallbacks": true,
+    "allowed_vision_fallback_ops": []
+  },
+  "quality": {
+    "perplexity": {
+      "corpus_artifact": "wikitext2_raw_test",
+      "corpus_sha256": "173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08",
+      "context_size": 128,
+      "batch_size": 128,
+      "ubatch_size": 128,
+      "chunks": 4,
+      "first_run_perplexity": 0.0,
+      "first_run_error": 0.0,
+      "first_run_tokens": 512,
+      "max_relative_regression": 0.2,
+      "maximum_perplexity": 100.0,
+      "maximum_et_cpu_relative_difference": 0.01
+    }
+  },
+  "performance": {
+    "metric": "pmc_cycles",
+    "primary_counter": "device_cmd_exec_dur",
+    "profile_schema_version": 3,
+    "profile_class": "ResponseReceived",
+    "response_type": "Kernel",
+    "performance_case": "coco_cat",
+    "warmup_repetitions": 0,
+    "measured_repetitions": 1,
+    "reuse_measured_request_for_correctness": true,
+    "generation_tokens": 3,
+    "aggregation": "median of per-request summed firmware cycles",
+    "minimum_kernel_launches_per_request": 500,
+    "minimum_relative_improvement": 0.01,
+    "maximum_paired_baseline_drift": 0.005,
+    "minimum_end_to_end_improvement": 0.0025,
+    "maximum_paired_end_to_end_drift": 0.01,
+    "lower_is_better": true,
+    "secondary_metric": "real_time_factor"
+  }
+}
