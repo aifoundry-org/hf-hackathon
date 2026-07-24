@@ -265,12 +265,6 @@
     "qwen25_05b": {
       "config": "ported_models/llama_cpp_et/benchmarks/qwen25_05b.json"
     },
-    "distilbert_sst2": {
-      "config": "ported_models/llama_cpp_et/benchmarks/distilbert_sst2.json"
-    },
-    "roberta_sst2": {
-      "config": "ported_models/llama_cpp_et/benchmarks/roberta_sst2.json"
-    },
     "qwen3_06b": {
       "config": "ported_models/llama_cpp_et/benchmarks/qwen3_06b.json"
     },

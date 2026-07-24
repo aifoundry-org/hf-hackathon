@@ -83,16 +83,26 @@ where an entirely new model architecture required zero new ET kernel code.
    `roberta_sst2_recipe.md`). The original wording here implied the score
    confirmed the *predicted label*; the more precise claim is that the board
    score matches the oracle's index-0 logit within tolerance.
-5. **Runner extension**: `run_llama_server_benchmark.py` only spoke
-   `/completion` and `/v1/chat/completions`. Added a third `api: "rerank"`
-   mode (surgical, additive -- existing model configs are untouched) that
-   issues `--rerank`, POSTs `/rerank`, and scores classification correctness
-   + numeric closeness against an `oracle` block in the model's benchmark
-   JSON instead of `tokens_per_second`.
-6. **Registered**: `ported_models/llama_cpp_et/benchmarks/distilbert_sst2.json`
-   (new) + `.github/ci/benchmark_config.json` (new `distilbert_sst2` model
-   entry) + `ported_models/llama_cpp_et/artifacts.json` (new
-   `distilbert_sst2_f32_gguf` artifact entry).
+5. **Not wired into automated CI scoring.** `run_llama_server_benchmark.py`
+   only speaks `/completion` and `/v1/chat/completions` -- there is no
+   endpoint in the current shared runner that can score a classification
+   model's output. Extending it to support `/rerank` would require editing
+   `.github/ci/scripts/run_llama_server_benchmark.py`, which is on this
+   repo's protected benchmark-file list (`.github/workflows/benchmark-board.yml`:
+   "Participant PRs may optimize model implementation files, but may not edit
+   the benchmark oracle or runner") -- an earlier version of this PR did
+   exactly that and it correctly blocked the board run. This PR does **not**
+   touch that file. The port is real and board-verified (step 4 above, done
+   by hand against a locally built `llama-server` and the committed
+   submodule), but automated per-PR CI scoring for this model needs a
+   maintainer to add `/rerank` support to the shared runner script -- flagged
+   below, not assumed or worked around.
+6. **Registered**: `ported_models/llama_cpp_et/artifacts.json` (new
+   `distilbert_sst2_f32_gguf` artifact entry) only. No entry was added to
+   `.github/ci/benchmark_config.json`'s active model list, since there is
+   currently no way for the shared runner to score it automatically (see
+   above) -- adding a "board": true entry without real scoring support would
+   just produce a confusing or silently-wrong result.
 
 ## Instructions for Reproduction
 
@@ -105,9 +115,10 @@ python3 convert_hf_to_gguf.py <path-to-hf-snapshot> \
   --outfile distilbert_sst2_f32.gguf --outtype f32
 ```
 
-Board CI downloads the hosted GGUF via `artifacts.json`'s pinned URL +
-`sha256`, builds `llama-server` from the committed submodule, and runs it
-against `/rerank` per `benchmarks/distilbert_sst2.json`.
+To reproduce the board verification manually: build `llama-server` from the
+committed submodule, download the GGUF from the `artifacts.json` URL, run
+`llama-server -m distilbert_sst2_f32.gguf --device ET -ngl 99 --rerank`, and
+POST the gate prompt to `/rerank`.
 
 ## Open items for maintainer review
 
@@ -115,7 +126,13 @@ against `/rerank` per `benchmarks/distilbert_sst2.json`.
   converted (not pre-existing) GGUF artifact -- happy to move it to an
   Hugging Face repo under an official/maintainer account, or any other
   location, if preferred.
-- This is a `llama_server`-runner model-suite addition, not a submission
+- **Automated CI scoring needs a maintainer-side runner change.** This model
+  (and any future classification-style model) can't be scored by the current
+  shared runner without adding `/rerank` support to
+  `run_llama_server_benchmark.py`, which we can't edit ourselves. If useful,
+  we can propose the exact diff for a maintainer to review and apply
+  separately, rather than include it in a participant PR.
+- This is a `llama_server`-family model-suite addition, not a submission
   under `ported_models/submissions/model_ports/` (that path's identity
   registry currently only has `smolvlm` open, already claimed) -- if this is
   meant to also count toward the "most models ported" track, it would need a

@@ -4,7 +4,7 @@
 
 Adds `JeremiahZ/roberta-base-sst2` (encoder-only binary sequence
 classification, SST-2 sentiment) to the `llama.cpp-et` framework. Same
-`api: "rerank"` runner path as `distilbert_sst2` (see that recipe for the
+board-verification approach as `distilbert_sst2` (see that recipe for the
 general rationale), but a genuinely different pretraining architecture:
 RoBERTa uses byte-level BPE tokenization and a different pretraining
 objective (no next-sentence-prediction, dynamic masking) from BERT/
@@ -76,11 +76,11 @@ asserting a predicted label from the score's sign.
    clean 436-node compute graph, real `/rerank` result: `relevance_score=
    -1.9601`, diff `0.295` from the oracle's index-0 (NEGATIVE) logit
    `-2.2555`, within the `1.0` tolerance.
-5. **Registered**: `ported_models/llama_cpp_et/benchmarks/roberta_sst2.json`
-   (new) + `.github/ci/benchmark_config.json` (new `roberta_sst2` entry) +
-   `ported_models/llama_cpp_et/artifacts.json` (new `roberta_sst2_f32_gguf`
-   entry). Reuses the same `api: "rerank"` runner mode added for
-   `distilbert_sst2` -- no further runner changes needed.
+5. **Registered**: `ported_models/llama_cpp_et/artifacts.json` (new
+   `roberta_sst2_f32_gguf` entry) only -- same reasoning as
+   `distilbert_sst2`: no entry in `.github/ci/benchmark_config.json`'s active
+   model list, since automated scoring would require editing the protected
+   `run_llama_server_benchmark.py`, which this PR does not do.
 
 ## Instructions for Reproduction
 
@@ -94,9 +94,9 @@ python3 convert_hf_to_gguf.py <path-to-hf-snapshot> \
 
 ## Open items for maintainer review
 
-- Same hosting and model-port-track-credit caveats as `distilbert_sst2` (see
-  that recipe) apply here.
+- Same hosting, CI-scoring, and model-port-track-credit caveats as
+  `distilbert_sst2` (see that recipe) apply here.
 - The `embd[0]`-is-architecture-specific finding above is relevant to any
-  future classification-model port using this same `api: "rerank"` pattern --
-  worth checking against the oracle's full per-class logits (not just the
-  top prediction) before trusting a match.
+  future classification-model port using a `/rerank`-based approach -- worth
+  checking against the oracle's full per-class logits (not just the top
+  prediction) before trusting a match.
