@@ -449,6 +449,24 @@
       "local_cache": "local-artifacts/fixtures/smolvlm2/000000296969.jpg",
       "sha256": "1032b203f4b7faf2ea0268dddc1d9568e7ad8cbc39eb077b62ecf7b171bf90ff",
       "size_bytes": 282714
+    },
+    "tiny_starcoder_py_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "tiny_starcoder_py-Q8_0",
+      "filename": "tiny_starcoder_py.Q8_0.gguf",
+      "env": "TINY_STARCODER_PY_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "RichardErkhov/bigcode_-_tiny_starcoder_py-gguf",
+        "revision": "main",
+        "filename": "tiny_starcoder_py.Q8_0.gguf",
+        "url": "https://huggingface.co/RichardErkhov/bigcode_-_tiny_starcoder_py-gguf/resolve/main/tiny_starcoder_py.Q8_0.gguf"
+      },
+      "sha256": "ffa756aaa62050ffeea4f5b8897c54aa1a4d9c9ee0783e6ccc07f10eff8b077a",
+      "size": 195125568,
+      "local_cache": "local-artifacts/models/tiny_starcoder_py.Q8_0.gguf",
+      "board_path": "/data/models/tiny_starcoder_py.Q8_0.gguf"
     }
   }
 }
