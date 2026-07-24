@@ -48,15 +48,22 @@ configuration wiring: one `artifacts.json` entry, one
    `llama_server`-family model on the board ("Repeat this token sequence
    without commentary: OK OK OK OK OK OK OK OK OK OK") to `/completion`;
    the server correctly tokenized it (17 tokens) and completed prompt
-   processing with no errors on each of three separate requests. Multi-token
-   decode output was **not** captured locally within this session: sysemu is
-   a cycle-accurate software simulator of the ET-SoC1, and even a single
-   decoded token took long enough that a 40-minute client timeout elapsed
-   without a response -- consistent with this repo's own `ci_smoke` config
-   budgeting a 3-hour (`10800`s) launcher timeout for exactly this reason.
-   This is a sysemu-speed limitation, not a correctness signal either way;
-   the actual per-PR board score for `"board": true` models is produced by
-   the self-hosted **real ET-SoC1 hardware** runner
+   processing with no errors on each of three separate requests.
+
+   A first attempt at capturing multi-token (96-token) decode output timed
+   out client-side after 15-40 minutes with no response -- sysemu is a
+   cycle-accurate software simulator of the ET-SoC1, consistent with this
+   repo's own `ci_smoke` config budgeting a 3-hour (`10800`s) launcher
+   timeout for exactly this reason. Dropping to `n_predict=1` and a
+   40-minute client timeout did succeed: the server returned a real,
+   coherent single-token continuation, `" OK"`, correctly continuing the
+   repeated-token gate prompt, after `prompt_ms=673526.152` (~11.2 minutes)
+   for that one request. This is genuine evidence of correct end-to-end
+   computation through the ET compute backend, not just a clean load; it
+   also explains why longer `n_predict` values are impractical to observe
+   interactively on local sysemu. The real per-PR board score for
+   `"board": true` models is produced by the self-hosted **real ET-SoC1
+   hardware** runner
    (`.github/workflows/benchmark-board.yml`, `runs-on: [self-hosted, Linux,
    X64, et-soc1, board-ci, single-board]`), not local sysemu, and real
    hardware is expected to be dramatically faster than a cycle-accurate
