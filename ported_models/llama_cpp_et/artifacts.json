@@ -17,7 +17,13 @@
       },
       "note": "Framework source comes from the committed submodule. Submitters who want a different framework version must repin the submodule as part of their PR."
     },
-    "llama_cpp_build": {
+    "llama32_fused_ffn_kernel": {
+      "kind": "framework_source",
+      "framework": "llama.cpp-et",
+      "submodule_path": "ported_models/llama_cpp_et/kernels",
+      "note": "Standalone fused FFN uberkernel for Llama 3.2 1B. Built separately and loaded at runtime via GGML_ET_KERNELS_PATH."
+    },
+    "llama_cpp_build":
       "kind": "framework_workdir",
       "framework": "llama.cpp-et",
       "env": "LLAMA_CPP_ET_WORKDIR",
