@@ -449,6 +449,42 @@
       "local_cache": "local-artifacts/fixtures/smolvlm2/000000296969.jpg",
       "sha256": "1032b203f4b7faf2ea0268dddc1d9568e7ad8cbc39eb077b62ecf7b171bf90ff",
       "size_bytes": 282714
+    },
+    "phi15_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "phi-1_5-Q8_0",
+      "filename": "phi-1_5-Q8_0.gguf",
+      "env": "PHI15_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "TKDKid1000/phi-1_5-GGUF",
+        "revision": "main",
+        "filename": "phi-1_5-Q8_0.gguf",
+        "url": "https://huggingface.co/TKDKid1000/phi-1_5-GGUF/resolve/main/phi-1_5-Q8_0.gguf"
+      },
+      "sha256": "e8c26615319e1141348b8534641da54d58e02b7baa01ee611b9c69cc07bf43fd",
+      "size": 1510464928,
+      "local_cache": "local-artifacts/models/phi-1_5-Q8_0.gguf",
+      "board_path": "/data/models/phi-1_5-Q8_0.gguf"
+    },
+    "stablelm2_16b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "stablelm-2-1_6b-Q8_0",
+      "filename": "stablelm-2-1_6b.q8_0.gguf",
+      "env": "STABLELM2_16B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "afrideva/stablelm-2-1_6b-GGUF",
+        "revision": "main",
+        "filename": "stablelm-2-1_6b.q8_0.gguf",
+        "url": "https://huggingface.co/afrideva/stablelm-2-1_6b-GGUF/resolve/main/stablelm-2-1_6b.q8_0.gguf"
+      },
+      "sha256": "fcdeda8182b99b007cb2c69b216e31efd21b78a4588188b076fa92821f3fee20",
+      "size": 1751879200,
+      "local_cache": "local-artifacts/models/stablelm-2-1_6b.q8_0.gguf",
+      "board_path": "/data/models/stablelm-2-1_6b.q8_0.gguf"
     }
   }
 }
