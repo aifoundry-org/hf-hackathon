@@ -16,8 +16,16 @@ LABELS = {
 }
 MANAGED_LABELS = tuple(LABELS.values())
 
-# Add the Week 2 model or tool path after the challenge is announced.
-WEEK2_PREFIXES = ()
+# Week 2 challenge: SmolVLM2-500M-Video-Instruct on ET-SoC1.
+# The shared llama.cpp-et gitlink is included because implementation-only
+# submissions update it without changing a model-specific benchmark file.
+WEEK2_PREFIXES = (
+    "ported_models/llama_cpp_et/assets/smolvlm2_video",
+    "ported_models/llama_cpp_et/benchmarks/smolvlm2_500m_video.json",
+    "ported_models/llama_cpp_et/docs/smolvlm2_500m_video.md",
+    "ported_models/llama_cpp_et/src/llama.cpp-et",
+)
+
 LLAMA32_RE = re.compile(
     r"(^|[/_.-])(?:llama32[_-]1b|llama[_-]3[._-]2[_-]1b)([/_.-]|$)", re.I
 )

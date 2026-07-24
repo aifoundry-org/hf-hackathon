@@ -22,6 +22,7 @@ Hugging Face base model.
 | `rwkv7_15b` | `Mungert/rwkv7-1.5B-world-GGUF` | `c8a25c8d349fdf76837c68bfc73c0b953f41b3ce` | `apache-2.0` | `rwkv7-1.5B-world-q8_0.gguf` |
 | `qwen3_8b` | `ggml-org/Qwen3-8B-GGUF` | `2473489dc243ccaffb4ce569c55bf1df66b2088f` | `apache-2.0` | `Qwen3-8B-Q8_0.gguf` |
 | `smolvlm_256m` | `ggml-org/SmolVLM-256M-Instruct-GGUF` | `b9e4379657e1450d04d02eec8e345667265b0a00` | `apache-2.0` | `SmolVLM-256M-Instruct-Q8_0.gguf`, `mmproj-SmolVLM-256M-Instruct-Q8_0.gguf` |
+| `smolvlm_500m` | `ggml-org/SmolVLM-500M-Instruct-GGUF` | `72e986006ef53e37cdd3f6d4241c90b0f01df376` | `apache-2.0` | `SmolVLM-500M-Instruct-Q8_0.gguf`, `mmproj-SmolVLM-500M-Instruct-Q8_0.gguf` |
 | `smolvlm2_500m_video` | `HuggingFaceTB/SmolVLM2-500M-Video-Instruct` | `7b375e1b73b11138ff12fe22c8f2822d8fe03467` | `apache-2.0` | `model.safetensors`, converted model and `mmproj` GGUF |
 
 ## Submission rule

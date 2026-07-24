@@ -28,6 +28,23 @@ def wall_value(score: dict[str, Any]) -> float | None:
     return float(value) if isinstance(value, (int, float)) and value > 0 else None
 
 
+def hardware_key(score: dict[str, Any]) -> tuple[Any, ...] | None:
+    hardware = score.get("hardware")
+    if not isinstance(hardware, dict):
+        return None
+    values = (
+        score.get("hardware_epoch"),
+        hardware.get("board_id"),
+        hardware.get("boot_id"),
+        hardware.get("minion_frequency_mhz"),
+        hardware.get("noc_frequency_mhz"),
+        hardware.get("tdp_w"),
+    )
+    if any(value is None or value == "" for value in values):
+        return None
+    return values
+
+
 def validation_errors(
     score: dict[str, Any],
     contract: dict[str, Any],
@@ -84,6 +101,15 @@ def main() -> int:
     candidate_errors = validation_errors(candidate, contract, contract_sha, require_quality=True)
     infrastructure_errors = [f"baseline before: {item}" for item in before_errors]
     infrastructure_errors.extend(f"baseline after: {item}" for item in after_errors)
+    before_hardware = hardware_key(before)
+    candidate_hardware = hardware_key(candidate)
+    after_hardware = hardware_key(after)
+    if before_hardware is None:
+        infrastructure_errors.append("baseline before has no complete hardware identity")
+    if after_hardware is None or after_hardware != before_hardware:
+        infrastructure_errors.append("paired main runs are not from the same board boot")
+    if candidate_hardware is None or candidate_hardware != before_hardware:
+        infrastructure_errors.append("candidate is not from the paired main board boot")
 
     before_cycles = cycle_value(before)
     after_cycles = cycle_value(after)

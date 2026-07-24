@@ -15,10 +15,10 @@ from model_port_claim import (
     GITHUB_LOGIN_RE,
     HEX40_RE,
     RUN_URL_RE,
-    active_credits,
     inspect_claims,
     load_json,
     parse_time,
+    validate_credit_inventory,
 )
 from render_model_port_standings import readme_section, replace_section, standings
 
@@ -140,7 +140,7 @@ def issue_credits(
         return ledger, report
 
     records = list(ledger["records"])
-    current = active_credits(ledger, policy)
+    current = validate_credit_inventory(ledger, policy, registry)
     new_records: list[dict[str, Any]] = []
     for claim in result["claims"]:
         score_path = scores_dir / f"score-{claim['benchmark_model']}.json"
@@ -177,6 +177,7 @@ def issue_credits(
                 )
             record_without_id = {
                 "record_type": "credit",
+                "issuance": "trusted_merge",
                 "credit_id": credit_id,
                 "identity_id": claim["identity_id"],
                 "benchmark_model": claim["benchmark_model"],
@@ -195,6 +196,7 @@ def issue_credits(
                         "validation_contract_sha256"
                     ],
                     "benchmark_device": score["benchmark_device"],
+                    "runner": claim["runner"],
                     "metric": claim["metric"],
                     "metric_value": score[claim["metric"]],
                 },
@@ -301,11 +303,14 @@ def main() -> int:
 
     if report["passed"] and policy["activation_mode"] == "enforce":
         Path(args.ledger).write_text(json.dumps(ledger, indent=2) + "\n")
-        payload = standings(policy, ledger)
+        payload = standings(policy, ledger, registry)
         Path(args.standings).write_text(json.dumps(payload, indent=2) + "\n")
         replace_section(
             Path(args.readme),
-            readme_section(payload, active_credits(ledger, policy)),
+            readme_section(
+                payload,
+                validate_credit_inventory(ledger, policy, registry),
+            ),
         )
     report_path = Path(args.report)
     report_path.parent.mkdir(parents=True, exist_ok=True)

@@ -23,7 +23,7 @@ output_dir=""
 timeout_s=300
 launcher_timeout=240
 shire=0
-board_lock="${BOARD_LOCK:-}"
+board_lock="${BOARD_LOCK:-/var/lock/etsoc-shire0.lock}"
 no_dump=0
 dry_run=0
 list_only=0
@@ -386,6 +386,10 @@ echo -e "index\tsuite\tmodel\tcase\tvariant\tstatus\trc\telapsed_s\tkernel_wait_
 echo "Output dir: $output_dir"
 echo "Jobs: ${#job_suite[@]}"
 
+if [[ "$device" == "soc1sim" && -n "$board_lock" ]]; then
+  bash "$CHECKOUT/.github/ci/scripts/prepare_board_lock.sh" "$board_lock"
+fi
+
 fail_count=0
 for i in "${!job_suite[@]}"; do
   index=$((i + 1))
@@ -430,8 +434,10 @@ for i in "${!job_suite[@]}"; do
 
   start=$(date +%s)
   if [[ "$device" == "soc1sim" && -n "$board_lock" && -d "$(dirname "$board_lock")" ]]; then
-    mkdir -p "$(dirname "$board_lock")"
-    flock -x -w 600 "$board_lock" \
+    python3 "$CHECKOUT/.github/ci/scripts/board_lock.py" \
+      --lock "$board_lock" \
+      --timeout 600 \
+      -- \
       timeout --kill-after=10s "$timeout_s" "${cmd[@]}" > "$log" 2>&1
     rc=$?
   else

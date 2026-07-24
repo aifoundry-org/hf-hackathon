@@ -1,0 +1,181 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "historical_review_complete": true,
+  "reviewed_at": "2026-07-22T14:55:53Z",
+  "reviewed_through_sha": "c2b9a217ab8307363515ca501e0f9fec84ac927e",
+  "baseline_sha": "cb4d6118881ccfcc022e4f007b606f364d36a77f",
+  "contest_start": "2026-06-15T13:01:08Z",
+  "contest_end": "2026-07-25T11:59:59Z",
+  "scope": "Merged participant model-port candidates from the frozen baseline through reviewed_through_sha. Later merges are handled by the enforced trusted claim workflow.",
+  "decisions": [
+    {
+      "review_id": "pr-12-deepseek-r1-15b",
+      "pr_number": 12,
+      "participant_login": "alien1403",
+      "participant_head_sha": "c16c82dcf6a18a190bf2243db83a6b6d8657d07d",
+      "merge_sha": "7c5d8308ee1bf06471c0cc1d1a24e37bc68eb96d",
+      "merged_at": "2026-07-07T10:11:28Z",
+      "identity_id": "qwen2",
+      "benchmark_models": [
+        "deepseek_r1_15b"
+      ],
+      "outcome": "existing_execution_family",
+      "reason": "DeepSeek-R1-Distill-Qwen-1.5B reuses the seed llama.cpp-et Qwen2 execution family; a checkpoint variant is not a distinct port."
+    },
+    {
+      "review_id": "pr-11-qwen3-8b",
+      "pr_number": 11,
+      "participant_login": "Ashish-Soni08",
+      "participant_head_sha": "425fed8290c2af5aac81e6e0b748f57917073ecc",
+      "merge_sha": "af9590607d27fd690df69eafcd6999fd66b16182",
+      "merged_at": "2026-07-08T14:09:27Z",
+      "identity_id": "qwen3",
+      "benchmark_models": [
+        "qwen3_8b"
+      ],
+      "outcome": "existing_execution_family",
+      "reason": "Qwen3 sizes and quantizations share the Qwen3 execution family already present at the frozen baseline."
+    },
+    {
+      "review_id": "pr-23-qwen25-05b",
+      "pr_number": 23,
+      "participant_login": "alien1403",
+      "participant_head_sha": "50b868ae0db1bfd873bc17a04616c42146c23def",
+      "merge_sha": "d3f9502782e6ba0950336673fdfffafbb5601d23",
+      "merged_at": "2026-07-08T18:02:30Z",
+      "identity_id": "qwen2",
+      "benchmark_models": [
+        "qwen25_05b"
+      ],
+      "outcome": "existing_execution_family",
+      "reason": "Qwen2.5-0.5B reuses the seed llama.cpp-et Qwen2 execution family; parameter size and quantization do not create another port credit."
+    },
+    {
+      "review_id": "pr-26-smolvlm-256m",
+      "pr_number": 26,
+      "participant_login": "Ashish-Soni08",
+      "participant_head_sha": "12ba7ca6f5452271532a99f1cdccaf1d1add3865",
+      "merge_sha": "2ac1420ae518a9ace87fe471797becf42abe7bab",
+      "merged_at": "2026-07-09T08:50:56Z",
+      "identity_id": "smolvlm",
+      "benchmark_models": [
+        "smolvlm_256m"
+      ],
+      "outcome": "missing_model_oracle",
+      "reason": "The merged benchmark exercised only the language backbone through a text completion/PPL check; it did not load the projector, submit an image, or validate a visual answer.",
+      "oracle_review": {
+        "status": "fail",
+        "required_evidence": "Pinned image fixture, mmproj load, visual-answer oracle, full ET offload, and zero vision fallback"
+      }
+    },
+    {
+      "review_id": "pr-55-dncnn",
+      "pr_number": 55,
+      "participant_login": "karabambus",
+      "participant_head_sha": "23ea3f255a522c797f472a5bb1dc2c2490e37a52",
+      "merge_sha": "a967098c9317705520ed425ac0cba861b910d171",
+      "merged_at": "2026-07-15T11:14:12Z",
+      "identity_id": "dncnn",
+      "benchmark_models": [
+        "dncnn"
+      ],
+      "outcome": "baseline_port_root",
+      "reason": "The real-model correction is valid work, but ported_models/dncnn was already a frozen seed root and cannot receive a new-port credit."
+    },
+    {
+      "review_id": "pr-103-smolvlm2-video-baseline",
+      "pr_number": 103,
+      "participant_login": "AFOliveira",
+      "participant_head_sha": "865f80480772e0f79e9ee19d20704c33558f3d4f",
+      "merge_sha": "443e451c6e6be082d53de6907707fe670f7c97d6",
+      "merged_at": "2026-07-13T15:47:59Z",
+      "identity_id": "smolvlm2-video",
+      "benchmark_models": [
+        "smolvlm2_500m_video"
+      ],
+      "outcome": "organizer_baseline",
+      "reason": "This was the organizer-owned Week 2 validation baseline, and the organizer login is excluded from individual model-port credits."
+    },
+    {
+      "review_id": "pr-94-smollm2-17b",
+      "pr_number": 94,
+      "participant_login": "VenuAditya",
+      "participant_head_sha": "0406d500bb856055cd0045bf118bf9b672989104",
+      "merge_sha": "52662db49d67dd87fc3f39567a425ea92c79ff2f",
+      "merged_at": "2026-07-15T11:40:13Z",
+      "identity_id": "smollm2",
+      "benchmark_models": [
+        "smollm2_17b"
+      ],
+      "outcome": "seed_benchmark_model",
+      "reason": "SmolLM2-1.7B was present at the frozen baseline and shares the single SmolLM2 execution-family identity."
+    },
+    {
+      "review_id": "pr-92-smollm2-135m",
+      "pr_number": 92,
+      "participant_login": "VenuAditya",
+      "participant_head_sha": "28ac08ede9fc7d639c26f88229f78de51700e5cc",
+      "merge_sha": "51d3b3d293412d7c7b9f4d7ecbc6248fba03d79d",
+      "merged_at": "2026-07-15T11:45:02Z",
+      "identity_id": "smollm2",
+      "benchmark_models": [
+        "smollm2_135m"
+      ],
+      "outcome": "seed_benchmark_model",
+      "reason": "SmolLM2-135M was present at the frozen baseline and shares the single SmolLM2 execution-family identity."
+    },
+    {
+      "review_id": "pr-93-smollm2-360m",
+      "pr_number": 93,
+      "participant_login": "VenuAditya",
+      "participant_head_sha": "8fb03a958137f13dcabe140b6f7cccb40cd38d7d",
+      "merge_sha": "5e193cf7b91788cbef69ae2ad124f0b397280c8d",
+      "merged_at": "2026-07-15T11:45:07Z",
+      "identity_id": "smollm2",
+      "benchmark_models": [
+        "smollm2_360m"
+      ],
+      "outcome": "seed_benchmark_model",
+      "reason": "SmolLM2-360M was present at the frozen baseline and shares the single SmolLM2 execution-family identity."
+    },
+    {
+      "review_id": "pr-110-smolvlm-256m-text-only",
+      "pr_number": 110,
+      "participant_login": "VenuAditya",
+      "participant_head_sha": "184b175b02a6d33dd6abd382d5f2d241ec91e7e0",
+      "merge_sha": "3d8569eb0d6304d5749aff6ecdc33d1faa394991",
+      "merged_at": "2026-07-15T20:05:49Z",
+      "identity_id": "smolvlm",
+      "benchmark_models": [
+        "smolvlm_256m"
+      ],
+      "outcome": "missing_model_oracle",
+      "reason": "This result again measured text-only decode and PPL without loading mmproj or proving the SmolVLM vision path against an image oracle.",
+      "oracle_review": {
+        "status": "fail",
+        "required_evidence": "Pinned image fixture, mmproj load, visual-answer oracle, full ET offload, and zero vision fallback"
+      }
+    },
+    {
+      "review_id": "pr-27-smolvlm-500m",
+      "pr_number": 27,
+      "participant_login": "Ashish-Soni08",
+      "participant_head_sha": "35b94ea0186fba0c9009321c1f2e29fd07661e0d",
+      "merge_sha": "4ca6fbf39c768d74d14365a79bb29cb55a621180",
+      "merged_at": "2026-07-22T10:02:25Z",
+      "identity_id": "smolvlm",
+      "benchmark_models": [
+        "smolvlm_500m"
+      ],
+      "outcome": "credited",
+      "reason": "First accepted SmolVLM/Idefics3-family submission with a pinned upstream model, real mmproj and image execution, visual-answer oracle, full ET offload, zero vision fallbacks, PPL quality gate, and a passing ET-SoC1 score.",
+      "credit_id": "2a3155b43482e88de65e3f05e34f90b40841c318612a3885fb85104d79e9084e",
+      "oracle": {
+        "validation_contract": ".github/ci/reference/smolvlm_500m.json",
+        "validation_contract_sha256": "477238d82222c2684701bc1a7540a8cf82e9c84f70c74d271ae0a5ab726c9418",
+        "trusted_run_url": "https://github.com/aifoundry-org/hf-hackathon/actions/runs/29910365911"
+      }
+    }
+  ]
+}

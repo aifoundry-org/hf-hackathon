@@ -52,6 +52,11 @@ def load_best(model: str) -> dict | None:
         return None
     data = json.loads(path.read_text())
     entries = data.get("entries", [])
+    expected_epoch = config().get("board", {}).get("hardware", {}).get("epoch")
+    if expected_epoch:
+        entries = [
+            entry for entry in entries if entry.get("hardware_epoch") == expected_epoch
+        ]
     required_variant = baseline_variant(model)
     if required_variant:
         entries = [entry for entry in entries if entry.get("variant") == required_variant]
@@ -95,7 +100,7 @@ def render_block() -> str:
         START,
         "## ET-SoC1 Board Leaderboard",
         "",
-        "Results are from real ET-SoC1 silicon via the main-branch board workflow. Each model uses its own primary metric.",
+        f"Results are from real ET-SoC1 silicon via the main-branch board workflow, hardware epoch `{config().get('board', {}).get('hardware', {}).get('epoch', 'unspecified')}`. Each model uses its own primary metric.",
         "",
         "| Model | Best participant | Variant | Metric | Score | PPL | Run |",
         "|-------|------------------|---------|--------|-------|-----|-----|",
