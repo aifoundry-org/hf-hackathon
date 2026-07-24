@@ -42,6 +42,8 @@ python3 -m unittest discover -s .github/ci/scripts -p 'test_merge_leaderboard.py
   || bad "leaderboard merge policy tests failed"
 python3 -m unittest discover -s .github/ci/scripts -p 'test_model_port_track.py' \
   || bad "trusted model-port track tests failed"
+python3 -m unittest discover -s .github/ci/scripts -p 'test_score_runtime_failure.py' \
+  || bad "runtime-failure classification tests failed"
 python3 -m unittest discover -s .github/ci/scripts -p 'test_model_port_history.py' \
   || bad "historical model-port review tests failed"
 python3 -m unittest discover -s .github/ci/scripts -p 'test_board_lock.py' \
@@ -173,6 +175,14 @@ if ! grep -qF 'et_platform_src_complete' .github/ci/platform/deploy/soc3-benchma
   || ! grep -qF '_launcher_lib_dir' .github/ci/platform/deploy/soc3-benchmark.sh; then
   bad "board deployment must bind a complete platform tree and matching launcher libraries"
 fi
+for token in \
+  'BOARD_FAILURE_SETTLE_S' \
+  'board_smoke "recovery-after-${model}" 1' \
+  'quarantining this board run'; do
+  if ! grep -qF "$token" .github/ci/platform/deploy/soc3-benchmark.sh; then
+    bad "board deployment lacks post-failure runtime containment: $token"
+  fi
+done
 if grep -qF '.removeprefix(' .github/ci/scripts/score_results.py; then
   bad "board scorer must remain compatible with the Python 3.8 board host"
 fi

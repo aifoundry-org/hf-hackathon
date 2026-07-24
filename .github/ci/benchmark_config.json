@@ -16,8 +16,8 @@
       "noc_frequency_mhz": 400,
       "tdp_w": 0
     },
-    "launcher_timeout_s": 600,
-    "outer_timeout_s": 660,
+    "launcher_timeout_s": 60,
+    "outer_timeout_s": 75,
     "comment": "Real silicon via PCIe on a self-hosted ET board runner.",
     "models": {
       "yolo": {
