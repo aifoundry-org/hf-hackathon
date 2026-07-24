@@ -449,6 +449,42 @@
       "local_cache": "local-artifacts/fixtures/smolvlm2/000000296969.jpg",
       "sha256": "1032b203f4b7faf2ea0268dddc1d9568e7ad8cbc39eb077b62ecf7b171bf90ff",
       "size_bytes": 282714
+    },
+    "gpt2_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "gpt2-Q8_0",
+      "filename": "gpt2.Q8_0.gguf",
+      "env": "GPT2_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "igorbkz/gpt2-Q8_0-GGUF",
+        "revision": "main",
+        "filename": "gpt2.Q8_0.gguf",
+        "url": "https://huggingface.co/igorbkz/gpt2-Q8_0-GGUF/resolve/main/gpt2.Q8_0.gguf"
+      },
+      "sha256": "4d1df054e273ac10b3a31a2f90660426212d033156bb0b530e7517662fbe0c32",
+      "size": 176095840,
+      "local_cache": "local-artifacts/models/gpt2.Q8_0.gguf",
+      "board_path": "/data/models/gpt2.Q8_0.gguf"
+    },
+    "gemma2_2b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "gemma-2-2b-it-Q8_0",
+      "filename": "gemma-2-2b-it-Q8_0.gguf",
+      "env": "GEMMA2_2B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "bartowski/gemma-2-2b-it-GGUF",
+        "revision": "main",
+        "filename": "gemma-2-2b-it-Q8_0.gguf",
+        "url": "https://huggingface.co/bartowski/gemma-2-2b-it-GGUF/resolve/main/gemma-2-2b-it-Q8_0.gguf"
+      },
+      "sha256": "2d448a9aab894b8e8e18168cf3f490cb9f65632222f29f93514ac9ecc754debe",
+      "size": 2784495456,
+      "local_cache": "local-artifacts/models/gemma-2-2b-it-Q8_0.gguf",
+      "board_path": "/data/models/gemma-2-2b-it-Q8_0.gguf"
     }
   }
 }
