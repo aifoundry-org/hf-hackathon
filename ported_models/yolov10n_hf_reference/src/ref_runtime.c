@@ -15,7 +15,6 @@
 #define YR_MANIFEST_VERSION 1u
 #endif
 
-
 static uint8_t *yr_tensor_raw(
     uint8_t *base, const struct yr_tensor_desc *tensor)
 {
@@ -503,7 +502,159 @@ static uint32_t yr_conv(
             input + n * input_channels * channel_stride;
         float *const batch_output =
             output + n * output_channels * plane_stride;
-        for (oc = oc_lo; oc < oc_hi; ++oc) {
+        oc = oc_lo;
+        /*
+         * Two output channels at a time wherever the pair exists and shares a
+         * group. Both read the same input values, so pairing halves the input
+         * loads per multiply-accumulate. On the unrolled interior path that
+         * takes one pass from four loads plus one weight for four products to
+         * four loads plus two weights for eight, and it doubles the number of
+         * independent accumulator chains. Each accumulator still sums over
+         * (icg, ky, kx) in the original order, so results stay bit-identical.
+         */
+        while (oc + 1u < oc_hi
+               && (oc + 1u) / outputs_per_group == oc / outputs_per_group) {
+            const uint32_t group = oc / outputs_per_group;
+            const float *const group_input = batch_input
+                + group * channels_per_group * channel_stride;
+            const float *const filter_a =
+                weight + oc * channels_per_group * kernel_stride;
+            const float *const filter_b =
+                filter_a + channels_per_group * kernel_stride;
+            const float initial_a = bias == (const float *)0 ? 0.0f : bias[oc];
+            const float initial_b =
+                bias == (const float *)0 ? 0.0f : bias[oc + 1u];
+            float *out_a = batch_output + oc * plane_stride;
+            float *out_b = out_a + plane_stride;
+            for (oh = 0; oh < output_h; ++oh) {
+                const int64_t base_h =
+                    (int64_t)oh * node->stride_h - node->pad_top;
+                uint32_t first_ky;
+                const uint32_t ky_count = yr_tap_range(
+                    base_h, node->dilation_h, input_h, node->kernel_h,
+                    &first_ky);
+                const float *row_origin;
+                const float *row_filter_a;
+                const float *row_filter_b;
+                if (ky_count == 0u) {
+                    for (ow = 0; ow < output_w; ++ow) {
+                        *out_a++ = initial_a;
+                        *out_b++ = initial_b;
+                    }
+                    continue;
+                }
+                row_origin = group_input
+                    + (base_h + (int64_t)first_ky * node->dilation_h)
+                      * (int64_t)input_w;
+                row_filter_a = filter_a + first_ky * (uint32_t)node->kernel_w;
+                row_filter_b = filter_b + first_ky * (uint32_t)node->kernel_w;
+                ow = 0u;
+                while (ow < output_w) {
+                    const int64_t base_w =
+                        (int64_t)ow * node->stride_w - node->pad_left;
+                    if (ow >= interior_first && ow + 4u <= interior_end) {
+                        const float *channel = row_origin + base_w;
+                        const float *tap_weight_a = row_filter_a;
+                        const float *tap_weight_b = row_filter_b;
+                        float first_a = initial_a;
+                        float second_a = initial_a;
+                        float third_a = initial_a;
+                        float fourth_a = initial_a;
+                        float first_b = initial_b;
+                        float second_b = initial_b;
+                        float third_b = initial_b;
+                        float fourth_b = initial_b;
+                        for (icg = 0; icg < channels_per_group; ++icg) {
+                            const float *row = channel;
+                            const float *row_weight_a = tap_weight_a;
+                            const float *row_weight_b = tap_weight_b;
+                            for (ky = 0; ky < ky_count; ++ky) {
+                                const float *value = row;
+                                const float *coefficient_a = row_weight_a;
+                                const float *coefficient_b = row_weight_b;
+                                for (kx = 0; kx < (uint32_t)node->kernel_w;
+                                     ++kx) {
+                                    const float scale_a = *coefficient_a++;
+                                    const float scale_b = *coefficient_b++;
+                                    const float value0 = value[0];
+                                    const float value1 = value[column_step];
+                                    const float value2 = value[column_step2];
+                                    const float value3 = value[column_step3];
+                                    first_a += value0 * scale_a;
+                                    second_a += value1 * scale_a;
+                                    third_a += value2 * scale_a;
+                                    fourth_a += value3 * scale_a;
+                                    first_b += value0 * scale_b;
+                                    second_b += value1 * scale_b;
+                                    third_b += value2 * scale_b;
+                                    fourth_b += value3 * scale_b;
+                                    value += node->dilation_w;
+                                }
+                                row += dilated_row_stride;
+                                row_weight_a += (uint32_t)node->kernel_w;
+                                row_weight_b += (uint32_t)node->kernel_w;
+                            }
+                            channel += channel_stride;
+                            tap_weight_a += kernel_stride;
+                            tap_weight_b += kernel_stride;
+                        }
+                        out_a[0] = first_a;
+                        out_a[1] = second_a;
+                        out_a[2] = third_a;
+                        out_a[3] = fourth_a;
+                        out_b[0] = first_b;
+                        out_b[1] = second_b;
+                        out_b[2] = third_b;
+                        out_b[3] = fourth_b;
+                        out_a += 4;
+                        out_b += 4;
+                        ow += 4u;
+                    } else {
+                        uint32_t first_kx;
+                        const uint32_t kx_count = yr_tap_range(
+                            base_w, node->dilation_w, input_w, node->kernel_w,
+                            &first_kx);
+                        float accumulator_a = initial_a;
+                        float accumulator_b = initial_b;
+                        if (kx_count != 0u) {
+                            const float *channel = row_origin + base_w
+                                + (int64_t)first_kx * node->dilation_w;
+                            const float *tap_weight_a = row_filter_a + first_kx;
+                            const float *tap_weight_b = row_filter_b + first_kx;
+                            for (icg = 0; icg < channels_per_group; ++icg) {
+                                const float *row = channel;
+                                const float *row_weight_a = tap_weight_a;
+                                const float *row_weight_b = tap_weight_b;
+                                for (ky = 0; ky < ky_count; ++ky) {
+                                    const float *value = row;
+                                    const float *coefficient_a = row_weight_a;
+                                    const float *coefficient_b = row_weight_b;
+                                    for (kx = 0; kx < kx_count; ++kx) {
+                                        const float sample = *value;
+                                        accumulator_a += sample
+                                            * *coefficient_a++;
+                                        accumulator_b += sample
+                                            * *coefficient_b++;
+                                        value += node->dilation_w;
+                                    }
+                                    row += dilated_row_stride;
+                                    row_weight_a += (uint32_t)node->kernel_w;
+                                    row_weight_b += (uint32_t)node->kernel_w;
+                                }
+                                channel += channel_stride;
+                                tap_weight_a += kernel_stride;
+                                tap_weight_b += kernel_stride;
+                            }
+                        }
+                        *out_a++ = accumulator_a;
+                        *out_b++ = accumulator_b;
+                        ow += 1u;
+                    }
+                }
+            }
+            oc += 2u;
+        }
+        for (; oc < oc_hi; ++oc) {
             const uint32_t group = oc / outputs_per_group;
             const float *const group_input = batch_input
                 + group * channels_per_group * channel_stride;
@@ -1886,23 +2037,19 @@ uint32_t yr_run_node_span(
                 }
             }
             /*
-             * yr_conv_tensor() can partition its own work per hart (each
-             * hart computing only its tile-aligned slice of output
-             * channels, reported back through tensor_oc_lo/tensor_oc_hi),
-             * but its first call on any hart also runs
-             * yr_tensor_scp_ready(), which pokes a firmware cache-control
-             * mode-switch syscall guarded only by a plain (non-cross-hart-
-             * coherent) static flag. That syscall has only ever run on a
-             * single hart before, in single-hart TFMA builds where every
-             * other physical hart returns out of main() immediately; a
-             * 16-hart build hit a real hang on the very first Conv node
-             * once all 16 harts started calling it concurrently here. Until
-             * that syscall is confirmed concurrency-safe, only try the
-             * tensor path with one hart, matching the previously-validated
-             * behavior; every other hart falls straight through to the
-             * portable scalar path below.
+             * yr_conv_tensor() partitions its own work per hart, computing
+             * only its tile-aligned slice of output channels and reporting
+             * that slice back through tensor_oc_lo/tensor_oc_hi so the
+             * publish below covers exactly what this hart wrote. Harts that
+             * own no tile for this node get an empty range and publish
+             * nothing, which is why the range comes back from the callee
+             * instead of being assumed here.
+             *
+             * The mode switch this path depends on now happens once per hart
+             * in yr_conv_tensor_init() at runner entry, so nothing about it
+             * is per-node or shared between harts any more.
              */
-            if (yr_hart_count() == 1u
+            if (YR_CONV_TENSOR_ENABLED
                 && yr_conv_tensor(
                     node, in0, weights, bias_desc, out0, (float *)in0_raw,
                     yr_tensor_ptr(device_base, weights), bias_data,
@@ -2298,6 +2445,16 @@ void yr_finalize_result(uint8_t *device_base, struct yr_result_header *result)
     workspace =
         device_base + YR_RESULT_DEVICE_OFFSET + YR_RESULT_HEADER_BYTES;
     result->workspace_fnv1a = yr_fnv1a(workspace, YR_WORKSPACE_BYTES);
+}
+
+
+/*
+ * Default tensor-mode setup, does nothing. Overridden by the same ET-only
+ * source that overrides yr_conv_tensor() below.
+ */
+__attribute__((weak))
+void yr_conv_tensor_init(void)
+{
 }
 
 

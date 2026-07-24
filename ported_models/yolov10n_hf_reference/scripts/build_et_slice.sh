@@ -34,17 +34,34 @@ mkdir -p "$(dirname "$output")"
 # single-hart image, e.g. for the tensor-unit fast path in
 # yr_conv_tensor_et.c, which only ever runs with yr_hart_count() == 1.
 et_num_harts="${YR_ET_NUM_HARTS:-16}"
+# The linker script defaults to 1024 bytes of stack per hart, which the -O2
+# frames overrun. yr_conv alone takes 496 bytes and yr_run_node_span another
+# 416 once they stop being folded together, and a hart that runs off the end
+# writes into its neighbour's stack, which shows up as a kernel runtime
+# failure late in the graph rather than as a crash at the overrun. Measured
+# with -fstack-usage. 4096 keeps NUM_HARTS * STACK_SIZE a multiple of 4 KiB,
+# which the linker script asserts on.
+et_stack_size="${YR_ET_STACK_SIZE:-4096}"
 link_flags=(
   "-Wl,--gc-sections" "-Wl,--no-warn-rwx-segments" "-Wl,--emit-relocs"
   "-Wl,--defsym=NUM_HARTS=${et_num_harts}" "-Wl,--defsym=region0_size=0x00400000"
+  "-Wl,--defsym=STACK_SIZE=${et_stack_size}"
   -T"$ERBIUM_LD"
 )
-if [[ -n "${YR_ET_STACK_SIZE:-}" ]]; then
-  link_flags+=("-Wl,--defsym=STACK_SIZE=${YR_ET_STACK_SIZE}")
-fi
 
+# -O2 measured 22 percent faster than -O1 on the board for the full graph and
+# leaves the dump bit-identical to the host, because none of the flags below
+# let the compiler reassociate floating point. The three companions are not
+# optional at -O2. -fno-tree-loop-distribute-patterns stops the zeroing loops
+# turning into calls to memset, which does not exist in a -nostdlib build.
+# -fno-strict-aliasing is required because the runtime reaches tensors through
+# byte pointers cast to float pointers, which the aliasing rules do not allow.
+# -funroll-loops was worth a further 2 seconds on top of plain -O2. -O3 was
+# tried and came out slower than -O2, so it is deliberately not used.
 compile_flags=(
-  "-std=gnu11" -O1 -fno-fast-math "-ffp-contract=off" -fno-tree-vectorize
+  "-std=gnu11" -O2 -funroll-loops -fno-tree-loop-distribute-patterns
+  -fno-strict-aliasing
+  -fno-fast-math "-ffp-contract=off" -fno-tree-vectorize
   "-march=rv64imfc" "-mabi=lp64f" "-mcmodel=medany" -nostdlib
   -fno-zero-initialized-in-bss -ffunction-sections -fdata-sections
 )

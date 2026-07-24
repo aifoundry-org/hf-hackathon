@@ -99,6 +99,42 @@ void yr_hart_barrier(void);
  * 0 before anything else runs, so a decline (return 0) or a hart that owns
  * no tiles this call always leaves them as an empty [0,0) range.
  */
+/*
+ * Build switch for the tensor-unit Conv fast path, off by default.
+ *
+ * It is off because enabling it is not free even when the tensor path helps.
+ * The tensor unit needs the L1 data cache put into scratchpad mode, which
+ * takes the whole cache away from ordinary loads and stores, and every
+ * operator other than the tensorized Conv shape runs as plain scalar code
+ * that depends on that cache. Measured on the board with the full graph and
+ * all 16 harts, turning it on made the run several times slower rather than
+ * faster, so the scalar path wins overall until far more of the graph is
+ * tensorized. See yr_conv_tensor_init().
+ *
+ * Only meaningful on ET builds that link a real yr_conv_tensor(); on host the
+ * weak stub declines either way. It is a compile-time constant so a disabled
+ * build compiles the call, and the mode switch, away entirely.
+ */
+#ifndef YR_CONV_TENSOR_ENABLED
+#define YR_CONV_TENSOR_ENABLED 0
+#endif
+
+/*
+ * Put this hart into whatever mode yr_conv_tensor() needs before any node
+ * runs. Every hart must call it once, from the runner's entry point, before
+ * the first barrier and before any Conv is dispatched.
+ *
+ * Doing it here rather than lazily on the first Conv is deliberate. The mode
+ * switch is a firmware syscall, and guarding it with a shared "already done"
+ * flag is not safe across harts, because L1 is minion-local and not coherent,
+ * so harts disagree about whether the flag is set. Calling it unconditionally
+ * once per hart, up front, removes the shared state entirely; the port in
+ * ported_models/yolo does the same thing and runs it on all harts on real
+ * hardware. ref_runtime.c supplies a weak stub that does nothing, so host
+ * builds and ET builds without a tensor source are unaffected.
+ */
+void yr_conv_tensor_init(void);
+
 struct yr_node_desc;
 struct yr_tensor_desc;
 uint32_t yr_conv_tensor(

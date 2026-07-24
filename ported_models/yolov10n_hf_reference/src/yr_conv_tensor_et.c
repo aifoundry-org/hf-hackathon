@@ -3,9 +3,10 @@
  *
  * Linked only into the ET build (see build_et_slice.sh). Overrides the weak
  * yr_conv_tensor() stub in ref_runtime.c, which always declines and keeps
- * the portable scalar path in effect on host. Runs on a single hart only;
- * ref_runtime.c gates every call on yr_hart_count() == 1, so this file has
- * no hart partitioning of its own and needs no barrier.
+ * the portable scalar path in effect on host. The 1x1 path splits one node's
+ * output-channel tiles across harts and reports its own slice back to the
+ * caller; no hart touches another hart's tiles, so this file needs no
+ * barrier of its own and relies on the per-node barrier in ref_runtime.c.
  *
  * A 1x1 stride-1 Conv over NCHW tensors is just a per-pixel [OC x IC] times
  * [IC] matrix-vector product, batched over every spatial position, so it
@@ -37,20 +38,30 @@
 
 #define YR_TENSOR_TILE 16u
 
+/*
+ * Switch this hart's L1 data cache into scratchpad mode, which the tensor
+ * unit needs. Called once per hart from the runner entry point.
+ *
+ * There is deliberately no "already initialized" flag. An earlier version
+ * cached the answer in a file-static, which is one address shared by every
+ * hart in a cache that is minion-local and not coherent, so harts raced on
+ * it and a 16-hart build hung on the first Conv. get_l1d_mode() reads a
+ * per-hart CSR, so asking the hardware costs almost nothing and cannot go
+ * stale or disagree between harts.
+ */
+void yr_conv_tensor_init(void)
+{
+    if (get_l1d_mode() == l1d_scp) {
+        return;
+    }
+    if (syscall(SYSCALL_CACHE_CONTROL, 1u, 1u, 0u) == 0) {
+        ucache_control(1u, 0u, 0u);
+    }
+}
+
 static int yr_tensor_scp_ready(void)
 {
-    static int checked = 0;
-    static int ready = 0;
-    if (!checked) {
-        checked = 1;
-        if (get_l1d_mode() == l1d_scp) {
-            ready = 1;
-        } else if (syscall(SYSCALL_CACHE_CONTROL, 1u, 1u, 0u) == 0) {
-            ucache_control(1u, 0u, 0u);
-            ready = (get_l1d_mode() == l1d_scp);
-        }
-    }
-    return ready;
+    return get_l1d_mode() == l1d_scp;
 }
 
 static void yr_tensor_clobber_fregs(void)

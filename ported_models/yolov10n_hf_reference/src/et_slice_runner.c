@@ -22,6 +22,20 @@
 #define YR_NHART 16u
 #endif
 
+/*
+ * Backoff bounds, in nops, for a hart waiting at the barrier. The wait starts
+ * at the low value and doubles up to the high one, so a barrier every hart
+ * reaches at nearly the same time is left almost immediately, while a long
+ * wait for a node only hart 0 runs settles into polling rarely. Tunable at
+ * build time so the values can be measured on the board rather than guessed.
+ */
+#ifndef YR_BARRIER_BACKOFF_MIN
+#define YR_BARRIER_BACKOFF_MIN 32u
+#endif
+#ifndef YR_BARRIER_BACKOFF_MAX
+#define YR_BARRIER_BACKOFF_MAX 4096u
+#endif
+
 
 uint32_t yr_hart_id(void)
 {
@@ -78,7 +92,25 @@ void yr_hart_barrier(void)
         FENCE;
         (void)atomic_add_local_32(&g_yr_barrier.epoch, 1u);
     } else {
+        /*
+         * Back off between polls instead of spinning as tightly as possible.
+         * Two harts share a minion and compete for issue slots and load/store
+         * resources, and every node that only hart 0 runs leaves its partner
+         * hart sitting in this loop; a poll loop whose body is a memory fence
+         * is about the most disruptive thing to put next to a hart that is
+         * trying to work. Backing off cost nothing measurable at the barriers
+         * where every hart arrives together and was worth a fifth of total
+         * runtime at the ones where it does not.
+         */
+        uint32_t backoff = YR_BARRIER_BACKOFF_MIN;
         while (atomic_load_local_32(&g_yr_barrier.epoch) == epoch) {
+            uint32_t spin;
+            for (spin = 0u; spin < backoff; ++spin) {
+                NOP;
+            }
+            if (backoff < YR_BARRIER_BACKOFF_MAX) {
+                backoff += backoff;
+            }
             FENCE;
         }
     }
@@ -154,6 +186,17 @@ int main(uintptr_t argument_area)
      */
     if (YR_NHART <= 1u && hart_id != 0u) {
         return 0;
+    }
+
+    /*
+     * Every hart sets up its own tensor-unit mode here, before the first
+     * barrier and before any node runs, so nothing about that setup is
+     * shared between harts or repeated per node. Skipped entirely unless the
+     * tensor path is enabled, because the mode switch alone slows every
+     * scalar operator down.
+     */
+    if (YR_CONV_TENSOR_ENABLED) {
+        yr_conv_tensor_init();
     }
 
     base = (uint8_t *)yr_buffer_base_from_args(argument_area);
