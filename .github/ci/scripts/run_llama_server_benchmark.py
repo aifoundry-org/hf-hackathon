@@ -657,15 +657,26 @@ def main() -> int:
     for extra in lcfg.get("extra_args", []):
         cmd.append(str(extra))
 
+    api_mode = str(lcfg.get("api", "chat"))
+    if api_mode == "rerank":
+        # Sequence-classification models (e.g. DistilBERT-SST2): no decode-token
+        # stream, score via LLAMA_POOLING_TYPE_RANK against a pinned prompt.
+        cmd.append("--rerank")
+
     command_path.write_text(json.dumps(cmd, indent=2) + "\n")
 
-    api_mode = str(lcfg.get("api", "chat"))
     if api_mode == "completion":
         request_path = "/completion"
         request_payload = {
             "prompt": config_text(mcfg, lcfg, "prompt"),
             "n_predict": int(lcfg.get("max_tokens", 128)),
             "temperature": lcfg.get("temperature", 0),
+        }
+    elif api_mode == "rerank":
+        request_path = "/rerank"
+        request_payload = {
+            "query": "sentiment",
+            "documents": [config_text(mcfg, lcfg, "prompt")],
         }
     else:
         request_path = "/v1/chat/completions"
@@ -675,7 +686,7 @@ def main() -> int:
             "max_tokens": int(lcfg.get("max_tokens", 128)),
             "temperature": lcfg.get("temperature", 0),
         }
-    if lcfg.get("ignore_eos") is not None:
+    if lcfg.get("ignore_eos") is not None and api_mode != "rerank":
         request_payload["ignore_eos"] = bool(lcfg.get("ignore_eos"))
 
     proc: subprocess.Popen[bytes] | None = None
@@ -738,6 +749,9 @@ def main() -> int:
     response = json.loads(response_path.read_text())
     timings = response.get("timings", {})
     usage = response.get("usage", {})
+    relevance_score = None
+    classification_correct = None
+    oracle_reference_score = None
     if api_mode == "completion":
         content = str(response.get("content") or "")
         completion_tokens_value = response.get("tokens_predicted")
@@ -751,6 +765,10 @@ def main() -> int:
                 else None
             ),
         }
+    elif api_mode == "rerank":
+        results = response.get("results") or []
+        relevance_score = results[0].get("relevance_score") if results else None
+        content = f"relevance_score={relevance_score}"
     else:
         choice = (response.get("choices") or [{}])[0]
         content = choice.get("message", {}).get("content", "")
@@ -758,17 +776,44 @@ def main() -> int:
     failures = []
     if status != 200:
         failures.append(f"HTTP {status}")
-    if not content:
-        failures.append("empty response content")
-    success_substring = lcfg.get("success_substring")
-    if success_substring and success_substring not in content:
-        failures.append(f"response missing {success_substring!r}")
-    completion_tokens = usage.get("completion_tokens")
-    if not isinstance(completion_tokens, int) or completion_tokens < min_completion_tokens:
-        failures.append(f"completion_tokens {completion_tokens!r} < {min_completion_tokens}")
-    tokens_per_second = timings.get("predicted_per_second")
-    if not isinstance(tokens_per_second, (int, float)) or tokens_per_second <= 0:
-        failures.append("missing positive predicted_per_second")
+    if api_mode == "rerank":
+        # llama.cpp's /rerank always returns embd[0] (see
+        # tools/server/server-context.cpp send_rerank(): `res->score = embd[0];`)
+        # -- the raw first logit of the classifier head, with NO label-aware
+        # selection. Which HF class that index corresponds to is decided by
+        # each architecture's own GGUF conversion class, and is NOT guaranteed
+        # to be the same index as the model's top predicted class, or the
+        # same index across different architectures (verified empirically:
+        # DistilBERT's embd[0] landed on its POSITIVE logit, RoBERTa's on its
+        # NEGATIVE logit, despite both HF configs declaring id2label={0:
+        # NEGATIVE, 1: POSITIVE}). So this only checks numeric closeness to a
+        # pinned oracle value for that same index -- it does NOT infer or
+        # check a predicted label from the sign of the score.
+        oracle = lcfg.get("oracle", {})
+        oracle_reference_score = oracle.get("reference_score")
+        if relevance_score is None:
+            failures.append("rerank response missing relevance_score")
+        elif oracle_reference_score is not None:
+            tolerance = float(oracle.get("max_abs_score_diff", 1.0))
+            diff = abs(float(relevance_score) - float(oracle_reference_score))
+            classification_correct = diff <= tolerance
+            if diff > tolerance:
+                failures.append(
+                    f"board score {relevance_score:.4f} differs from oracle "
+                    f"{float(oracle_reference_score):.4f} by {diff:.4f} (tolerance {tolerance:.4f})"
+                )
+    else:
+        if not content:
+            failures.append("empty response content")
+        success_substring = lcfg.get("success_substring")
+        if success_substring and success_substring not in content:
+            failures.append(f"response missing {success_substring!r}")
+        completion_tokens = usage.get("completion_tokens")
+        if not isinstance(completion_tokens, int) or completion_tokens < min_completion_tokens:
+            failures.append(f"completion_tokens {completion_tokens!r} < {min_completion_tokens}")
+        tokens_per_second = timings.get("predicted_per_second")
+        if not isinstance(tokens_per_second, (int, float)) or tokens_per_second <= 0:
+            failures.append("missing positive predicted_per_second")
     failures.extend(validate_log(log_text, request_path, require_full_offload=bool(lcfg.get("require_full_offload", True))))
     failures.extend(ppl_failures)
 
@@ -785,7 +830,7 @@ def main() -> int:
 
     passed = not failures
     ppl = ppl_metrics.get("perplexity")
-    pass_note = "llama-server ET completion valid"
+    pass_note = "llama-server ET rerank valid" if api_mode == "rerank" else "llama-server ET completion valid"
     if isinstance(ppl, float):
         pass_note += f"; PPL {ppl:.2f}"
     note = pass_note if passed else "; ".join(failures)
@@ -793,15 +838,22 @@ def main() -> int:
         {
             "status": "pass" if passed else "fail",
             "passed": passed,
-            "tokens_per_second": float(tokens_per_second) if isinstance(tokens_per_second, (int, float)) else None,
+            "tokens_per_second": (
+                float(tokens_per_second)
+                if api_mode != "rerank" and isinstance(tokens_per_second, (int, float))
+                else None
+            ),
             "prompt_tokens_per_second": timings.get("prompt_per_second"),
             "prompt_tokens": usage.get("prompt_tokens"),
-            "completion_tokens": completion_tokens,
+            "completion_tokens": usage.get("completion_tokens"),
             "total_tokens": usage.get("total_tokens"),
             "perplexity": ppl_metrics.get("perplexity"),
             "perplexity_error": ppl_metrics.get("perplexity_error"),
             "perplexity_tokens": ppl_metrics.get("perplexity_tokens"),
             "perplexity_prompt_tokens_per_second": ppl_metrics.get("perplexity_prompt_tokens_per_second"),
+            "relevance_score": relevance_score,
+            "classification_correct": classification_correct,
+            "oracle_reference_score": oracle_reference_score,
             "elapsed_s": elapsed,
             "content_prefix": content[:200],
             "validation_contract_sha256": validation_contract_sha256,
