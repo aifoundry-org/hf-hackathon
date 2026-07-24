@@ -199,8 +199,11 @@ baseline.
 For the “most models ported by one individual” track, first ask a maintainer to
 register the model identity, pinned upstream source, validation contract, and
 exact benchmark-configuration hash on `main`. This measurement-approval PR does
-not earn credit. The implementation PR must then add a new standalone
-`ported_models/<model>` root and
+not earn credit. It must include a task-appropriate host oracle and pinned
+fixture before the implementation can qualify. Text PPL alone is not an oracle
+for a vision, audio, detection, or other non-text model; CI must exercise and
+validate the model-specific path. The implementation PR must then add a new
+standalone `ported_models/<model>` root and
 `ported_models/submissions/model_ports/<model>.json`:
 
 ```json
@@ -230,8 +233,9 @@ approved configuration on ET-SoC1, and binds any credit to the canonical PR
 author. External participant code runs only after a maintainer dispatches the
 current PR head with `approve_board_execution=true`; a new push requires fresh
 approval. Device execution is capped at two minutes, with a ten-minute job cap
-for setup and compilation. The system is currently in shadow mode, so it
-reports would-be credits without modifying award standings.
+for setup and compilation. The system is in enforcement mode through the frozen
+`2026-07-25T11:59:59Z` cutoff, and passing merged claims update the
+content-addressed award ledger and generated standings.
 
 The `Leaderboard gate` check is the merge signal for benchmarked submissions.
 Every selected model must produce a passing board score and strictly improve the

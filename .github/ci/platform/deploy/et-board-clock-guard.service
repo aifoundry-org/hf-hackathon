@@ -1,0 +1,18 @@
+[Unit]
+Description=Set the aifoundry3 ET-SoC1 safe CI operating point
+After=systemd-modules-load.service local-fs.target
+
+[Service]
+Type=oneshot
+Environment=ET_BOARD_HOSTNAME=aifoundry3
+Environment=ET_MINION_FREQUENCY_MHZ=600
+Environment=ET_NOC_FREQUENCY_MHZ=400
+Environment=ET_BOARD_TDP_W=0
+Environment=ET_BOARD_CLOCK_RETRIES=30
+Environment=ET_BOARD_CLOCK_RETRY_DELAY_S=2
+ExecStartPre=/usr/local/sbin/prepare-et-board-lock
+ExecStart=/usr/bin/python3 /usr/local/sbin/et-board-lock --lock /var/lock/etsoc-shire0.lock --timeout 120 -- /usr/local/sbin/configure-et-board-clock
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

@@ -1,14 +1,61 @@
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
+import types
 import unittest
 import json
 import tempfile
 from pathlib import Path
+from unittest import mock
+
+if "fcntl" not in sys.modules:
+    fcntl = types.ModuleType("fcntl")
+    fcntl.LOCK_EX = 2
+    fcntl.LOCK_UN = 8
+    fcntl.flock = lambda *args, **kwargs: None
+    sys.modules["fcntl"] = fcntl
 
 import run_smolvlm2_video_benchmark as benchmark
+import run_llama_server_benchmark as llama_benchmark
 
 
 class SmolVLM2VideoBenchmarkTests(unittest.TestCase):
+    def test_runtime_library_path_prefers_compatible_et_sdk_lib(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            (root / "lib").mkdir()
+            with mock.patch.dict(
+                os.environ,
+                {
+                    "ET_PLATFORM": str(root),
+                    "ET_INSTALL": "/incompatible/et-install",
+                    "ET_LIB_PATH": "/incompatible/host:/compatible/lib",
+                    "LLAMA_CPP_ET_LD_LIBRARY_PATH": "",
+                },
+                clear=False,
+            ):
+                self.assertEqual(
+                    benchmark.compatible_runtime_library_path(),
+                    str(root / "lib"),
+                )
+                self.assertEqual(
+                    llama_benchmark.compatible_runtime_library_path(),
+                    str(root / "lib"),
+                )
+
+    def test_llama_revision_does_not_fall_through_to_parent_repository(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            subprocess.run(
+                ["git", "init", "-q", str(root)],
+                check=True,
+            )
+            source = root / "vendored-source-without-git-metadata"
+            source.mkdir()
+            self.assertEqual(llama_benchmark.git_source_revision(source), "")
+
     def test_normalize_answer(self) -> None:
         self.assertEqual(benchmark.normalize_answer(" Giraffe.\n"), "giraffe")
 
@@ -119,6 +166,203 @@ load_hparams: patch_size: 16
             benchmark.model_identity_failures(
                 log.replace("n_layer: 12", "n_layer: 6"), contract
             ),
+        )
+
+    def test_model_identity_qwen3vl_real_loader_format(self) -> None:
+        contract = {
+            "architecture": {
+                "language": {
+                    "general_architecture": "qwen3vl",
+                    "metadata_key_prefix": "qwen3vl",
+                    "parameter_count": {"value": 1.72, "unit": "B"},
+                    "require_model_name": False,
+                    "vocabulary": {"source": "n_vocab", "size": 151936},
+                    "tensor_count": 310,
+                    "block_count": 28,
+                    "embedding_length": 2048,
+                    "feed_forward_length": 6144,
+                    "attention_heads": 16,
+                    "attention_kv_heads": 8,
+                },
+                "vision": {
+                    "require_model_name": False,
+                    "projector": "qwen3vl_merger",
+                    "tensor_count": 316,
+                    "embedding_length": 1024,
+                    "attention_heads": 16,
+                    "feed_forward_length": 4096,
+                    "block_count": 24,
+                    "projection_dimension": 2048,
+                    "image_size": 768,
+                    "patch_size": 16,
+                },
+            }
+        }
+        log = """
+general.architecture str = qwen3vl
+model params = 1.72 B
+loaded meta data with 40 key-value pairs and 310 tensors
+qwen3vl.block_count u32 = 28
+qwen3vl.embedding_length u32 = 2048
+qwen3vl.feed_forward_length u32 = 6144
+qwen3vl.attention.head_count u32 = 16
+qwen3vl.attention.head_count_kv u32 = 8
+n_vocab = 151936
+clip_model_loader: n_tensors: 316
+load_hparams: projector: qwen3vl_merger
+load_hparams: n_embd: 1024
+load_hparams: n_head: 16
+load_hparams: n_ff: 4096
+load_hparams: n_layer: 24
+load_hparams: projection_dim: 2048
+load_hparams: image_size: 768
+load_hparams: patch_size: 16
+"""
+        self.assertEqual(benchmark.model_identity_failures(log, contract), [])
+        # Unit B must match the B loader print; do not accept a converted M line.
+        self.assertIn(
+            "loader log did not confirm language parameter count",
+            benchmark.model_identity_failures(
+                log.replace("model params = 1.72 B", "model params = 1720.00 M"),
+                contract,
+            ),
+        )
+
+    def test_model_identity_qwen3vl_negative_cases(self) -> None:
+        contract = {
+            "architecture": {
+                "language": {
+                    "general_architecture": "qwen3vl",
+                    "metadata_key_prefix": "qwen3vl",
+                    "parameter_count": {"value": 1.72, "unit": "B"},
+                    "require_model_name": False,
+                    "vocabulary": {"source": "n_vocab", "size": 151936},
+                    "tensor_count": 310,
+                    "block_count": 28,
+                    "embedding_length": 2048,
+                    "feed_forward_length": 6144,
+                    "attention_heads": 16,
+                    "attention_kv_heads": 8,
+                },
+                "vision": {
+                    "require_model_name": False,
+                    "projector": "qwen3vl_merger",
+                    "tensor_count": 316,
+                    "embedding_length": 1024,
+                    "attention_heads": 16,
+                    "feed_forward_length": 4096,
+                    "block_count": 24,
+                    "projection_dimension": 2048,
+                    "image_size": 768,
+                    "patch_size": 16,
+                },
+            }
+        }
+        log = """
+general.architecture str = qwen3vl
+model params = 1.72 B
+loaded meta data with 40 key-value pairs and 310 tensors
+qwen3vl.block_count u32 = 28
+qwen3vl.embedding_length u32 = 2048
+qwen3vl.feed_forward_length u32 = 6144
+qwen3vl.attention.head_count u32 = 16
+qwen3vl.attention.head_count_kv u32 = 8
+n_vocab = 151936
+clip_model_loader: n_tensors: 316
+load_hparams: projector: qwen3vl_merger
+load_hparams: n_embd: 1024
+load_hparams: n_head: 16
+load_hparams: n_ff: 4096
+load_hparams: n_layer: 24
+load_hparams: projection_dim: 2048
+load_hparams: image_size: 768
+load_hparams: patch_size: 16
+"""
+        self.assertIn(
+            "loader log did not confirm language block count",
+            benchmark.model_identity_failures(
+                log.replace("qwen3vl.block_count u32 = 28", "llama.block_count u32 = 28"),
+                contract,
+            ),
+        )
+        self.assertIn(
+            "loader log did not confirm language parameter count",
+            benchmark.model_identity_failures(
+                log.replace("model params = 1.72 B", "model params = 1.80 B"),
+                contract,
+            ),
+        )
+        self.assertIn(
+            "loader log did not confirm language vocabulary",
+            benchmark.model_identity_failures(
+                log.replace("n_vocab = 151936", "n_vocab = 151000"),
+                contract,
+            ),
+        )
+        self.assertIn(
+            "loader log did not confirm language tensor count",
+            benchmark.model_identity_failures(
+                log.replace("and 310 tensors", "and 300 tensors"),
+                contract,
+            ),
+        )
+        self.assertIn(
+            "loader log did not confirm vision projector",
+            benchmark.model_identity_failures(
+                log.replace("projector: qwen3vl_merger", "projector: idefics3"),
+                contract,
+            ),
+        )
+
+    def test_model_identity_reports_incomplete_contract(self) -> None:
+        contract = {
+            "architecture": {
+                "language": {
+                    "general_architecture": "qwen3vl",
+                    "tensor_count": 310,
+                    "block_count": 28,
+                    "embedding_length": 2048,
+                    "feed_forward_length": 6144,
+                    "attention_heads": 16,
+                    "attention_kv_heads": 8,
+                },
+                "vision": {
+                    "projector": "qwen3vl_merger",
+                    "tensor_count": 316,
+                    "embedding_length": 1024,
+                    "attention_heads": 16,
+                    "feed_forward_length": 4096,
+                    "block_count": 24,
+                    "projection_dimension": 2048,
+                    "image_size": 768,
+                    "patch_size": 16,
+                },
+            }
+        }
+        failures = benchmark.model_identity_failures("", contract)
+        self.assertTrue(
+            any(
+                failure.startswith(
+                    "identity contract missing language.metadata_key_prefix"
+                )
+                for failure in failures
+            ),
+        )
+        self.assertIn(
+            "identity contract missing language.parameter_count or parameter_count_millions",
+            failures,
+        )
+        self.assertIn(
+            "identity contract missing language.vocabulary or vocabulary_size",
+            failures,
+        )
+        self.assertIn(
+            "identity contract missing language.model_name or language.require_model_name",
+            failures,
+        )
+        self.assertIn(
+            "identity contract missing vision.model_name or vision.require_model_name",
+            failures,
         )
 
     def test_artifacts_must_match_frozen_hash_and_size(self) -> None:

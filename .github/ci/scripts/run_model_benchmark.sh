@@ -21,6 +21,24 @@ benchmark_sha="${BENCHMARK_SHA:-${GITHUB_SHA:-local}}"
 benchmark_ref="${BENCHMARK_REF:-${GITHUB_REF:-local}}"
 benchmark_run_url="${BENCHMARK_RUN_URL:-${GITHUB_SERVER_URL:-https://github.com}/${GITHUB_REPOSITORY:-local}/actions/runs/${GITHUB_RUN_ID:-0}}"
 
+stamp_board_score() {
+  local rc=$?
+  trap - EXIT
+  if [[ "$BENCHMARK_DEVICE" == "soc1sim" ]]; then
+    if ! python3 "${REPO_ROOT}/.github/ci/scripts/board_provenance.py" \
+      --config "$BENCHMARK_CONFIG" \
+      --score "${BENCHMARK_OUTPUT}/score-${model}.json"; then
+      echo "error: board score provenance validation failed for ${model}" >&2
+      rc=1
+    fi
+  fi
+  exit "$rc"
+}
+
+# Every score writer (ELF, llama-server, and SmolVLM2) passes through this
+# single fail-closed provenance step before the artifact is collected.
+trap stamp_board_score EXIT
+
 python3 - "$model" "$BENCHMARK_CONFIG" "$REPO_ROOT" <<'PY'
 import sys
 

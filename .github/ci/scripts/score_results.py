@@ -25,9 +25,13 @@ YOLO_MAGIC = 0x10500001
 SUMMARY = struct.Struct("<16I")
 YOLO_DETECTION = struct.Struct("<I5f")
 RUNTIME_FAILURE_MARKERS = (
+    "kernel execution timed out",
     "Stream error (event",
     "Kernel aborted (event",
     "Error on kernel launch:",
+    "DeviceLayer could be in a BAD STATE",
+    "_Map_base::at",
+    "Unbalanced number of abort unblockers",
     "FATAL SIGNAL RECEIVED",
 )
 
@@ -628,10 +632,14 @@ def evaluate_row(
         if accuracy_note:
             combined_note = f"{valid_note}; {accuracy_note}"
     passed = status == "pass" and bool(kernel_wait) and valid_dump and valid_accuracy
+    failure_kind = None
+    if not passed:
+        failure_kind = "runtime" if runtime_failure or status == "timeout" else "model"
     return {
         "case": row.get("case") or "",
         "status": "pass" if passed else (status if status and status != "pass" else "fail"),
         "passed": passed,
+        "failure_kind": failure_kind,
         "kernel_wait_s": float(kernel_wait) if kernel_wait else None,
         "valid_dump": valid_dump,
         "valid_accuracy": valid_accuracy,
@@ -692,6 +700,7 @@ def score_benchmark_cases(
                     "case": name,
                     "status": "missing",
                     "passed": False,
+                    "failure_kind": "not_run",
                     "kernel_wait_s": None,
                     "valid_dump": False,
                     "valid_accuracy": False,
@@ -720,6 +729,20 @@ def score_benchmark_cases(
         )
 
     passed = all(result["passed"] for result in case_results)
+    failure_kinds = {
+        result.get("failure_kind")
+        for result in case_results
+        if result.get("failure_kind")
+    }
+    failure_kind = (
+        None
+        if passed
+        else "runtime"
+        if "runtime" in failure_kinds
+        else "not_run"
+        if failure_kinds == {"not_run"}
+        else "model"
+    )
     waits = [result["kernel_wait_s"] for result in case_results if isinstance(result["kernel_wait_s"], float)]
     kernel_wait_value = sum(waits) / len(waits) if waits else None
     elapsed_values = [result["elapsed_s"] for result in case_results if isinstance(result["elapsed_s"], float)]
@@ -790,6 +813,7 @@ def score_benchmark_cases(
         "variant": variant,
         "status": "pass" if passed else "fail",
         "passed": passed,
+        "failure_kind": failure_kind,
         "kernel_wait_s": kernel_wait_value,
         "kernel_wait_per_image_s": kernel_wait_value,
         "tokens_per_second": None,
@@ -897,6 +921,7 @@ def score_from_results(
         "variant": variant,
         "status": evaluated["status"],
         "passed": evaluated["passed"],
+        "failure_kind": evaluated["failure_kind"],
         "kernel_wait_s": kernel_wait_value,
         "kernel_wait_per_image_s": kernel_wait_per_image,
         "tokens_per_second": None,

@@ -13,6 +13,14 @@ class TrackLabelTests(unittest.TestCase):
     def test_file_rules(self):
         cases = (
             ([{"filename": "ported_models/yolo/src/kernel.c"}], ["track: yolo-performance"]),
+            (
+                [{"filename": "ported_models/llama_cpp_et/src/llama.cpp-et"}],
+                ["track: week-2-challenge"],
+            ),
+            (
+                [{"filename": "ported_models/llama_cpp_et/benchmarks/smolvlm2_500m_video.json"}],
+                ["track: week-2-challenge"],
+            ),
             ([{"filename": "ported_models/llama_cpp_et/benchmarks/llama32_1b.json"}], ["track: llama-3.2-1b-performance"]),
             ([{"filename": "ported_models/llama_cpp_et/benchmarks/new.json", "status": "added"}], ["track: model-ports"]),
             ([{"filename": "ported_models/submissions/model_ports/new_model.json", "status": "added"}], ["track: model-ports"]),

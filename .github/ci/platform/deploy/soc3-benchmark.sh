@@ -22,7 +22,7 @@ et_platform_src_complete() {
 
 if [[ -z "${LLAMA_CPP_ET_SOURCE_REVISION:-}" ]]; then
   _llama_source="${ROOT}/ported_models/llama_cpp_et/src/llama.cpp-et"
-  if [[ -d "${_llama_source}" ]]; then
+  if [[ -e "${_llama_source}/.git" ]]; then
     LLAMA_CPP_ET_SOURCE_REVISION="$(git -C "${_llama_source}" rev-parse HEAD 2>/dev/null || true)"
   fi
   if [[ -z "${LLAMA_CPP_ET_SOURCE_REVISION:-}" ]]; then
@@ -53,7 +53,8 @@ else
   "${SSH_CMD[@]}" "rm -rf ${output_dir} && mkdir -p ${output_dir}"
 fi
 
-if [[ -x "${SOC3_BUILD_ET:-$HOME/et}/bin/riscv64-unknown-elf-gcc" ]]; then
+_local_riscv_gcc="${SOC3_BUILD_ET:-$HOME/et}/bin/riscv64-unknown-elf-gcc"
+if [[ -x "$_local_riscv_gcc" ]] && "$_local_riscv_gcc" --version >/dev/null 2>&1; then
   _etp="${ET_PLATFORM_SRC:-}"
   if [[ -n "$_etp" ]] && ! et_platform_src_complete "$_etp"; then
     echo "WARN: local ET_PLATFORM_SRC=$_etp is incomplete; searching for a usable et-platform tree" >&2
@@ -95,6 +96,8 @@ PY
     done
     export SOC3_PREBUILT=1
   fi
+elif [[ -x "$_local_riscv_gcc" ]]; then
+  echo "WARN: skipping local ELF prebuild because $_local_riscv_gcc cannot run on this host; the board-side Docker wrapper will be used" >&2
 fi
 
 echo "==> soc3 transport: ${TRANSPORT} (set USE_TAILSCALE_SSH=0 to force OpenSSH)"
@@ -160,6 +163,21 @@ for name in \
   BENCHMARK_SHA \
   BENCHMARK_REF \
   BENCHMARK_RUN_URL \
+  ET_BOARD_EPOCH \
+  ET_BOARD_ID \
+  ET_BOARD_HOSTNAME \
+  ET_MINION_FREQUENCY_MHZ \
+  ET_NOC_FREQUENCY_MHZ \
+  ET_BOARD_TDP_W \
+  ET_BOARD_CLOCK_RETRIES \
+  ET_BOARD_CLOCK_RETRY_DELAY_S \
+  ET_BOARD_CLOCK_COMMAND_TIMEOUT_S \
+  ET_BOARD_DEVICE_PATH \
+  ET_DEV_MNGT_SERVICE \
+  LLAMA_CPP_ET_BUILD_JOBS \
+  BOARD_FAILURE_SETTLE_S \
+  BOARD_SMOKE_TIMEOUT \
+  BOARD_SMOKE_LAUNCHER_TIMEOUT \
   TRUSTED_BOARD_LAUNCHER_TIMEOUT_CAP \
   TRUSTED_BOARD_OUTER_TIMEOUT_CAP; do
   if [[ -n "${!name:-}" ]]; then
@@ -286,9 +304,9 @@ if [[ -n "${TRUSTED_SMOLVLM2_CPU_BUILD_KEY:-}" ]]; then
   export TRUSTED_SMOLVLM2_CPU_PERPLEXITY="$_smol_cpu_dir/llama-perplexity"
 fi
 export PATH="$ET_INSTALL/bin:$PATH"
-mkdir -p "$WORK_ROOT" "$BENCHMARK_OUTPUT" "$AMP_ROOT" "$(dirname "$BOARD_LOCK")"
+mkdir -p "$WORK_ROOT" "$BENCHMARK_OUTPUT" "$AMP_ROOT"
 rm -f "$BENCHMARK_OUTPUT"/score-*.json
-touch "$BOARD_LOCK" 2>/dev/null || true
+bash .github/ci/scripts/prepare_board_lock.sh "$BOARD_LOCK"
 
 # Framework builds (-DGGML_ET=ON) use CMake file(CONFIGURE), which requires cmake
 # 3.18+. The board host's system cmake may be older (fails with "file does not
@@ -455,43 +473,40 @@ if [[ -f "$_launcher_lib_dir/libetrt.so" \
   export LD_LIBRARY_PATH="$_launcher_lib_dir:$LD_LIBRARY_PATH"
 fi
 
-reset_board() {
-  local reset
-  for reset in /sys/devices/pci0000:00/0000:00:01.0/0000:01:00.0/soc_reset/reinitiate \
-    /sys/bus/pci/devices/*/soc_reset/reinitiate; do
-    if [[ -w "$reset" ]]; then
-      echo "Resetting ET-SoC1 via $reset"
-      echo 1 > "$reset" || true
-      sleep 2
-      return
-    fi
-  done
-}
-
 board_smoke() {
+  local label="${1:-initial}"
+  local required="${2:-0}"
+  local safe_label
+  safe_label="$(printf '%s' "$label" | tr -c 'A-Za-z0-9_.-' '_')"
   local smoke_elf="${BOARD_SMOKE_ELF:-/opt/et/kernels/histogram.erbium-soc1sim.elf}"
-  local smoke_dir="$BENCHMARK_OUTPUT/board-smoke"
+  local smoke_dir="$BENCHMARK_OUTPUT/board-smoke-${safe_label}"
   local smoke_log="$smoke_dir/run.log"
   local smoke_dump="$smoke_dir/dump.bin"
 
   if [[ ! -f "$smoke_elf" ]]; then
+    if [[ "$required" == "1" ]]; then
+      echo "error: required board recovery smoke ELF missing at $smoke_elf" >&2
+      return 1
+    fi
     echo "WARN: board smoke ELF missing at $smoke_elf" >&2
     return 0
   fi
 
   mkdir -p "$smoke_dir"
   rm -f "$smoke_log" "$smoke_dump"
-  reset_board
   echo ""
-  echo "========== board smoke: $(basename "$smoke_elf") =========="
-  if flock -x -w 60 "$BOARD_LOCK" \
-    timeout --kill-after=10s "${BOARD_SMOKE_TIMEOUT:-180}" \
+  echo "========== board smoke ($label): $(basename "$smoke_elf") =========="
+  if python3 .github/ci/scripts/board_lock.py \
+    --lock "$BOARD_LOCK" \
+    --timeout 60 \
+    -- \
+    timeout --kill-after=10s "${BOARD_SMOKE_TIMEOUT:-60}" \
     "$LAUNCHER" \
       --device soc1sim \
       --elf-load "$smoke_elf" \
       --shire 0 \
       --dump_after "$smoke_dump" \
-      --timeout "${BOARD_SMOKE_LAUNCHER_TIMEOUT:-120}" \
+      --timeout "${BOARD_SMOKE_LAUNCHER_TIMEOUT:-45}" \
       --mem_size 16777216 \
       --dump_size 8192 >"$smoke_log" 2>&1; then
     tail -40 "$smoke_log"
@@ -501,6 +516,18 @@ board_smoke() {
   echo "WARN: board smoke failed; tailing $smoke_log" >&2
   tail -120 "$smoke_log" >&2 || true
   return 1
+}
+
+benchmark_runner() {
+  python3 - "$1" "$BENCHMARK_CONFIG" <<'PY'
+import sys
+
+model, config_path = sys.argv[1:3]
+sys.path.insert(0, ".github/ci/scripts")
+from benchmark_config_helpers import load_config, model_runner
+
+print(model_runner(load_config(config_path), model))
+PY
 }
 
 if [[ ! -x "$LAUNCHER" ]]; then
@@ -517,22 +544,33 @@ fi
 echo "Host: $(hostname) device=$(stat -c '%a %U:%G' /dev/et0_mgmt) launcher=$LAUNCHER"
 
 chmod +x .github/ci/scripts/*.sh scripts/*.sh 2>/dev/null || true
+echo ""
+echo "========== ET board clock preflight =========="
+python3 .github/ci/scripts/board_lock.py \
+  --lock "$BOARD_LOCK" \
+  --timeout 60 \
+  -- \
+  bash .github/ci/scripts/configure_board_clock.sh
+
 FAIL=0
-if [[ "${SOC3_SKIP_BOARD_SMOKE:-0}" != "1" ]] && ! board_smoke; then
+BOARD_HEALTHY=1
+if [[ "${SOC3_SKIP_BOARD_SMOKE:-0}" != "1" ]] && ! board_smoke initial; then
   FAIL=1
+  BOARD_HEALTHY=0
 fi
-for model in $MODELS; do
-  echo ""
-  echo "========== benchmark: $model =========="
-  reset_board
-  if ! bash .github/ci/scripts/run_model_benchmark.sh "$model"; then
-    echo "WARN: $model benchmark script returned non-zero" >&2
-    FAIL=1
-  fi
-  if [[ -f "$BENCHMARK_OUTPUT/score-${model}.json" ]]; then
-    score_file="$BENCHMARK_OUTPUT/score-${model}.json"
-    cat "$score_file"
-    if ! python3 - "$score_file" <<'PY'
+if [[ "$BOARD_HEALTHY" == "1" ]]; then
+  for model in $MODELS; do
+    echo ""
+    echo "========== benchmark: $model =========="
+    MODEL_FAILED=0
+    if ! bash .github/ci/scripts/run_model_benchmark.sh "$model"; then
+      echo "WARN: $model benchmark script returned non-zero" >&2
+      MODEL_FAILED=1
+    fi
+    if [[ -f "$BENCHMARK_OUTPUT/score-${model}.json" ]]; then
+      score_file="$BENCHMARK_OUTPUT/score-${model}.json"
+      cat "$score_file"
+      if ! python3 - "$score_file" <<'PY'
 import json
 import sys
 
@@ -540,15 +578,33 @@ with open(sys.argv[1]) as f:
     score = json.load(f)
 sys.exit(0 if score.get("passed") else 1)
 PY
-    then
-      echo "WARN: $model benchmark score did not pass" >&2
-      FAIL=1
+      then
+        echo "WARN: $model benchmark score did not pass" >&2
+        MODEL_FAILED=1
+      fi
+    else
+      echo "missing score-${model}.json" >&2
+      MODEL_FAILED=1
     fi
-  else
-    echo "missing score-${model}.json" >&2
-    FAIL=1
-  fi
-done
+
+    if [[ "$MODEL_FAILED" == "1" ]]; then
+      FAIL=1
+      if [[ "$(benchmark_runner "$model")" == "elf" ]]; then
+        echo "WARN: $model ELF failed; waiting for late device events before the recovery barrier" >&2
+        sleep "${BOARD_FAILURE_SETTLE_S:-5}"
+        if ! board_smoke "recovery-after-${model}" 1; then
+          echo "error: ET runtime did not pass the post-failure health barrier; quarantining this board run" >&2
+          echo "error: remaining models will not be launched against a potentially contaminated runtime" >&2
+          BOARD_HEALTHY=0
+          break
+        fi
+        echo "ET runtime passed the post-failure health barrier; continuing with the next model."
+      fi
+    fi
+  done
+else
+  echo "error: initial ET board health check failed; no model benchmarks will be launched" >&2
+fi
 
 echo ""
 echo "Scores under $BENCHMARK_OUTPUT"

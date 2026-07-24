@@ -8,16 +8,25 @@ import json
 from pathlib import Path
 from typing import Any
 
-from model_port_claim import active_credits, load_json, parse_time, validate_policy
+from model_port_claim import (
+    load_json,
+    parse_time,
+    validate_credit_inventory,
+    validate_policy,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 START = "<!-- model-port-standings:start -->"
 END = "<!-- model-port-standings:end -->"
 
 
-def standings(policy: dict[str, Any], ledger: dict[str, Any]) -> dict[str, Any]:
+def standings(
+    policy: dict[str, Any],
+    ledger: dict[str, Any],
+    registry: dict[str, Any],
+) -> dict[str, Any]:
     validate_policy(policy)
-    credits = active_credits(ledger, policy)
+    credits = validate_credit_inventory(ledger, policy, registry)
     grouped: dict[str, list[dict[str, Any]]] = {}
     for credit in credits.values():
         grouped.setdefault(str(credit["participant_login"]), []).append(credit)
@@ -111,17 +120,21 @@ def main() -> int:
         "--policy", default=str(REPO_ROOT / ".github/ci/reference/model_ports_track.json")
     )
     parser.add_argument("--ledger", default=str(REPO_ROOT / "data/model-port-credits.json"))
+    parser.add_argument(
+        "--identities", default=str(REPO_ROOT / "data/model-port-identities.json")
+    )
     parser.add_argument("--output", default=str(REPO_ROOT / "data/model-port-standings.json"))
     parser.add_argument("--readme", default=str(REPO_ROOT / "README.md"))
     args = parser.parse_args()
 
     policy = load_json(Path(args.policy))
     ledger = load_json(Path(args.ledger))
-    payload = standings(policy, ledger)
+    registry = load_json(Path(args.identities))
+    payload = standings(policy, ledger, registry)
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(payload, indent=2) + "\n")
-    credits = active_credits(ledger, policy)
+    credits = validate_credit_inventory(ledger, policy, registry)
     if args.readme:
         replace_section(Path(args.readme), readme_section(payload, credits))
     print(json.dumps(payload, indent=2))

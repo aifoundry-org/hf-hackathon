@@ -1,5 +1,36 @@
 {
   "schema_version": 1,
   "track": "most_models_ported",
-  "records": []
+  "records": [
+    {
+      "record_id": "15cecdf8646bfcdd2681bc31a783f1a55f8a6cc69b7ee0c91784d9b70020eab0",
+      "record_type": "credit",
+      "issuance": "historical_backfill",
+      "historical_review_id": "pr-27-smolvlm-500m",
+      "credit_id": "2a3155b43482e88de65e3f05e34f90b40841c318612a3885fb85104d79e9084e",
+      "identity_id": "smolvlm",
+      "benchmark_model": "smolvlm_500m",
+      "participant_login": "Ashish-Soni08",
+      "pr_number": 27,
+      "participant_head_sha": "35b94ea0186fba0c9009321c1f2e29fd07661e0d",
+      "merge_sha": "4ca6fbf39c768d74d14365a79bb29cb55a621180",
+      "merged_at": "2026-07-22T10:02:25Z",
+      "source": {
+        "repo": "HuggingFaceTB/SmolVLM-500M-Instruct",
+        "revision": "a7da5b986cb59b408707209984f360a5f4ad7e47",
+        "license": "apache-2.0"
+      },
+      "recipe": "ported_models/llama_cpp_et/docs/smolvlm_500m.md",
+      "benchmark_config_sha256": "b4c6cb1a679e8ace0ec6f0dad1bf40abd9c93dae20b4a3edef71b26813a23bcf",
+      "trusted_run": {
+        "url": "https://github.com/aifoundry-org/hf-hackathon/actions/runs/29910365911",
+        "score_sha": "4ca6fbf39c768d74d14365a79bb29cb55a621180",
+        "validation_contract_sha256": "477238d82222c2684701bc1a7540a8cf82e9c84f70c74d271ae0a5ab726c9418",
+        "benchmark_device": "soc1sim",
+        "runner": "smolvlm2_video",
+        "metric": "pmc_cycles",
+        "metric_value": 616919265
+      }
+    }
+  ]
 }

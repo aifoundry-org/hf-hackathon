@@ -50,8 +50,7 @@ if [[ -e /dev/et0_mgmt ]]; then
   echo "Run board worker as: sudo -u etsoc env HOST_ID=... python3 -m et_jobs worker --pool board"
 fi
 
-sudo mkdir -p "$(dirname "$BOARD_LOCK")" 2>/dev/null || true
-sudo touch "$BOARD_LOCK" 2>/dev/null || true
+bash "$ROOT/.github/ci/scripts/prepare_board_lock.sh" "$BOARD_LOCK"
 
 echo "Install done. Start:"
 echo "  source $ENV_FILE"

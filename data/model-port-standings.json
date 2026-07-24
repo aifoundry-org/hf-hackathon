@@ -1,8 +1,24 @@
 {
   "schema_version": 1,
   "track": "most_models_ported",
-  "activation_mode": "shadow",
+  "activation_mode": "enforce",
   "metric": "active_unique_model_port_credits",
   "tie_break": "earliest_final_qualifying_merge",
-  "standings": []
+  "standings": [
+    {
+      "participant_login": "Ashish-Soni08",
+      "credits": 1,
+      "identity_ids": [
+        "smolvlm"
+      ],
+      "benchmark_models": [
+        "smolvlm_500m"
+      ],
+      "final_qualifying_merge_at": "2026-07-22T10:02:25Z",
+      "credit_ids": [
+        "2a3155b43482e88de65e3f05e34f90b40841c318612a3885fb85104d79e9084e"
+      ],
+      "rank": 1
+    }
+  ]
 }
