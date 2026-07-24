@@ -2,8 +2,45 @@
   "model": "llama32_1b",
   "metric": "tokens_per_second",
   "lower_is_better": false,
-  "updated_at": "2026-07-21T17:44:37.243969+00:00",
+  "hardware_epoch": "et-soc1-aifoundry3-600-400-tdp0-v1",
+  "updated_at": "2026-07-24T17:10:42.081866+00:00",
   "entries": [
+    {
+      "team": "RehanQasim-dev",
+      "participant_login": "RehanQasim-dev",
+      "variant": "Llama-3.2-1B-Instruct-Q8_0",
+      "kernel_wait_s": null,
+      "kernel_wait_per_image_s": null,
+      "tokens_per_second": 13.5324,
+      "prompt_tokens_per_second": 504.793,
+      "prompt_tokens": 18,
+      "completion_tokens": 96,
+      "total_tokens": 114,
+      "perplexity": 15.2119,
+      "perplexity_error": 2.86921,
+      "perplexity_tokens": 512,
+      "perplexity_prompt_tokens_per_second": 666.26,
+      "validation_contract_sha256": "a0c48b768cf52a4cf6a3c6ccce3ee31dc9c950c3d8368ac6f5e1a7c9b54c0214",
+      "hardware_epoch": "et-soc1-aifoundry3-600-400-tdp0-v1",
+      "hardware": {
+        "schema_version": 1,
+        "epoch": "et-soc1-aifoundry3-600-400-tdp0-v1",
+        "board_id": "aifoundry3",
+        "minion_frequency_mhz": 600,
+        "noc_frequency_mhz": 400,
+        "tdp_w": 0,
+        "hostname": "esperanto-soc3",
+        "runner_name": "aifoundry3-et-soc1",
+        "boot_id": "664e4f37-496f-4420-b880-443de8a5d56f",
+        "clock_guard_marker": "/run/et-board-clock-guard.ok"
+      },
+      "sha": "9910b2a6cb62265cde011f9c3ba469129390a561",
+      "ref": "refs/heads/main",
+      "run_url": "https://github.com/aifoundry-org/hf-hackathon/actions/runs/30111392825",
+      "scored_at": "2026-07-24T17:03:14.526122+00:00"
+    }
+  ],
+  "legacy_entries": [
     {
       "team": "RehanQasim-dev",
       "participant_login": "RehanQasim-dev",
