@@ -300,6 +300,12 @@
     },
     "smolvlm2_500m_video": {
       "config": "ported_models/llama_cpp_et/benchmarks/smolvlm2_500m_video.json"
+    },
+    "internlm2_5_18b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/internlm2_5_18b.json"
+    },
+    "starcoder2_3b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/starcoder2_3b.json"
     }
   }
 }

@@ -449,6 +449,42 @@
       "local_cache": "local-artifacts/fixtures/smolvlm2/000000296969.jpg",
       "sha256": "1032b203f4b7faf2ea0268dddc1d9568e7ad8cbc39eb077b62ecf7b171bf90ff",
       "size_bytes": 282714
+    },
+    "internlm2_5_18b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "internlm2_5-1_8b-chat-Q8_0",
+      "filename": "internlm2_5-1_8b-chat-q8_0.gguf",
+      "env": "INTERNLM2_5_18B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "internlm/internlm2_5-1_8b-chat-gguf",
+        "revision": "main",
+        "filename": "internlm2_5-1_8b-chat-q8_0.gguf",
+        "url": "https://huggingface.co/internlm/internlm2_5-1_8b-chat-gguf/resolve/main/internlm2_5-1_8b-chat-q8_0.gguf"
+      },
+      "sha256": "8526cc24717fcab32b20540c546f8c23a6ea3ff40b86f421a0cd060c8123e8b2",
+      "size": 2009613056,
+      "local_cache": "local-artifacts/models/internlm2_5-1_8b-chat-q8_0.gguf",
+      "board_path": "/data/models/internlm2_5-1_8b-chat-q8_0.gguf"
+    },
+    "starcoder2_3b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "starcoder2-3b-Q8_0",
+      "filename": "starcoder2-3b.Q8_0.gguf",
+      "env": "STARCODER2_3B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "QuantFactory/starcoder2-3b-GGUF",
+        "revision": "main",
+        "filename": "starcoder2-3b.Q8_0.gguf",
+        "url": "https://huggingface.co/QuantFactory/starcoder2-3b-GGUF/resolve/main/starcoder2-3b.Q8_0.gguf"
+      },
+      "sha256": "6ed1dfa70e4695fbbc1cb781c4baa93da347ed25516395d48eaf99e9e86c4bc8",
+      "size": 3224556928,
+      "local_cache": "local-artifacts/models/starcoder2-3b.Q8_0.gguf",
+      "board_path": "/data/models/starcoder2-3b.Q8_0.gguf"
     }
   }
 }
