@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "model": "llama32_1b",
+  "base_model": "Llama-3.2-1B-Instruct",
+  "license": "llama3.2",
+  "variant": "Llama-3.2-1B-Instruct-Q8_0",
+  "quantization": "Q8_0",
+  "artifact": {
+    "source": {
+      "repo": "lmstudio-community/Llama-3.2-1B-Instruct-GGUF",
+      "revision": "199151125cf15a129ab3b548b26afeed976df066",
+      "filename": "Llama-3.2-1B-Instruct-Q8_0.gguf"
+    },
+    "sha256": "0abee8eed408d4a73a6f88e23e4ec349aef998ae0fe110e4dd1c724df5019e47",
+    "size_bytes": 1321079232
+  },
+  "recipe": "ported_models/llama_cpp_et/kernels/README.md",
+  "tuning": {
+    "batch_size": 256,
+    "ubatch_size": 128,
+    "flash_attn": false
+  }
+}
