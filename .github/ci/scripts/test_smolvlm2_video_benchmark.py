@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import os
+import subprocess
 import sys
 import types
 import unittest
 import json
 import tempfile
 from pathlib import Path
+from unittest import mock
 
 if "fcntl" not in sys.modules:
     fcntl = types.ModuleType("fcntl")
@@ -15,9 +18,44 @@ if "fcntl" not in sys.modules:
     sys.modules["fcntl"] = fcntl
 
 import run_smolvlm2_video_benchmark as benchmark
+import run_llama_server_benchmark as llama_benchmark
 
 
 class SmolVLM2VideoBenchmarkTests(unittest.TestCase):
+    def test_runtime_library_path_prefers_compatible_et_sdk_lib(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            (root / "lib").mkdir()
+            with mock.patch.dict(
+                os.environ,
+                {
+                    "ET_PLATFORM": str(root),
+                    "ET_INSTALL": "/incompatible/et-install",
+                    "ET_LIB_PATH": "/incompatible/host:/compatible/lib",
+                    "LLAMA_CPP_ET_LD_LIBRARY_PATH": "",
+                },
+                clear=False,
+            ):
+                self.assertEqual(
+                    benchmark.compatible_runtime_library_path(),
+                    str(root / "lib"),
+                )
+                self.assertEqual(
+                    llama_benchmark.compatible_runtime_library_path(),
+                    str(root / "lib"),
+                )
+
+    def test_llama_revision_does_not_fall_through_to_parent_repository(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            subprocess.run(
+                ["git", "init", "-q", str(root)],
+                check=True,
+            )
+            source = root / "vendored-source-without-git-metadata"
+            source.mkdir()
+            self.assertEqual(llama_benchmark.git_source_revision(source), "")
+
     def test_normalize_answer(self) -> None:
         self.assertEqual(benchmark.normalize_answer(" Giraffe.\n"), "giraffe")
 

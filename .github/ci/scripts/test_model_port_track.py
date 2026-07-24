@@ -12,7 +12,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from benchmark_config_helpers import sysemu_timeouts
+from benchmark_config_helpers import load_config, sysemu_timeouts
 from model_port_claim import ClaimError, active_credits, canonical_sha256, inspect_claims
 from model_port_credit import issue_credits, record_hash
 from prepare_trusted_model_port_tree import prepare
@@ -253,6 +253,19 @@ class ModelPortTrackTests(unittest.TestCase):
             clear=False,
         ):
             self.assertEqual(sysemu_timeouts(cfg), (120, 100))
+
+    def test_board_defaults_fit_the_ci_failure_budget(self):
+        cfg = load_config()
+        with patch.dict(
+            os.environ,
+            {
+                "BOARD_BENCHMARK": "1",
+                "TRUSTED_BOARD_LAUNCHER_TIMEOUT_CAP": "0",
+                "TRUSTED_BOARD_OUTER_TIMEOUT_CAP": "0",
+            },
+            clear=False,
+        ):
+            self.assertEqual(sysemu_timeouts(cfg), (75, 60))
 
     def test_exact_config_hash_is_main_owned(self):
         registry = copy.deepcopy(self.fixture.registry)
