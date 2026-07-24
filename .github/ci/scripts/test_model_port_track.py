@@ -12,7 +12,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from benchmark_config_helpers import sysemu_timeouts
+from benchmark_config_helpers import load_config, sysemu_timeouts
 from model_port_claim import ClaimError, active_credits, canonical_sha256, inspect_claims
 from model_port_credit import issue_credits, record_hash
 from prepare_trusted_model_port_tree import prepare
@@ -113,11 +113,20 @@ class TrackRepo:
         self.baseline = commit(self.repo, "baseline")
 
         self.entry = benchmark_entry()
+        self.contract = {
+            "schema_version": 1,
+            "model": "novel",
+            "expected_magic": "0x12345678",
+        }
+        self.contract_sha256 = hashlib.sha256(
+            (json.dumps(self.contract, indent=2) + "\n").encode()
+        ).hexdigest()
         self.policy = {
             "schema_version": 1,
             "track": "most_models_ported",
             "activation_mode": "enforce",
             "historical_review_complete": True,
+            "historical_review": "data/model-port-historical-review.json",
             "contest_start": "2026-06-01T00:00:00Z",
             "contest_end": "2026-12-31T23:59:59Z",
             "baseline_sha": self.baseline,
@@ -147,6 +156,7 @@ class TrackRepo:
                     "approved_runner": "elf",
                     "benchmark_config_sha256": canonical_sha256(self.entry),
                     "validation_contract": CONTRACT_PATH,
+                    "validation_contract_sha256": self.contract_sha256,
                 }
             ],
         }
@@ -161,7 +171,7 @@ class TrackRepo:
         write_json(
             self.repo,
             CONTRACT_PATH,
-            {"schema_version": 1, "model": "novel", "expected_magic": "0x12345678"},
+            self.contract,
         )
         self.base = commit(self.repo, "preapprove identity and contract")
 
@@ -226,6 +236,11 @@ class ModelPortTrackTests(unittest.TestCase):
         with self.assertRaises(ClaimError):
             self.fixture.inspect(policy=policy)
 
+        policy = copy.deepcopy(self.fixture.policy)
+        policy.pop("historical_review")
+        with self.assertRaises(ClaimError):
+            self.fixture.inspect(policy=policy)
+
     def test_trusted_board_timeout_caps_override_long_global_defaults(self):
         cfg = {"board": {"launcher_timeout_s": 600, "outer_timeout_s": 660}}
         with patch.dict(
@@ -238,6 +253,19 @@ class ModelPortTrackTests(unittest.TestCase):
             clear=False,
         ):
             self.assertEqual(sysemu_timeouts(cfg), (120, 100))
+
+    def test_board_defaults_fit_the_ci_failure_budget(self):
+        cfg = load_config()
+        with patch.dict(
+            os.environ,
+            {
+                "BOARD_BENCHMARK": "1",
+                "TRUSTED_BOARD_LAUNCHER_TIMEOUT_CAP": "0",
+                "TRUSTED_BOARD_OUTER_TIMEOUT_CAP": "0",
+            },
+            clear=False,
+        ):
+            self.assertEqual(sysemu_timeouts(cfg), (75, 60))
 
     def test_exact_config_hash_is_main_owned(self):
         registry = copy.deepcopy(self.fixture.registry)
@@ -279,6 +307,17 @@ class ModelPortTrackTests(unittest.TestCase):
         (self.fixture.repo / ".github/ci/scripts").mkdir(parents=True)
         (self.fixture.repo / ".github/ci/scripts/evil.py").write_text("print('weaken gate')\n")
         bad_head = commit(self.fixture.repo, "try to replace gate")
+        result = self.fixture.inspect(head=bad_head)
+        self.assertFalse(result["passed"])
+        self.assertIn("trusted track/measurement files", " ".join(result["errors"]))
+
+    def test_claim_cannot_change_historical_review(self):
+        write_json(
+            self.fixture.repo,
+            "data/model-port-historical-review.json",
+            {"historical_review_complete": False},
+        )
+        bad_head = commit(self.fixture.repo, "try to replace historical review")
         result = self.fixture.inspect(head=bad_head)
         self.assertFalse(result["passed"])
         self.assertIn("trusted track/measurement files", " ".join(result["errors"]))
@@ -488,6 +527,30 @@ class ModelPortTrackTests(unittest.TestCase):
         self.assertEqual(active_credits(revoked, self.fixture.policy), {})
         self.assertEqual(revoked["records"][0], credit)
 
+    def test_ledger_rejects_late_credits_and_unapproved_runners(self):
+        ledger, _ = self.issue(self.score())
+        for mutation, message in (
+            ({"merged_at": "2027-01-01T00:00:00Z"}, "contest deadline"),
+            ({"trusted_run.runner": "participant-runner"}, "unapproved runner"),
+        ):
+            with self.subTest(mutation=mutation):
+                tampered = copy.deepcopy(ledger)
+                body = {
+                    key: value
+                    for key, value in tampered["records"][0].items()
+                    if key != "record_id"
+                }
+                if "merged_at" in mutation:
+                    body["merged_at"] = mutation["merged_at"]
+                if "trusted_run.runner" in mutation:
+                    body["trusted_run"]["runner"] = mutation["trusted_run.runner"]
+                tampered["records"][0] = {
+                    "record_id": record_hash(body),
+                    **body,
+                }
+                with self.assertRaisesRegex(ClaimError, message):
+                    active_credits(tampered, self.fixture.policy)
+
     def test_shadow_mode_never_writes_credit(self):
         policy = copy.deepcopy(self.fixture.policy)
         policy["activation_mode"] = "shadow"
@@ -516,6 +579,7 @@ class ModelPortTrackTests(unittest.TestCase):
         def credit(identity, login, merged_at):
             body = {
                 "record_type": "credit",
+                "issuance": "trusted_merge",
                 "credit_id": hashlib.sha256(
                     f"most_models_ported\0{identity}".encode()
                 ).hexdigest(),
@@ -534,6 +598,7 @@ class ModelPortTrackTests(unittest.TestCase):
                     "score_sha": "c" * 40,
                     "validation_contract_sha256": "e" * 64,
                     "benchmark_device": "soc1sim",
+                    "runner": "elf",
                     "metric": "kernel_wait_s",
                     "metric_value": 0.25,
                 },
@@ -548,7 +613,27 @@ class ModelPortTrackTests(unittest.TestCase):
                 credit("two", "bob", "2026-07-01T00:30:00Z"),
             ],
         }
-        payload = standings(self.fixture.policy, ledger)
+        registry = {
+            "schema_version": 1,
+            "track": "most_models_ported",
+            "baseline_port_roots": ["ported_models/seed"],
+            "identities": [
+                {
+                    "identity_id": identity,
+                    "execution_family": identity,
+                    "benchmark_models": [identity],
+                    "aliases": [],
+                    "eligible": True,
+                    "canonical_source": SOURCE,
+                    "approved_runner": "elf",
+                    "benchmark_config_sha256": "d" * 64,
+                    "validation_contract": CONTRACT_PATH,
+                    "validation_contract_sha256": "e" * 64,
+                }
+                for identity in ("one", "two")
+            ],
+        }
+        payload = standings(self.fixture.policy, ledger, registry)
         self.assertEqual([row["participant_login"] for row in payload["standings"]], ["alice", "bob"])
 
 

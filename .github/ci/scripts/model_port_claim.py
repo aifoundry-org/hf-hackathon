@@ -166,6 +166,11 @@ def validate_policy(policy: dict[str, Any]) -> None:
             raise ClaimError("enforcement requires a frozen contest_end")
         if policy.get("historical_review_complete") is not True:
             raise ClaimError("enforcement requires completed historical review")
+        review_path = safe_path(
+            policy.get("historical_review"), field="historical_review"
+        )
+        if not is_under(review_path, "data"):
+            raise ClaimError("historical_review must be committed under data")
     if policy.get("tie_break") != "earliest_final_qualifying_merge":
         raise ClaimError("unsupported model-port tie-break policy")
     if policy.get("credit_owner") != "pull_request_author":
@@ -265,6 +270,12 @@ def validate_registry(registry: dict[str, Any], policy: dict[str, Any]) -> dict[
             contract = safe_path(raw.get("validation_contract"), field="validation_contract")
             if not is_under(contract, ".github/ci/reference"):
                 raise ClaimError(f"identity {identity_id} contract must be main-owned CI reference data")
+            if not HEX64_RE.fullmatch(
+                str(raw.get("validation_contract_sha256") or "")
+            ):
+                raise ClaimError(
+                    f"eligible identity {identity_id} requires validation_contract_sha256"
+                )
             if raw.get("approved_runner") not in policy["allowed_runners"]:
                 raise ClaimError(f"identity {identity_id} uses an unapproved runner")
         elif not str(raw.get("ineligible_reason") or ""):
@@ -313,7 +324,29 @@ def active_credits(ledger: dict[str, Any], policy: dict[str, Any]) -> dict[str, 
             for field in ("participant_head_sha", "merge_sha"):
                 if not HEX40_RE.fullmatch(str(record.get(field) or "")):
                     raise ClaimError(f"credit record has an invalid {field}")
-            parse_time(str(record.get("merged_at") or ""), "credit.merged_at")
+            merged_at = parse_time(
+                str(record.get("merged_at") or ""), "credit.merged_at"
+            )
+            if merged_at < parse_time(str(policy["contest_start"]), "contest_start"):
+                raise ClaimError("credit record predates the contest start")
+            if policy.get("contest_end") is not None and merged_at > parse_time(
+                str(policy["contest_end"]), "contest_end"
+            ):
+                raise ClaimError("credit record is later than the contest deadline")
+            participant = str(record.get("participant_login") or "")
+            if participant.lower() in {
+                str(value).lower() for value in policy.get("excluded_logins", [])
+            }:
+                raise ClaimError("credit record belongs to an excluded participant")
+            issuance = record.get("issuance")
+            if issuance not in ("trusted_merge", "historical_backfill"):
+                raise ClaimError("credit record has an invalid issuance mode")
+            if issuance == "historical_backfill" and not IDENTITY_RE.fullmatch(
+                str(record.get("historical_review_id") or "")
+            ):
+                raise ClaimError(
+                    "historical credit record requires a safe historical_review_id"
+                )
             trusted_run = record.get("trusted_run")
             if not isinstance(trusted_run, dict):
                 raise ClaimError("credit record requires trusted_run provenance")
@@ -323,6 +356,8 @@ def active_credits(ledger: dict[str, Any], policy: dict[str, Any]) -> dict[str, 
                 raise ClaimError("credit record has an invalid trusted score SHA")
             if trusted_run.get("benchmark_device") != policy["required_device"]:
                 raise ClaimError("credit record was not produced on the required device")
+            if trusted_run.get("runner") not in policy["allowed_runners"]:
+                raise ClaimError("credit record used an unapproved runner")
             if not HEX64_RE.fullmatch(
                 str(trusted_run.get("validation_contract_sha256") or "")
             ):
@@ -369,6 +404,42 @@ def active_credits(ledger: dict[str, Any], policy: dict[str, Any]) -> dict[str, 
     }
 
 
+def validate_credit_inventory(
+    ledger: dict[str, Any],
+    policy: dict[str, Any],
+    registry: dict[str, Any],
+) -> dict[str, dict[str, Any]]:
+    """Validate active credits against the frozen organizer-owned identity registry."""
+    identities = validate_registry(registry, policy)
+    credits = active_credits(ledger, policy)
+    for identity_id, credit in credits.items():
+        identity = identities.get(identity_id)
+        if identity is None:
+            raise ClaimError(f"credit references unknown identity {identity_id}")
+        if identity.get("eligible") is not True:
+            raise ClaimError(f"credit references ineligible identity {identity_id}")
+        if credit["benchmark_model"] not in identity["benchmark_models"]:
+            raise ClaimError(
+                f"credit model {credit['benchmark_model']} is not authorized by identity {identity_id}"
+            )
+        if credit["source"] != identity["canonical_source"]:
+            raise ClaimError(f"credit source does not match identity {identity_id}")
+        if credit["benchmark_config_sha256"] != identity["benchmark_config_sha256"]:
+            raise ClaimError(
+                f"credit benchmark configuration does not match identity {identity_id}"
+            )
+        trusted_run = credit["trusted_run"]
+        if trusted_run["validation_contract_sha256"] != identity[
+            "validation_contract_sha256"
+        ]:
+            raise ClaimError(
+                f"credit validation contract does not match identity {identity_id}"
+            )
+        if trusted_run["runner"] != identity["approved_runner"]:
+            raise ClaimError(f"credit runner does not match identity {identity_id}")
+    return credits
+
+
 def protected_track_change(path: str) -> bool:
     if path == BENCHMARK_CONFIG:
         return False
@@ -379,6 +450,7 @@ def protected_track_change(path: str) -> bool:
         or path in {
             "data/model-port-identities.json",
             "data/model-port-credits.json",
+            "data/model-port-historical-review.json",
             "data/model-port-standings.json",
             ".github/CODEOWNERS",
         }
@@ -436,7 +508,7 @@ def inspect_claims(
 ) -> dict[str, Any]:
     validate_policy(policy)
     identities = validate_registry(registry, policy)
-    credits = active_credits(ledger, policy)
+    credits = validate_credit_inventory(ledger, policy, registry)
     changed = changed_files(repo, base, head)
     paths, invalid_claim_paths = claim_paths(policy, changed)
     result: dict[str, Any] = {

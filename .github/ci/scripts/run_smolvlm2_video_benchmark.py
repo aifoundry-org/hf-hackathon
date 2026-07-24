@@ -19,6 +19,7 @@ import time
 from pathlib import Path
 from typing import Any
 
+from board_lock import open_board_lock
 from benchmark_config_helpers import load_config
 from run_llama_server_benchmark import (
     artifact_config,
@@ -80,36 +81,330 @@ def log_failures(log: str, *, mode: str, request_count: int, allowed_ops: set[st
     return failures
 
 
-def model_identity_failures(log: str, contract: dict[str, Any]) -> list[str]:
-    language = contract["architecture"]["language"]
-    vision = contract["architecture"]["vision"]
-    checks = {
-        "language architecture": rf"general\.architecture\s+str\s+=\s+{re.escape(str(language['general_architecture']))}",
-        "model name": rf"general\.name\s+str\s+=\s+{re.escape(str(language['model_name']))}",
-        "language parameter count": rf"model params\s+=\s+{float(language['parameter_count_millions']):.2f}\s+M",
-        "language tensor count": rf"loaded meta data with\s+[0-9]+\s+key-value pairs and\s+{int(language['tensor_count'])}\s+tensors",
-        "language block count": rf"llama\.block_count\s+u32\s+=\s+{int(language['block_count'])}",
-        "language embedding length": rf"llama\.embedding_length\s+u32\s+=\s+{int(language['embedding_length'])}",
-        "language feed-forward length": rf"llama\.feed_forward_length\s+u32\s+=\s+{int(language['feed_forward_length'])}",
-        "language attention heads": rf"llama\.attention\.head_count\s+u32\s+=\s+{int(language['attention_heads'])}",
-        "language KV heads": rf"llama\.attention\.head_count_kv\s+u32\s+=\s+{int(language['attention_kv_heads'])}",
-        "language vocabulary": rf"llama\.vocab_size\s+u32\s+=\s+{int(language['vocabulary_size'])}",
-        "vision model name": rf"clip_model_loader: model name:\s+{re.escape(str(language['model_name']))}",
-        "vision tensor count": rf"clip_model_loader: n_tensors:\s+{int(vision['tensor_count'])}",
-        "vision projector": rf"load_hparams: projector:\s+{re.escape(str(vision['projector']))}",
-        "vision embedding length": rf"load_hparams: n_embd:\s+{int(vision['embedding_length'])}",
-        "vision attention heads": rf"load_hparams: n_head:\s+{int(vision['attention_heads'])}",
-        "vision feed-forward length": rf"load_hparams: n_ff:\s+{int(vision['feed_forward_length'])}",
-        "vision block count": rf"load_hparams: n_layer:\s+{int(vision['block_count'])}",
-        "vision projection dimension": rf"load_hparams: projection_dim:\s+{int(vision['projection_dimension'])}",
-        "vision image size": rf"load_hparams: image_size:\s+{int(vision['image_size'])}",
-        "vision patch size": rf"load_hparams: patch_size:\s+{int(vision['patch_size'])}",
-    }
-    return [
-        f"loader log did not confirm {name}"
-        for name, pattern in checks.items()
-        if not re.search(pattern, log)
+def _identity_section(
+    contract: dict[str, Any],
+    key: str,
+) -> tuple[dict[str, Any] | None, list[str]]:
+    architecture = contract.get("architecture")
+    if not isinstance(architecture, dict):
+        return None, ["identity contract missing architecture section"]
+    section = architecture.get(key)
+    if not isinstance(section, dict):
+        return None, [f"identity contract missing architecture.{key} section"]
+    return section, []
+
+
+def _resolve_metadata_key_prefix(language: dict[str, Any]) -> tuple[str | None, list[str]]:
+    arch = language.get("general_architecture")
+    if not arch:
+        return None, ["identity contract missing language.general_architecture"]
+    prefix = language.get("metadata_key_prefix")
+    if prefix:
+        return str(prefix), []
+    if str(arch) == "llama":
+        return "llama", []
+    return None, [
+        "identity contract missing language.metadata_key_prefix "
+        f"for architecture {arch!r}"
     ]
+
+
+def _resolve_parameter_count(language: dict[str, Any]) -> tuple[float | None, str | None, list[str]]:
+    parameter_count = language.get("parameter_count")
+    if isinstance(parameter_count, dict):
+        if "value" not in parameter_count or "unit" not in parameter_count:
+            return None, None, [
+                "identity contract parameter_count must include value and unit"
+            ]
+        try:
+            value = float(parameter_count["value"])
+        except (TypeError, ValueError):
+            return None, None, [
+                "identity contract parameter_count.value must be a number"
+            ]
+        unit = str(parameter_count["unit"]).upper()
+        if unit not in {"M", "B"}:
+            return None, None, [
+                "identity contract parameter_count unit must be M or B, "
+                f"got {unit!r}"
+            ]
+        return value, unit, []
+    if "parameter_count_millions" in language:
+        try:
+            return float(language["parameter_count_millions"]), "M", []
+        except (TypeError, ValueError):
+            return None, None, [
+                "identity contract parameter_count_millions must be a number"
+            ]
+    return None, None, [
+        "identity contract missing language.parameter_count or "
+        "parameter_count_millions"
+    ]
+
+
+def _parameter_count_log_pattern(value: float, unit: str) -> str:
+    # Match the unit declared in the contract against the loader print of
+    # that same unit (e.g. unit B → `model params = 1.72 B`). Do not convert
+    # B↔M as the primary match path.
+    return rf"model params\s+=\s+{value:.2f}\s+{re.escape(unit)}"
+
+
+def _resolve_vocabulary_pattern(
+    language: dict[str, Any],
+    lang_key: str,
+) -> tuple[str | None, list[str]]:
+    vocabulary = language.get("vocabulary")
+    if isinstance(vocabulary, dict):
+        source = vocabulary.get("source")
+        size = vocabulary.get("size")
+        if source is None or size is None:
+            return None, ["identity contract vocabulary must include source and size"]
+        try:
+            size_int = int(size)
+        except (TypeError, ValueError):
+            return None, ["identity contract vocabulary.size must be an integer"]
+        if source == "n_vocab":
+            return rf"n_vocab\s+=\s+{size_int}", []
+        if source == "vocab_size":
+            return (
+                rf"{re.escape(lang_key)}\.vocab_size\s+u32\s+=\s+{size_int}",
+                [],
+            )
+        return None, [
+            "identity contract vocabulary source must be n_vocab or vocab_size, "
+            f"got {source!r}"
+        ]
+    if "vocabulary_size" in language:
+        try:
+            size_int = int(language["vocabulary_size"])
+        except (TypeError, ValueError):
+            return None, [
+                "identity contract vocabulary_size must be an integer"
+            ]
+        return (
+            rf"{re.escape(lang_key)}\.vocab_size\s+u32\s+=\s+{size_int}",
+            [],
+        )
+    return None, [
+        "identity contract missing language.vocabulary or vocabulary_size"
+    ]
+
+
+def _resolve_model_name_requirement(
+    section: dict[str, Any],
+    *,
+    section_name: str,
+    default: bool | None = None,
+) -> tuple[bool | None, list[str]]:
+    explicit = section.get("require_model_name")
+    if explicit is None:
+        if section.get("model_name"):
+            return True, []
+        if default is not None:
+            # Legacy llama/SmolVLM contracts omit vision.require_model_name and
+            # inherit the language-side requirement when model_name is present.
+            return default, []
+        return None, [
+            f"identity contract missing {section_name}.model_name or "
+            f"{section_name}.require_model_name"
+        ]
+    if not isinstance(explicit, bool):
+        return None, [
+            f"identity contract {section_name}.require_model_name must be boolean"
+        ]
+    if explicit and not section.get("model_name") and section_name == "language":
+        return None, [
+            f"identity contract {section_name}.require_model_name is true "
+            "but model_name is missing"
+        ]
+    return explicit, []
+
+
+def model_identity_contract_failures(contract: dict[str, Any]) -> list[str]:
+    try:
+        failures: list[str] = []
+        language, language_failures = _identity_section(contract, "language")
+        failures.extend(language_failures)
+        vision, vision_failures = _identity_section(contract, "vision")
+        failures.extend(vision_failures)
+        if language is None or vision is None:
+            return failures
+
+        required_language = (
+            "general_architecture",
+            "tensor_count",
+            "block_count",
+            "embedding_length",
+            "feed_forward_length",
+            "attention_heads",
+            "attention_kv_heads",
+        )
+        for key in required_language:
+            if key not in language:
+                failures.append(f"identity contract missing language.{key}")
+
+        required_vision = (
+            "projector",
+            "tensor_count",
+            "embedding_length",
+            "attention_heads",
+            "feed_forward_length",
+            "block_count",
+            "projection_dimension",
+            "image_size",
+            "patch_size",
+        )
+        for key in required_vision:
+            if key not in vision:
+                failures.append(f"identity contract missing vision.{key}")
+
+        _, prefix_failures = _resolve_metadata_key_prefix(language)
+        failures.extend(prefix_failures)
+
+        _, _, parameter_failures = _resolve_parameter_count(language)
+        failures.extend(parameter_failures)
+
+        _, vocabulary_failures = _resolve_vocabulary_pattern(language, "placeholder")
+        failures.extend(vocabulary_failures)
+
+        language_require_name, language_name_failures = _resolve_model_name_requirement(
+            language,
+            section_name="language",
+        )
+        failures.extend(language_name_failures)
+
+        _, vision_name_failures = _resolve_model_name_requirement(
+            vision,
+            section_name="vision",
+            default=language_require_name if language_require_name is not None else None,
+        )
+        failures.extend(vision_name_failures)
+
+        return failures
+    except (KeyError, TypeError, ValueError) as exc:
+        return [f"identity contract is invalid: {exc}"]
+
+
+def model_identity_failures(log: str, contract: dict[str, Any]) -> list[str]:
+    try:
+        failures = model_identity_contract_failures(contract)
+        if failures:
+            return failures
+
+        language = contract["architecture"]["language"]
+        vision = contract["architecture"]["vision"]
+        arch = str(language["general_architecture"])
+        lang_key, prefix_failures = _resolve_metadata_key_prefix(language)
+        if lang_key is None:
+            return prefix_failures
+
+        param_value, param_unit, parameter_failures = _resolve_parameter_count(language)
+        if param_value is None or param_unit is None:
+            return parameter_failures
+
+        checks = {
+            "language architecture": rf"general\.architecture\s+str\s+=\s+{re.escape(arch)}",
+            "language parameter count": _parameter_count_log_pattern(
+                param_value, param_unit
+            ),
+            "language tensor count": (
+                rf"loaded meta data with\s+[0-9]+\s+key-value pairs and\s+"
+                rf"{int(language['tensor_count'])}\s+tensors"
+            ),
+            "language block count": (
+                rf"{re.escape(lang_key)}\.block_count\s+u32\s+=\s+"
+                rf"{int(language['block_count'])}"
+            ),
+            "language embedding length": (
+                rf"{re.escape(lang_key)}\.embedding_length\s+u32\s+=\s+"
+                rf"{int(language['embedding_length'])}"
+            ),
+            "language feed-forward length": (
+                rf"{re.escape(lang_key)}\.feed_forward_length\s+u32\s+=\s+"
+                rf"{int(language['feed_forward_length'])}"
+            ),
+            "language attention heads": (
+                rf"{re.escape(lang_key)}\.attention\.head_count\s+u32\s+=\s+"
+                rf"{int(language['attention_heads'])}"
+            ),
+            "language KV heads": (
+                rf"{re.escape(lang_key)}\.attention\.head_count_kv\s+u32\s+=\s+"
+                rf"{int(language['attention_kv_heads'])}"
+            ),
+            "vision tensor count": (
+                rf"clip_model_loader: n_tensors:\s+{int(vision['tensor_count'])}"
+            ),
+            "vision projector": (
+                rf"load_hparams: projector:\s+{re.escape(str(vision['projector']))}"
+            ),
+            "vision embedding length": (
+                rf"load_hparams: n_embd:\s+{int(vision['embedding_length'])}"
+            ),
+            "vision attention heads": (
+                rf"load_hparams: n_head:\s+{int(vision['attention_heads'])}"
+            ),
+            "vision feed-forward length": (
+                rf"load_hparams: n_ff:\s+{int(vision['feed_forward_length'])}"
+            ),
+            "vision block count": (
+                rf"load_hparams: n_layer:\s+{int(vision['block_count'])}"
+            ),
+            "vision projection dimension": (
+                rf"load_hparams: projection_dim:\s+"
+                rf"{int(vision['projection_dimension'])}"
+            ),
+            "vision image size": (
+                rf"load_hparams: image_size:\s+{int(vision['image_size'])}"
+            ),
+            "vision patch size": (
+                rf"load_hparams: patch_size:\s+{int(vision['patch_size'])}"
+            ),
+        }
+
+        vocabulary_pattern, vocabulary_failures = _resolve_vocabulary_pattern(
+            language,
+            lang_key,
+        )
+        if vocabulary_failures:
+            return vocabulary_failures
+        if vocabulary_pattern:
+            checks["language vocabulary"] = vocabulary_pattern
+
+        language_require_name, language_name_failures = _resolve_model_name_requirement(
+            language,
+            section_name="language",
+        )
+        if language_name_failures:
+            return language_name_failures
+
+        vision_require_name, vision_name_failures = _resolve_model_name_requirement(
+            vision,
+            section_name="vision",
+            default=language_require_name,
+        )
+        if vision_name_failures:
+            return vision_name_failures
+
+        model_name = language.get("model_name") or vision.get("model_name")
+        if language_require_name:
+            checks["model name"] = (
+                rf"general\.name\s+str\s+=\s+{re.escape(str(model_name))}"
+            )
+        if vision_require_name:
+            checks["vision model name"] = (
+                rf"clip_model_loader: model name:\s+{re.escape(str(model_name))}"
+            )
+
+        return [
+            f"loader log did not confirm {name}"
+            for name, pattern in checks.items()
+            if not re.search(pattern, log)
+        ]
+    except (KeyError, TypeError, ValueError) as exc:
+        return [f"identity contract is invalid: {exc}"]
+
+
+
 
 
 def build_command(
@@ -340,10 +635,23 @@ def read_firmware_cycles(
     return measurements, summary
 
 
+def compatible_runtime_library_path() -> str:
+    explicit = os.environ.get("LLAMA_CPP_ET_LD_LIBRARY_PATH", "").strip()
+    if explicit:
+        return explicit
+    for name in ("ET_PLATFORM", "ET_INSTALL"):
+        root = os.environ.get(name, "").strip()
+        if root:
+            candidate = Path(root) / "lib"
+            if candidate.is_dir():
+                return str(candidate)
+    return ""
+
+
 def runtime_env(server_bin: Path, server_cfg: dict[str, Any], *, mode: str) -> dict[str, str]:
     env = os.environ.copy()
     env["TMPDIR"] = env.get("TMPDIR", "/dev/shm")
-    configured_library_path = os.environ.get("LLAMA_CPP_ET_LD_LIBRARY_PATH", "")
+    configured_library_path = compatible_runtime_library_path()
     env["LD_LIBRARY_PATH"] = ":".join(
         value for value in (str(server_bin.parent), configured_library_path) if value
     )
@@ -597,7 +905,7 @@ def run_cpu_perplexity(
     env = os.environ.copy()
     env["LD_LIBRARY_PATH"] = ":".join(
         value
-        for value in (str(ppl_bin.parent), os.environ.get("LLAMA_CPP_ET_LD_LIBRARY_PATH", ""))
+        for value in (str(ppl_bin.parent), compatible_runtime_library_path())
         if value
     )
     try:
@@ -803,7 +1111,7 @@ def main() -> int:
     cpu_ppl_metrics: dict[str, Any] = {}
     ppl_failures: list[str] = []
     skip_host_reference = os.environ.get("SMOLVLM2_SKIP_HOST_REFERENCE") == "1"
-    with board_lock.open("a") as lock_file:
+    with open_board_lock(board_lock) as lock_file:
         fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
         if skip_host_reference:
             host_results: list[dict[str, Any]] = []
@@ -1025,7 +1333,11 @@ def main() -> int:
     quality_note = (
         "trusted paired-main PPL check skipped"
         if skip_ppl
-        else f"PPL {float(ppl):.4f} <= {maximum_ppl:.4f}"
+        else (
+            f"PPL {float(ppl):.4f} <= {maximum_ppl:.4f}"
+            if isinstance(ppl, (int, float))
+            else "PPL unavailable (validation failed)"
+        )
     )
     note = "; ".join(failures) if failures else (
         f"{len(cases)} public video/order cases passed; {quality_note}; "

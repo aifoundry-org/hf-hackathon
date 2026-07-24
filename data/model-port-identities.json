@@ -106,10 +106,24 @@
     {
       "identity_id": "smolvlm",
       "execution_family": "idefics3",
-      "benchmark_models": ["smolvlm_256m"],
-      "aliases": [],
-      "eligible": false,
-      "ineligible_reason": "historical contest submission pending trusted artifact and identity review"
+      "benchmark_models": [
+        "smolvlm_256m",
+        "smolvlm_500m"
+      ],
+      "aliases": [
+        "smolvlm-256m-instruct",
+        "smolvlm-500m-instruct"
+      ],
+      "eligible": true,
+      "canonical_source": {
+        "repo": "HuggingFaceTB/SmolVLM-500M-Instruct",
+        "revision": "a7da5b986cb59b408707209984f360a5f4ad7e47",
+        "license": "apache-2.0"
+      },
+      "approved_runner": "smolvlm2_video",
+      "benchmark_config_sha256": "b4c6cb1a679e8ace0ec6f0dad1bf40abd9c93dae20b4a3edef71b26813a23bcf",
+      "validation_contract": ".github/ci/reference/smolvlm_500m.json",
+      "validation_contract_sha256": "477238d82222c2684701bc1a7540a8cf82e9c84f70c74d271ae0a5ab726c9418"
     },
     {
       "identity_id": "smolvlm2-video",

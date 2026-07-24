@@ -46,7 +46,8 @@
       "rwkv7_15b",
       "qwen25_05b",
       "qwen3_8b",
-      "deepseek_r1_15b"
+      "deepseek_r1_15b",
+      "smolvlm_256m"
     ]
   },
   "performance": {

@@ -1,0 +1,88 @@
+{
+  "runner": "smolvlm2_video",
+  "board": true,
+  "benchmark_default": false,
+  "framework": {
+    "name": "llama.cpp-et",
+    "runner": "smolvlm2_video",
+    "source_artifact": "llama_cpp_source"
+  },
+  "artifacts_file": "../artifacts.json",
+  "reference_contract": ".github/ci/reference/smolvlm_500m.json",
+  "canonical_variant": "SmolVLM-500M-Instruct",
+  "score": {
+    "metric": "pmc_cycles",
+    "label": "ET firmware cycles",
+    "higher_is_better": false,
+    "baseline_variant": "SmolVLM-500M-Instruct"
+  },
+  "note": "SmolVLM-500M-Instruct VLM (Idefics3 + SigLIP). Exercises real vision: loads mmproj, runs pinned COCO image fixtures, and requires an ET-SoC1 visual-answer/oracle gate (same harness as smolvlm2_500m_video).",
+  "llama_server": {
+    "source_artifact": "llama_cpp_source",
+    "model_artifact": "smolvlm_500m_q8_gguf",
+    "mmproj_artifact": "smolvlm_500m_mmproj_q8",
+    "server_artifact": "llama_server",
+    "workdir_artifact": "llama_cpp_build",
+    "host": "127.0.0.1",
+    "port": 18103,
+    "device": "ET",
+    "gpu_layers": 99,
+    "ctx_size": 2048,
+    "batch_size": 256,
+    "ubatch_size": 128,
+    "parallel": 1,
+    "cache_ram_mib": 0,
+    "ready_timeout_s": 180,
+    "request_timeout_s": 300,
+    "flash_attn": false,
+    "max_tokens": 12,
+    "temperature": 0,
+    "top_k": 1,
+    "require_full_offload": true,
+    "require_zero_vision_fallbacks": true,
+    "allowed_vision_fallback_ops": [],
+    "perplexity": {
+      "enabled": true,
+      "perplexity_artifact": "llama_perplexity",
+      "corpus_artifact": "wikitext2_raw_test",
+      "ctx_size": 128,
+      "batch_size": 128,
+      "ubatch_size": 128,
+      "timeout_s": 300,
+      "min_ppl": 1.0,
+      "max_ppl": 30.444,
+      "chunks": 4
+    }
+  },
+  "multimodal": {
+    "frames_per_second": 1.0,
+    "prompt_template": "<|im_start|>User: {media_markers}\n{question}<end_of_utterance>\nAssistant:",
+    "cases": [
+      {
+        "name": "coco_cat",
+        "fixtures": ["coco_cat"],
+        "question": "What animal is shown? Answer one word.",
+        "accepted_answers": ["cat", "tabby"]
+      },
+      {
+        "name": "coco_giraffes",
+        "fixtures": ["coco_giraffes"],
+        "question": "What animal is shown? Answer one word.",
+        "accepted_answers": ["giraffe", "giraffes"]
+      },
+      {
+        "name": "cat_then_giraffes",
+        "fixtures": ["coco_cat", "coco_giraffes"],
+        "question": "Name the animal in the second image in one word.",
+        "accepted_answers": ["giraffe", "giraffes"]
+      },
+      {
+        "name": "giraffes_then_cat",
+        "fixtures": ["coco_giraffes", "coco_cat"],
+        "question": "Name the animal in the second image in one word.",
+        "accepted_answers": ["cat", "tabby"]
+      }
+    ],
+    "order_pair": ["cat_then_giraffes", "giraffes_then_cat"]
+  }
+}
