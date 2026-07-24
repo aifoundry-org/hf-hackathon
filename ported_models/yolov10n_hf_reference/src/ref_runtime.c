@@ -15,6 +15,16 @@
 #define YR_MANIFEST_VERSION 1u
 #endif
 
+/*
+ * Build switch for the dedicated 1x1 stride-1 Conv path in yr_conv, on by
+ * default. Set to 0 to route 1x1 convolutions through the general path
+ * instead, which is how its board speedup is isolated from other changes.
+ * The two paths produce bit-identical output, so this only affects speed.
+ */
+#ifndef YR_CONV_1X1_FAST
+#define YR_CONV_1X1_FAST 1
+#endif
+
 static uint8_t *yr_tensor_raw(
     uint8_t *base, const struct yr_tensor_desc *tensor)
 {
@@ -382,6 +392,479 @@ static void yr_hart_range(uint32_t count, uint32_t *lo, uint32_t *hi)
 }
 
 
+/*
+ * Same split as yr_hart_range but over a flat element count, with every
+ * boundary snapped to a 64-byte cache line (16 floats). Elementwise ops use
+ * this so each hart writes and evicts a range that shares no cache line with
+ * any other hart's range; L1 is minion local and not coherent, so two harts
+ * touching one line is exactly the corruption this avoids. The final range
+ * clamps to count so a tail shorter than a line is written by one hart only.
+ */
+#define YR_CACHE_LINE_FLOATS 16u
+static void yr_hart_elem_range(uint32_t count, uint32_t *lo, uint32_t *hi)
+{
+    const uint32_t harts = yr_hart_count();
+    const uint32_t id = yr_hart_id();
+    const uint32_t lines =
+        (count + YR_CACHE_LINE_FLOATS - 1u) / YR_CACHE_LINE_FLOATS;
+    uint32_t lo_line = (lines * id) / harts;
+    uint32_t hi_line = (lines * (id + 1u)) / harts;
+    *lo = lo_line * YR_CACHE_LINE_FLOATS;
+    *hi = hi_line * YR_CACHE_LINE_FLOATS;
+    if (*lo > count) {
+        *lo = count;
+    }
+    if (*hi > count) {
+        *hi = count;
+    }
+}
+
+
+/*
+ * Build switch for the dedicated 3x3 stride-1 same-padding Conv path, off by
+ * default. On the board this path measured about 1.5s slower than the general
+ * path over the full graph, so it stays off; set to 1 to route those
+ * convolutions through it. The two produce bit-identical output, so this only
+ * affects speed.
+ */
+#ifndef YR_CONV_3X3_FAST
+#define YR_CONV_3X3_FAST 0
+#endif
+
+
+/*
+ * One output pixel of a 3x3 stride-1 pad-1 dilation-1 ungrouped Conv, for a
+ * single output channel whose 3x3-per-input-channel weights start at w_oc.
+ * Used only for the border pixels of yr_conv3x3_s1, where some taps fall
+ * outside the input. It resolves the valid tap window with the same
+ * yr_tap_range the general path uses and accumulates in the same
+ * (input channel, ky, kx) order starting from the bias, so its result is
+ * bit-identical to what the general Conv loop would produce for that pixel.
+ */
+static float yr_conv3x3_pixel(
+    const float *input, const float *w_oc, float bias_value,
+    uint32_t input_channels, uint32_t input_h, uint32_t input_w,
+    int32_t oh, int32_t ow)
+{
+    const uint32_t channel_stride = input_h * input_w;
+    const int64_t base_h = (int64_t)oh - 1;
+    const int64_t base_w = (int64_t)ow - 1;
+    uint32_t first_ky, first_kx;
+    const uint32_t ky_count =
+        yr_tap_range(base_h, 1, (int64_t)input_h, 3, &first_ky);
+    const uint32_t kx_count =
+        yr_tap_range(base_w, 1, (int64_t)input_w, 3, &first_kx);
+    float accumulator = bias_value;
+    uint32_t icg, ky, kx;
+    if (ky_count == 0u || kx_count == 0u) {
+        return accumulator;
+    }
+    for (icg = 0; icg < input_channels; ++icg) {
+        const float *row = input + (uint64_t)icg * channel_stride
+            + (uint64_t)(base_h + (int64_t)first_ky) * input_w
+            + (base_w + (int64_t)first_kx);
+        const float *coefficient_row =
+            w_oc + (uint64_t)icg * 9u + (uint64_t)first_ky * 3u + first_kx;
+        for (ky = 0; ky < ky_count; ++ky) {
+            const float *value = row;
+            const float *coefficient = coefficient_row;
+            for (kx = 0; kx < kx_count; ++kx) {
+                accumulator += *value * *coefficient;
+                value += 1;
+                coefficient += 1;
+            }
+            row += input_w;
+            coefficient_row += 3u;
+        }
+    }
+    return accumulator;
+}
+
+
+/*
+ * Dedicated 3x3 stride-1 same-padding ungrouped Conv, 53.3 percent of this
+ * graph's multiply-accumulates and its single largest arithmetic cost. The
+ * general path handles it correctly but pays for a runtime-count kernel loop
+ * on every output pixel; here the kernel is fixed at 3x3 so the nine taps
+ * unroll to straight-line code the compiler can pipeline. Interior pixels
+ * (every tap in bounds, the overwhelming majority) take the unrolled path,
+ * two output channels and four output columns at a time to match the general
+ * path's register use and reuse each input load. The one-pixel border strip
+ * defers to yr_conv3x3_pixel. Every accumulator sums over input channel then
+ * ky then kx starting from the bias, the exact order the general loop uses,
+ * so the output is bit-identical.
+ */
+static uint32_t yr_conv3x3_s1(
+    uint32_t batches, uint32_t input_channels, uint32_t output_channels,
+    uint32_t input_h, uint32_t input_w,
+    const float *input, const float *weight, const float *bias, float *output)
+{
+    const uint32_t hw = input_h * input_w;
+    const uint32_t weight_oc_stride = input_channels * 9u;
+    uint32_t oc_lo, oc_hi, n, oc, icg;
+    int32_t oh, ow;
+    yr_hart_range(output_channels, &oc_lo, &oc_hi);
+    for (n = 0; n < batches; ++n) {
+        const float *const batch_input =
+            input + (uint64_t)n * input_channels * hw;
+        float *const batch_output =
+            output + (uint64_t)n * output_channels * hw;
+        oc = oc_lo;
+        while (oc + 1u < oc_hi) {
+            const float *const weight_a = weight + (uint64_t)oc * weight_oc_stride;
+            const float *const weight_b = weight_a + weight_oc_stride;
+            const float bias_a = bias == (const float *)0 ? 0.0f : bias[oc];
+            const float bias_b =
+                bias == (const float *)0 ? 0.0f : bias[oc + 1u];
+            float *const out_a = batch_output + (uint64_t)oc * hw;
+            float *const out_b = out_a + hw;
+            for (oh = 0; oh < (int32_t)input_h; ++oh) {
+                if (oh >= 1 && oh <= (int32_t)input_h - 2) {
+                    float *const row_a = out_a + (uint64_t)oh * input_w;
+                    float *const row_b = out_b + (uint64_t)oh * input_w;
+                    row_a[0] = yr_conv3x3_pixel(
+                        batch_input, weight_a, bias_a, input_channels,
+                        input_h, input_w, oh, 0);
+                    row_b[0] = yr_conv3x3_pixel(
+                        batch_input, weight_b, bias_b, input_channels,
+                        input_h, input_w, oh, 0);
+                    ow = 1;
+                    while (ow + 3 <= (int32_t)input_w - 2) {
+                        float a0 = bias_a, a1 = bias_a, a2 = bias_a, a3 = bias_a;
+                        float b0 = bias_b, b1 = bias_b, b2 = bias_b, b3 = bias_b;
+                        for (icg = 0; icg < input_channels; ++icg) {
+                            const float *const wa = weight_a + (uint64_t)icg * 9u;
+                            const float *const wb = weight_b + (uint64_t)icg * 9u;
+                            const float *top_left = batch_input
+                                + (uint64_t)icg * hw
+                                + (uint64_t)(oh - 1) * input_w + (ow - 1);
+                            uint32_t ky, kx;
+                            for (ky = 0u; ky < 3u; ++ky) {
+                                const float *const pr = top_left
+                                    + (uint64_t)ky * input_w;
+                                for (kx = 0u; kx < 3u; ++kx) {
+                                    const float wav = wa[ky * 3u + kx];
+                                    const float wbv = wb[ky * 3u + kx];
+                                    const float v0 = pr[kx];
+                                    const float v1 = pr[kx + 1u];
+                                    const float v2 = pr[kx + 2u];
+                                    const float v3 = pr[kx + 3u];
+                                    a0 += wav * v0; a1 += wav * v1;
+                                    a2 += wav * v2; a3 += wav * v3;
+                                    b0 += wbv * v0; b1 += wbv * v1;
+                                    b2 += wbv * v2; b3 += wbv * v3;
+                                }
+                            }
+                        }
+                        row_a[ow] = a0; row_a[ow + 1] = a1;
+                        row_a[ow + 2] = a2; row_a[ow + 3] = a3;
+                        row_b[ow] = b0; row_b[ow + 1] = b1;
+                        row_b[ow + 2] = b2; row_b[ow + 3] = b3;
+                        ow += 4;
+                    }
+                    for (; ow <= (int32_t)input_w - 2; ++ow) {
+                        row_a[ow] = yr_conv3x3_pixel(
+                            batch_input, weight_a, bias_a, input_channels,
+                            input_h, input_w, oh, ow);
+                        row_b[ow] = yr_conv3x3_pixel(
+                            batch_input, weight_b, bias_b, input_channels,
+                            input_h, input_w, oh, ow);
+                    }
+                    row_a[input_w - 1u] = yr_conv3x3_pixel(
+                        batch_input, weight_a, bias_a, input_channels,
+                        input_h, input_w, oh, (int32_t)input_w - 1);
+                    row_b[input_w - 1u] = yr_conv3x3_pixel(
+                        batch_input, weight_b, bias_b, input_channels,
+                        input_h, input_w, oh, (int32_t)input_w - 1);
+                } else {
+                    for (ow = 0; ow < (int32_t)input_w; ++ow) {
+                        out_a[(uint64_t)oh * input_w + ow] = yr_conv3x3_pixel(
+                            batch_input, weight_a, bias_a, input_channels,
+                            input_h, input_w, oh, ow);
+                        out_b[(uint64_t)oh * input_w + ow] = yr_conv3x3_pixel(
+                            batch_input, weight_b, bias_b, input_channels,
+                            input_h, input_w, oh, ow);
+                    }
+                }
+            }
+            oc += 2u;
+        }
+        for (; oc < oc_hi; ++oc) {
+            const float *const weight_oc =
+                weight + (uint64_t)oc * weight_oc_stride;
+            const float bias_value = bias == (const float *)0 ? 0.0f : bias[oc];
+            float *const out_oc = batch_output + (uint64_t)oc * hw;
+            for (oh = 0; oh < (int32_t)input_h; ++oh) {
+                for (ow = 0; ow < (int32_t)input_w; ++ow) {
+                    out_oc[(uint64_t)oh * input_w + ow] = yr_conv3x3_pixel(
+                        batch_input, weight_oc, bias_value, input_channels,
+                        input_h, input_w, oh, ow);
+                }
+            }
+        }
+    }
+    return YR_STATUS_OK;
+}
+
+
+/*
+ * Build switch for the dedicated 3x3 stride-2 Conv path, off by default. On the
+ * board this path measured slightly slower than the general path over the full
+ * graph (about 0.8s), so it stays off; set to 1 to route those convolutions
+ * through it. The two produce bit-identical output, so this only affects speed.
+ */
+#ifndef YR_CONV_3X3_S2_FAST
+#define YR_CONV_3X3_S2_FAST 0
+#endif
+
+
+/*
+ * One output pixel of a 3x3 stride-s pad dilation-1 ungrouped Conv, for a
+ * single output channel whose 3x3-per-input-channel weights start at w_oc.
+ * Used only for the border columns of yr_conv3x3_s2, where some taps fall
+ * outside the input. It resolves the valid tap window with the same
+ * yr_tap_range the general path uses and accumulates in the same
+ * (input channel, ky, kx) order starting from the bias, so its result is
+ * bit-identical to what the general Conv loop would produce for that pixel.
+ */
+static float yr_conv3x3_s2_pixel(
+    const float *input, const float *w_oc, float bias_value,
+    uint32_t input_channels, uint32_t input_h, uint32_t input_w,
+    int32_t oh, int32_t ow, uint32_t stride,
+    uint32_t pad_top, uint32_t pad_left)
+{
+    const uint32_t channel_stride = input_h * input_w;
+    const int64_t base_h = (int64_t)oh * (int64_t)stride - (int64_t)pad_top;
+    const int64_t base_w = (int64_t)ow * (int64_t)stride - (int64_t)pad_left;
+    uint32_t first_ky, first_kx;
+    const uint32_t ky_count =
+        yr_tap_range(base_h, 1, (int64_t)input_h, 3, &first_ky);
+    const uint32_t kx_count =
+        yr_tap_range(base_w, 1, (int64_t)input_w, 3, &first_kx);
+    float accumulator = bias_value;
+    uint32_t icg, ky, kx;
+    if (ky_count == 0u || kx_count == 0u) {
+        return accumulator;
+    }
+    for (icg = 0; icg < input_channels; ++icg) {
+        const float *row = input + (uint64_t)icg * channel_stride
+            + (uint64_t)(base_h + (int64_t)first_ky) * input_w
+            + (base_w + (int64_t)first_kx);
+        const float *coefficient_row =
+            w_oc + (uint64_t)icg * 9u + (uint64_t)first_ky * 3u + first_kx;
+        for (ky = 0; ky < ky_count; ++ky) {
+            const float *value = row;
+            const float *coefficient = coefficient_row;
+            for (kx = 0; kx < kx_count; ++kx) {
+                accumulator += *value * *coefficient;
+                value += 1;
+                coefficient += 1;
+            }
+            row += input_w;
+            coefficient_row += 3u;
+        }
+    }
+    return accumulator;
+}
+
+
+/*
+ * Dedicated 3x3 stride-2 dilation-1 ungrouped Conv, 10.1 percent of this
+ * graph's multiply-accumulates (the downsampling convolutions). The general
+ * path already blocks this shape four output columns and two output channels
+ * at a time; this path keeps that blocking but fixes the kernel at 3x3 with
+ * unit dilation, so the tap loops fold to constants the compiler can pipeline
+ * instead of the general path's runtime kernel width and dilation. Column
+ * borders defer to yr_conv3x3_s2_pixel; top and bottom border rows fall out of
+ * yr_tap_range's row count inline, exactly as the general path does. Every
+ * accumulator sums over input channel then ky then kx starting from the bias,
+ * the same order the general loop uses, so the output is bit-identical.
+ */
+static uint32_t yr_conv3x3_s2(
+    uint32_t batches, uint32_t input_channels, uint32_t output_channels,
+    uint32_t input_h, uint32_t input_w, uint32_t output_h, uint32_t output_w,
+    uint32_t pad_top, uint32_t pad_left,
+    uint32_t interior_first, uint32_t interior_end,
+    const float *input, const float *weight, const float *bias, float *output)
+{
+    const uint32_t stride = 2u;
+    const uint32_t channel_stride = input_h * input_w;
+    const uint32_t plane_stride = output_h * output_w;
+    const uint32_t weight_oc_stride = input_channels * 9u;
+    const int32_t column_step = (int32_t)stride;
+    const int32_t column_step2 = column_step * 2;
+    const int32_t column_step3 = column_step * 3;
+    uint32_t oc_lo, oc_hi, n, oc, icg, ky;
+    int32_t oh, ow;
+    yr_hart_range(output_channels, &oc_lo, &oc_hi);
+    for (n = 0; n < batches; ++n) {
+        const float *const batch_input =
+            input + (uint64_t)n * input_channels * channel_stride;
+        float *const batch_output =
+            output + (uint64_t)n * output_channels * plane_stride;
+        oc = oc_lo;
+        while (oc + 1u < oc_hi) {
+            const float *const weight_a =
+                weight + (uint64_t)oc * weight_oc_stride;
+            const float *const weight_b = weight_a + weight_oc_stride;
+            const float bias_a = bias == (const float *)0 ? 0.0f : bias[oc];
+            const float bias_b =
+                bias == (const float *)0 ? 0.0f : bias[oc + 1u];
+            float *const out_a = batch_output + (uint64_t)oc * plane_stride;
+            float *const out_b = out_a + plane_stride;
+            for (oh = 0; oh < (int32_t)output_h; ++oh) {
+                const int64_t base_h =
+                    (int64_t)oh * (int64_t)stride - (int64_t)pad_top;
+                uint32_t first_ky;
+                const uint32_t ky_count =
+                    yr_tap_range(base_h, 1, (int64_t)input_h, 3, &first_ky);
+                float *const row_a = out_a + (uint64_t)oh * output_w;
+                float *const row_b = out_b + (uint64_t)oh * output_w;
+                const float *row_origin;
+                const float *wrow_a;
+                const float *wrow_b;
+                if (ky_count == 0u) {
+                    for (ow = 0; ow < (int32_t)output_w; ++ow) {
+                        row_a[ow] = bias_a;
+                        row_b[ow] = bias_b;
+                    }
+                    continue;
+                }
+                row_origin = batch_input
+                    + (uint64_t)(base_h + (int64_t)first_ky) * input_w;
+                wrow_a = weight_a + (uint64_t)first_ky * 3u;
+                wrow_b = weight_b + (uint64_t)first_ky * 3u;
+                ow = 0;
+                while (ow < (int32_t)output_w) {
+                    const int64_t base_w =
+                        (int64_t)ow * (int64_t)stride - (int64_t)pad_left;
+                    if ((uint32_t)ow >= interior_first
+                        && (uint32_t)ow + 4u <= interior_end) {
+                        const float *channel = row_origin + base_w;
+                        const float *tap_a = wrow_a;
+                        const float *tap_b = wrow_b;
+                        float a0 = bias_a, a1 = bias_a, a2 = bias_a, a3 = bias_a;
+                        float b0 = bias_b, b1 = bias_b, b2 = bias_b, b3 = bias_b;
+                        for (icg = 0; icg < input_channels; ++icg) {
+                            const float *row = channel;
+                            const float *ca = tap_a;
+                            const float *cb = tap_b;
+                            for (ky = 0; ky < ky_count; ++ky) {
+                                const float *value = row;
+                                uint32_t kxi;
+                                for (kxi = 0; kxi < 3u; ++kxi) {
+                                    const float sa = ca[kxi];
+                                    const float sb = cb[kxi];
+                                    const float v0 = value[0];
+                                    const float v1 = value[column_step];
+                                    const float v2 = value[column_step2];
+                                    const float v3 = value[column_step3];
+                                    a0 += v0 * sa; a1 += v1 * sa;
+                                    a2 += v2 * sa; a3 += v3 * sa;
+                                    b0 += v0 * sb; b1 += v1 * sb;
+                                    b2 += v2 * sb; b3 += v3 * sb;
+                                    value += 1;
+                                }
+                                row += input_w;
+                                ca += 3u;
+                                cb += 3u;
+                            }
+                            channel += channel_stride;
+                            tap_a += 9u;
+                            tap_b += 9u;
+                        }
+                        row_a[ow] = a0; row_a[ow + 1] = a1;
+                        row_a[ow + 2] = a2; row_a[ow + 3] = a3;
+                        row_b[ow] = b0; row_b[ow + 1] = b1;
+                        row_b[ow + 2] = b2; row_b[ow + 3] = b3;
+                        ow += 4;
+                    } else {
+                        row_a[ow] = yr_conv3x3_s2_pixel(
+                            batch_input, weight_a, bias_a, input_channels,
+                            input_h, input_w, oh, ow, stride,
+                            pad_top, pad_left);
+                        row_b[ow] = yr_conv3x3_s2_pixel(
+                            batch_input, weight_b, bias_b, input_channels,
+                            input_h, input_w, oh, ow, stride,
+                            pad_top, pad_left);
+                        ow += 1;
+                    }
+                }
+            }
+            oc += 2u;
+        }
+        for (; oc < oc_hi; ++oc) {
+            const float *const weight_oc =
+                weight + (uint64_t)oc * weight_oc_stride;
+            const float bias_value =
+                bias == (const float *)0 ? 0.0f : bias[oc];
+            float *const out_oc = batch_output + (uint64_t)oc * plane_stride;
+            for (oh = 0; oh < (int32_t)output_h; ++oh) {
+                const int64_t base_h =
+                    (int64_t)oh * (int64_t)stride - (int64_t)pad_top;
+                uint32_t first_ky;
+                const uint32_t ky_count =
+                    yr_tap_range(base_h, 1, (int64_t)input_h, 3, &first_ky);
+                float *const row = out_oc + (uint64_t)oh * output_w;
+                const float *row_origin;
+                const float *wrow;
+                if (ky_count == 0u) {
+                    for (ow = 0; ow < (int32_t)output_w; ++ow) {
+                        row[ow] = bias_value;
+                    }
+                    continue;
+                }
+                row_origin = batch_input
+                    + (uint64_t)(base_h + (int64_t)first_ky) * input_w;
+                wrow = weight_oc + (uint64_t)first_ky * 3u;
+                ow = 0;
+                while (ow < (int32_t)output_w) {
+                    const int64_t base_w =
+                        (int64_t)ow * (int64_t)stride - (int64_t)pad_left;
+                    if ((uint32_t)ow >= interior_first
+                        && (uint32_t)ow + 4u <= interior_end) {
+                        const float *channel = row_origin + base_w;
+                        const float *tap = wrow;
+                        float a0 = bias_value, a1 = bias_value;
+                        float a2 = bias_value, a3 = bias_value;
+                        for (icg = 0; icg < input_channels; ++icg) {
+                            const float *rp = channel;
+                            const float *cc = tap;
+                            for (ky = 0; ky < ky_count; ++ky) {
+                                const float *value = rp;
+                                uint32_t kxi;
+                                for (kxi = 0; kxi < 3u; ++kxi) {
+                                    const float s = cc[kxi];
+                                    a0 += value[0] * s;
+                                    a1 += value[column_step] * s;
+                                    a2 += value[column_step2] * s;
+                                    a3 += value[column_step3] * s;
+                                    value += 1;
+                                }
+                                rp += input_w;
+                                cc += 3u;
+                            }
+                            channel += channel_stride;
+                            tap += 9u;
+                        }
+                        row[ow] = a0; row[ow + 1] = a1;
+                        row[ow + 2] = a2; row[ow + 3] = a3;
+                        ow += 4;
+                    } else {
+                        row[ow] = yr_conv3x3_s2_pixel(
+                            batch_input, weight_oc, bias_value, input_channels,
+                            input_h, input_w, oh, ow, stride,
+                            pad_top, pad_left);
+                        ow += 1;
+                    }
+                }
+            }
+        }
+    }
+    return YR_STATUS_OK;
+}
+
+
 static uint32_t yr_conv(
     const struct yr_node_desc *node,
     const struct yr_tensor_desc *input_desc,
@@ -468,6 +951,137 @@ static uint32_t yr_conv(
     column_step3 = column_step * 3;
 
     /*
+     * Dedicated 1x1 stride-1 ungrouped path, 35.9 percent of this graph's
+     * multiply-accumulates. Such a Conv is a per-pixel [OC x IC] by [IC]
+     * matrix-vector product with no neighbourhood, so the spatial dimension
+     * collapses to a flat length-HW vector and none of the general path's
+     * tap-range, kernel, or padding machinery applies. Dropping all of it lets
+     * the inner loop be a plain accumulate the compiler can pipeline. Two
+     * output channels share each input read (the same pairing the general path
+     * uses), four flat positions run in parallel, and each accumulator sums
+     * over input channels in ascending order starting from the bias, exactly
+     * the order the general loop below uses, so the result is bit-identical.
+     */
+    if (YR_CONV_1X1_FAST
+        && node->kernel_h == 1 && node->kernel_w == 1
+        && node->stride_h == 1 && node->stride_w == 1
+        && node->dilation_h == 1 && node->dilation_w == 1
+        && node->group == 1
+        && (node->pad_top | node->pad_left | node->pad_bottom
+            | node->pad_right) == 0) {
+        const uint32_t hw = channel_stride;
+        yr_hart_range(output_channels, &oc_lo, &oc_hi);
+        for (n = 0; n < batches; ++n) {
+            const float *const batch_input =
+                input + (uint64_t)n * input_channels * hw;
+            float *const batch_output =
+                output + (uint64_t)n * output_channels * hw;
+            oc = oc_lo;
+            while (oc + 1u < oc_hi) {
+                const float *const weight_a = weight + (uint64_t)oc * input_channels;
+                const float *const weight_b = weight_a + input_channels;
+                const float initial_a =
+                    bias == (const float *)0 ? 0.0f : bias[oc];
+                const float initial_b =
+                    bias == (const float *)0 ? 0.0f : bias[oc + 1u];
+                float *const out_a = batch_output + (uint64_t)oc * hw;
+                float *const out_b = out_a + hw;
+                uint32_t p = 0u;
+                while (p + 4u <= hw) {
+                    float a0 = initial_a, a1 = initial_a;
+                    float a2 = initial_a, a3 = initial_a;
+                    float b0 = initial_b, b1 = initial_b;
+                    float b2 = initial_b, b3 = initial_b;
+                    const float *in_plane = batch_input + p;
+                    for (icg = 0; icg < input_channels; ++icg) {
+                        const float wa = weight_a[icg];
+                        const float wb = weight_b[icg];
+                        const float i0 = in_plane[0];
+                        const float i1 = in_plane[1];
+                        const float i2 = in_plane[2];
+                        const float i3 = in_plane[3];
+                        a0 += wa * i0; a1 += wa * i1;
+                        a2 += wa * i2; a3 += wa * i3;
+                        b0 += wb * i0; b1 += wb * i1;
+                        b2 += wb * i2; b3 += wb * i3;
+                        in_plane += hw;
+                    }
+                    out_a[p] = a0; out_a[p + 1u] = a1;
+                    out_a[p + 2u] = a2; out_a[p + 3u] = a3;
+                    out_b[p] = b0; out_b[p + 1u] = b1;
+                    out_b[p + 2u] = b2; out_b[p + 3u] = b3;
+                    p += 4u;
+                }
+                for (; p < hw; ++p) {
+                    float a = initial_a;
+                    float b = initial_b;
+                    const float *in_plane = batch_input + p;
+                    for (icg = 0; icg < input_channels; ++icg) {
+                        const float iv = *in_plane;
+                        a += weight_a[icg] * iv;
+                        b += weight_b[icg] * iv;
+                        in_plane += hw;
+                    }
+                    out_a[p] = a;
+                    out_b[p] = b;
+                }
+                oc += 2u;
+            }
+            for (; oc < oc_hi; ++oc) {
+                const float *const weight_row =
+                    weight + (uint64_t)oc * input_channels;
+                const float initial =
+                    bias == (const float *)0 ? 0.0f : bias[oc];
+                float *const out_row = batch_output + (uint64_t)oc * hw;
+                uint32_t p = 0u;
+                while (p + 4u <= hw) {
+                    float a0 = initial, a1 = initial;
+                    float a2 = initial, a3 = initial;
+                    const float *in_plane = batch_input + p;
+                    for (icg = 0; icg < input_channels; ++icg) {
+                        const float w = weight_row[icg];
+                        a0 += w * in_plane[0];
+                        a1 += w * in_plane[1];
+                        a2 += w * in_plane[2];
+                        a3 += w * in_plane[3];
+                        in_plane += hw;
+                    }
+                    out_row[p] = a0; out_row[p + 1u] = a1;
+                    out_row[p + 2u] = a2; out_row[p + 3u] = a3;
+                    p += 4u;
+                }
+                for (; p < hw; ++p) {
+                    float a = initial;
+                    const float *in_plane = batch_input + p;
+                    for (icg = 0; icg < input_channels; ++icg) {
+                        a += weight_row[icg] * *in_plane;
+                        in_plane += hw;
+                    }
+                    out_row[p] = a;
+                }
+            }
+        }
+        return YR_STATUS_OK;
+    }
+
+    /*
+     * Dedicated 3x3 stride-1 same-padding ungrouped path, the graph's largest
+     * arithmetic cost. Same-padding here means one pixel on every side, which
+     * with a 3x3 kernel keeps output spatial dims equal to input.
+     */
+    if (YR_CONV_3X3_FAST
+        && node->kernel_h == 3 && node->kernel_w == 3
+        && node->stride_h == 1 && node->stride_w == 1
+        && node->dilation_h == 1 && node->dilation_w == 1
+        && node->group == 1
+        && node->pad_top == 1 && node->pad_left == 1
+        && node->pad_bottom == 1 && node->pad_right == 1) {
+        return yr_conv3x3_s1(
+            batches, input_channels, output_channels, input_h, input_w,
+            input, weight, bias, output);
+    }
+
+    /*
      * Output columns whose whole kernel width lands inside the input need no
      * per-column bounds work, so four of them can share one weight load.
      * Columns outside this span keep the general single-output path.
@@ -487,6 +1101,23 @@ static uint32_t yr_conv(
     } else {
         interior_first = (uint32_t)interior_lo;
         interior_end = (uint32_t)interior_hi + 1u;
+    }
+
+    /*
+     * Dedicated 3x3 stride-2 dilation-1 ungrouped path, the downsampling
+     * convolutions. Reuses the interior column span computed just above.
+     */
+    if (YR_CONV_3X3_S2_FAST
+        && node->kernel_h == 3 && node->kernel_w == 3
+        && node->stride_h == 2 && node->stride_w == 2
+        && node->dilation_h == 1 && node->dilation_w == 1
+        && node->group == 1) {
+        return yr_conv3x3_s2(
+            batches, input_channels, output_channels,
+            input_h, input_w, output_h, output_w,
+            (uint32_t)node->pad_top, (uint32_t)node->pad_left,
+            interior_first, interior_end,
+            input, weight, bias, output);
     }
 
     /*
@@ -1954,30 +2585,67 @@ uint32_t yr_run_node_span(
         uint8_t *in0_raw;
         uint8_t *out0_raw;
         uint32_t output_index;
+        uint32_t ew_lo = 0u;
+        uint32_t ew_hi = 0u;
         /*
-         * Every non-Conv op previously ran redundantly on all 16 harts
-         * (each hart computing the full output, then publishing only a
-         * cache-line slice of it). Measurement this session showed that
-         * redundant path corrupts data on real hardware from partway
-         * through the graph onward, well beyond the narrower GatherElements
-         * failures it was already known for; this reproduces even on the
-         * board's previously-"proven" build, so it predates today's
-         * changes and is not one specific op's bug. Conv is unaffected,
-         * since each hart computes and publishes only its own output-channel
-         * slice, never redundantly, so there is no multi-hart interaction
-         * to race. Rather than chase the exact hardware mechanism further,
-         * every non-Conv op now runs on hart 0 alone; every other hart
-         * skips the work but still calls the per-node barrier once, the
-         * same as hart 0 does after publishing below, so harts 1-15 wait
-         * for hart 0 right here instead of racing ahead into the next
-         * Conv node's input before hart 0 has finished producing it. Conv
-         * still gets full 16-hart channel-partitioned throughput, which is
-         * where nearly all of a CNN's compute cost lives, so this keeps
-         * most of the real speedup while removing the entire class of bug
-         * by construction instead of by a fix this session could not
-         * fully verify.
+         * Nodes fall into three execution classes.
+         *
+         * Conv is split across all 16 harts by output channel; each hart
+         * computes and publishes only its own channels, so there is no
+         * redundant work and no shared output line to race on.
+         *
+         * Plain elementwise ops (SiLU's Sigmoid and Mul, plus Add/Sub) are
+         * also split across all 16 harts, here by a cache-line-aligned slice
+         * of the flat output (see yr_hart_elem_range and the is_parallel_ew
+         * set below). Output element i depends only on input element i, so a
+         * disjoint slice per hart is the same provably-safe pattern Conv uses.
+         * This matters because a Sigmoid/Mul pair trails almost every Conv,
+         * and running that pair on one hart while the other 15 wait was a
+         * serial tail out of all proportion to its arithmetic.
+         *
+         * Everything else (Concat, Split, Transpose, Reshape, TopK, and the
+         * rest) still runs on hart 0 alone. An earlier build ran these
+         * redundantly on all 16 harts and each published only a cache-line
+         * slice; that corrupted data partway through the graph, because L1
+         * is minion local and not coherent and the unpublished lines evicted
+         * later over live tensors. Partitioning those structural ops safely
+         * is harder than for pure elementwise, so they stay single-hart until
+         * measured to be worth it.
+         *
+         * Whichever class it is, every hart calls the per-node barrier exactly
+         * once, so a hart that skips a node still waits for the hart(s) that
+         * ran it before reading the next node's input.
          */
-        if (node->op != YR_OP_CONV && yr_hart_id() != 0u) {
+        int is_parallel_ew = 0;
+        if ((node->op == YR_OP_SIGMOID || node->op == YR_OP_MUL
+#if YR_MANIFEST_VERSION >= 2
+             || node->op == YR_OP_ADD || node->op == YR_OP_SUB
+#endif
+            )
+            && node->output_count == 1u
+            && node->outputs[0] < YR_TENSOR_COUNT) {
+            const struct yr_tensor_desc *ew_out =
+                &yr_tensors[node->outputs[0]];
+            /*
+             * Only split the node across harts when its output sits on whole,
+             * aligned cache lines: a base that is a multiple of 64 bytes and a
+             * size that is a multiple of 64. Then each hart's 16-float-aligned
+             * slice covers complete lines that no other hart or neighbouring
+             * tensor shares, so the disjoint evicts never race on a line, which
+             * is the failure that made an earlier redundant version corrupt
+             * data. Every parallel-elementwise output in the pinned graph
+             * already satisfies this; the check keeps a future manifest that
+             * did not from silently corrupting by leaving that node on the
+             * single-hart path. Static manifest data, so every hart decides
+             * identically.
+             */
+            if (ew_out->storage == YR_STORAGE_WORKSPACE
+                && (ew_out->offset % 64u) == 0u
+                && (ew_out->nbytes % 64u) == 0u) {
+                is_parallel_ew = 1;
+            }
+        }
+        if (node->op != YR_OP_CONV && !is_parallel_ew && yr_hart_id() != 0u) {
             yr_hart_barrier();
             continue;
         }
@@ -2005,6 +2673,9 @@ uint32_t yr_run_node_span(
         if (in0_raw == (uint8_t *)0 || out0_raw == (uint8_t *)0) {
             status = YR_STATUS_BAD_MANIFEST;
             goto fail;
+        }
+        if (is_parallel_ew) {
+            yr_hart_elem_range(out0->elements, &ew_lo, &ew_hi);
         }
 
         if (node->op == YR_OP_CONV) {
@@ -2081,19 +2752,16 @@ uint32_t yr_run_node_span(
             }
             yr_hart_barrier();
         } else if (node->op == YR_OP_SIGMOID) {
-            uint32_t elem_lo, elem_hi;
             if (node->input_count != 1u) {
                 status = YR_STATUS_BAD_MANIFEST;
                 goto fail;
             }
-            elem_lo = 0u; elem_hi = out0->elements;
             status = yr_sigmoid(
                 in0, out0, (float *)in0_raw, (float *)out0_raw,
-                elem_lo, elem_hi);
+                ew_lo, ew_hi);
         } else if (node->op == YR_OP_MUL) {
             const struct yr_tensor_desc *in1;
             uint8_t *in1_raw;
-            uint32_t elem_lo, elem_hi;
             if (node->input_count != 2u
                 || node->inputs[1] >= YR_TENSOR_COUNT) {
                 status = YR_STATUS_BAD_MANIFEST;
@@ -2105,10 +2773,9 @@ uint32_t yr_run_node_span(
                 status = YR_STATUS_BAD_MANIFEST;
                 goto fail;
             }
-            elem_lo = 0u; elem_hi = out0->elements;
             status = yr_mul(
                 in0, in1, out0, (float *)in0_raw,
-                (float *)in1_raw, (float *)out0_raw, elem_lo, elem_hi);
+                (float *)in1_raw, (float *)out0_raw, ew_lo, ew_hi);
         } else if (node->op == YR_OP_CONCAT) {
             const struct yr_tensor_desc *input_descs[4] = {0, 0, 0, 0};
             const float *input_data[4] = {0, 0, 0, 0};
@@ -2134,7 +2801,6 @@ uint32_t yr_run_node_span(
         } else if (node->op == YR_OP_ADD || node->op == YR_OP_SUB) {
             const struct yr_tensor_desc *in1;
             uint8_t *in1_raw;
-            uint32_t elem_lo, elem_hi;
             if (node->input_count != 2u
                 || node->output_count != 1u
                 || node->inputs[1] >= YR_TENSOR_COUNT) {
@@ -2147,10 +2813,9 @@ uint32_t yr_run_node_span(
                 status = YR_STATUS_BAD_MANIFEST;
                 goto fail;
             }
-            elem_lo = 0u; elem_hi = out0->elements;
             status = yr_add_sub(
                 in0, in1, out0, (float *)in0_raw, (float *)in1_raw,
-                (float *)out0_raw, node->op == YR_OP_SUB, elem_lo, elem_hi);
+                (float *)out0_raw, node->op == YR_OP_SUB, ew_lo, ew_hi);
         } else if (node->op == YR_OP_SPLIT) {
             const struct yr_tensor_desc *sizes_desc;
             const struct yr_tensor_desc *output_descs[3] = {0, 0, 0};
@@ -2377,16 +3042,23 @@ uint32_t yr_run_node_span(
         }
 
         /*
-         * Only hart 0 ever reaches this code for a non-Conv op (every
-         * other hart already skipped the node above), so hart 0 publishes
-         * each output tensor's full range itself; there is no other
-         * hart's slice to split off, and no other hart to race with. The
-         * barrier call must run whether or not this node's status is OK,
-         * matching the unconditional barrier the other 15 harts already
-         * called above; skipping it on failure here would leave those 15
-         * harts waiting forever on a 16th call that never comes.
+         * A parallel elementwise op wrote only its own cache-line-aligned
+         * slice of the single output, so each hart evicts exactly that slice;
+         * the slices are disjoint and line-aligned, so no two harts evict a
+         * shared line. Every other non-Conv op ran on hart 0 alone, so hart 0
+         * evicts each output's full range and no other hart has a slice to
+         * publish. Either way the barrier must run on every hart whether or
+         * not the status is OK, to match the unconditional barrier the
+         * skipped harts already called; dropping it on failure would strand
+         * them waiting for a call that never comes.
          */
-        if (node->op != YR_OP_CONV) {
+        if (is_parallel_ew) {
+            if (status == YR_STATUS_OK && ew_hi > ew_lo) {
+                yr_publish(out0_raw + (uint64_t)ew_lo * sizeof(float),
+                           (ew_hi - ew_lo) * (uint32_t)sizeof(float));
+            }
+            yr_hart_barrier();
+        } else if (node->op != YR_OP_CONV) {
             if (status == YR_STATUS_OK) {
                 uint32_t output_publish_index;
                 for (output_publish_index = 0u;
