@@ -20,6 +20,7 @@ from benchmark_config_helpers import (
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 CONFIG_PATH = REPO_ROOT / ".github" / "ci" / "benchmark_config.json"
+DATA_ROOT = REPO_ROOT / "data"
 
 FRAMEWORK_ARTIFACT_KINDS = {
     "framework_source",
@@ -39,6 +40,19 @@ GENERIC_BOARD_INFRA_PATHS = {
     ".github/ci/platform/deploy/soc3-benchmark.sh",
     "scripts/run_sysemu_model_ports.sh",
 }
+
+BOARD_LOCK_INFRA_PATHS = {
+    ".github/ci/scripts/board_lock.py",
+    ".github/ci/scripts/prepare_board_lock.sh",
+}
+BOARD_LOCK_SMOKE_MODELS = ("dncnn", "smollm2_135m")
+HARDWARE_MIGRATION_SMOKE_MODELS = (
+    "yolo",
+    "dncnn",
+    "llama32_1b",
+    "smolvlm2_500m_video",
+)
+
 
 RUNNER_INFRA_PATHS = {
     ".github/ci/scripts/run_llama_server_benchmark.py": "llama_server",
@@ -559,6 +573,31 @@ def select_from_benchmark_config(
     return old_without_models != new_without_models
 
 
+def board_hardware_changed(base: str) -> bool:
+    old = git_show_json(base, ".github/ci/benchmark_config.json") or {}
+    new = read_json(".github/ci/benchmark_config.json") or {}
+    old_hardware = old.get("board", {}).get("hardware")
+    new_hardware = new.get("board", {}).get("hardware")
+    return old_hardware != new_hardware
+
+
+def existing_leaderboard_models(
+    cfg: dict[str, Any],
+    target: str,
+    data_root: Path = DATA_ROOT,
+) -> list[str]:
+    selected: list[str] = []
+    for model in configured_model_names(cfg, target, default_only=False):
+        path = data_root / f"{model}.json"
+        try:
+            data = json.loads(path.read_text())
+        except (FileNotFoundError, json.JSONDecodeError):
+            continue
+        if isinstance(data.get("entries"), list) and data["entries"]:
+            selected.append(model)
+    return selected
+
+
 def select_from_artifacts(
     cfg: dict[str, Any],
     artifacts_path: str,
@@ -613,6 +652,16 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--hardware-migration",
+        choices=("none", "smoke", "bootstrap"),
+        default="none",
+        help=(
+            "When board.hardware changes: smoke selects one representative model "
+            "for each board runner; bootstrap selects every configured model with "
+            "an existing leaderboard so main can establish same-hardware baselines."
+        ),
+    )
+    parser.add_argument(
         "--unregistered-out",
         default="",
         help="Write space-separated new ported_models ports lacking a benchmark_config.json entry to this file.",
@@ -660,6 +709,16 @@ def main() -> int:
             # Always pick up model-specific entry changes; only let non-model
             # (global) config changes fan out to all models in "affected" scope.
             global_change = select_from_benchmark_config(cfg, args.base, args.target, selected)
+            if global_change and board_hardware_changed(args.base):
+                if args.hardware_migration == "smoke":
+                    selected.update(
+                        model
+                        for model in HARDWARE_MIGRATION_SMOKE_MODELS
+                        if model in cfg.get("models", {})
+                        and model_supports_target(cfg, model, args.target)
+                    )
+                elif args.hardware_migration == "bootstrap":
+                    selected.update(existing_leaderboard_models(cfg, args.target))
             if honor_global:
                 shared_all = global_change or shared_all
             continue
@@ -677,6 +736,15 @@ def main() -> int:
             model = str((claim or {}).get("benchmark_model") or "")
             if model in cfg.get("models", {}) and model_supports_target(cfg, model, args.target):
                 selected.add(model)
+            continue
+        if path in BOARD_LOCK_INFRA_PATHS:
+            for model in BOARD_LOCK_SMOKE_MODELS:
+                if model in cfg.get("models", {}) and model_supports_target(
+                    cfg, model, args.target
+                ):
+                    selected.add(model)
+            if honor_global:
+                shared_all = True
             continue
         if path in GENERIC_BOARD_INFRA_PATHS or is_under(path, ".github/ci/platform/"):
             if honor_global:

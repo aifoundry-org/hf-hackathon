@@ -20,6 +20,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from board_lock import open_board_lock
 from benchmark_config_helpers import load_config as load_benchmark_config
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -221,6 +222,37 @@ def artifact_has_env_override(mcfg: dict[str, Any], artifact_id: str, fallback_e
     return any(os.environ.get(name) for name in artifact_env_names(artifact, fallback_env))
 
 
+def compatible_runtime_library_path() -> str:
+    explicit = os.environ.get("LLAMA_CPP_ET_LD_LIBRARY_PATH", "").strip()
+    if explicit:
+        return explicit
+    for name in ("ET_PLATFORM", "ET_INSTALL"):
+        root = os.environ.get(name, "").strip()
+        if root:
+            candidate = Path(root) / "lib"
+            if candidate.is_dir():
+                return str(candidate)
+    return ""
+
+
+def git_source_revision(source_dir: Path) -> str:
+    if not (source_dir / ".git").exists():
+        return ""
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(source_dir), "rev-parse", "HEAD"],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.DEVNULL,
+            timeout=10,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired):
+        return ""
+    revision = result.stdout.strip()
+    return revision if result.returncode == 0 and re.fullmatch(r"[0-9a-f]{40}", revision) else ""
+
+
 def ensure_llama_cpp_build(mcfg: dict[str, Any], lcfg: dict[str, Any], server_bin: Path, ppl_bin: Path | None, workdir: Path) -> None:
     source_artifact = lcfg.get("source_artifact") or mcfg.get("framework", {}).get("source_artifact")
     if not source_artifact:
@@ -231,8 +263,10 @@ def ensure_llama_cpp_build(mcfg: dict[str, Any], lcfg: dict[str, Any], server_bi
     if not is_dir(source_dir):
         return
     source_cfg = artifact_config(mcfg, str(source_artifact))
-    source_revision = os.environ.get("LLAMA_CPP_ET_SOURCE_REVISION") or str(
-        source_cfg.get("upstream", {}).get("revision") or ""
+    source_revision = (
+        os.environ.get("LLAMA_CPP_ET_SOURCE_REVISION")
+        or git_source_revision(source_dir)
+        or str(source_cfg.get("upstream", {}).get("revision") or "")
     )
     revision_stamp = workdir / ".hf-source-revision"
     workdir_artifact = str(lcfg.get("workdir_artifact", "llama_cpp_build"))
@@ -291,10 +325,22 @@ def ensure_llama_cpp_build(mcfg: dict[str, Any], lcfg: dict[str, Any], server_bi
     if build_targets:
         build.extend(["--target", *build_targets])
     build.extend(["-j", jobs])
+    build_env = os.environ.copy()
+    build_library_path = os.environ.get("LLAMA_CPP_ET_BUILD_LIBRARY_PATH", "").strip()
+    if not build_library_path:
+        et_platform = os.environ.get("ET_PLATFORM", "").strip()
+        if et_platform and (Path(et_platform) / "lib").is_dir():
+            build_library_path = str(Path(et_platform) / "lib")
+    if build_library_path:
+        # An explicitly provisioned launcher may use a self-contained host bundle
+        # built on a newer distro. Keep that runtime bundle out of the host link;
+        # the SDK lib directory contains the compatible transitive dependencies.
+        build_env["LIBRARY_PATH"] = build_library_path
+        build_env["LD_LIBRARY_PATH"] = build_library_path
     print("$ " + " ".join(configure))
-    subprocess.run(configure, check=True)
+    subprocess.run(configure, check=True, env=build_env)
     print("$ " + " ".join(build))
-    subprocess.run(build, check=True)
+    subprocess.run(build, check=True, env=build_env)
     if source_revision:
         revision_stamp.write_text(source_revision + "\n")
 
@@ -685,13 +731,20 @@ def main() -> int:
     ppl_failures: list[str] = []
     try:
         board_lock.parent.mkdir(parents=True, exist_ok=True)
-        lock_file = board_lock.open("a")
+        lock_file = open_board_lock(board_lock)
         fcntl.flock(lock_file.fileno(), fcntl.LOCK_EX)
 
         env = os.environ.copy()
         env["TMPDIR"] = env.get("TMPDIR", "/dev/shm")
         lib_dir = str(server_bin.parent)
-        env["LD_LIBRARY_PATH"] = str(env_value("LLAMA_CPP_ET_LD_LIBRARY_PATH", env_value("LFM25_LD_LIBRARY_PATH", lcfg.get("library_path", lib_dir))))
+        configured_library_path = compatible_runtime_library_path()
+        if not configured_library_path:
+            configured_library_path = str(
+                env_value("LFM25_LD_LIBRARY_PATH", lcfg.get("library_path", ""))
+            )
+        env["LD_LIBRARY_PATH"] = ":".join(
+            value for value in (lib_dir, configured_library_path) if value
+        )
         if lcfg.get("flash_attn") is False:
             env["LLAMA_ARG_FLASH_ATTN"] = "off"
 

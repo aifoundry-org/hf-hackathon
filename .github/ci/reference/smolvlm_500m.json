@@ -1,0 +1,162 @@
+{
+  "schema_version": 2,
+  "model": {
+    "repo": "HuggingFaceTB/SmolVLM-500M-Instruct",
+    "revision": "a7da5b986cb59b408707209984f360a5f4ad7e47",
+    "license": "apache-2.0",
+    "files": {
+      "model.safetensors": {
+        "sha256": "d05b567eeaf534e83d375551f068ed57b5f52d37c657197f644af5ef9db091a2",
+        "size_bytes": 1015025832
+      },
+      "config.json": {
+        "sha256": "daacbbca6af3c34e50466c72aed2df4553a08084f6a0551d4ae420a241cb66c6"
+      },
+      "preprocessor_config.json": {
+        "sha256": "6cb6e36d6fcb88ca1502c4a26750715dc3e7dedddc9a8f17b27d8d167d1457e7"
+      },
+      "tokenizer.json": {
+        "sha256": "5ece781dc8d2b2f3e2f289ca0ae50b17cfc27dd27bfe7971bb8241e0b964331a"
+      },
+      "chat_template.json": {
+        "sha256": "a68ad1a42681ae44eacd109ff8dd56a840f761c03d72f4ff4c515d092f882168"
+      }
+    }
+  },
+  "baseline_artifacts": {
+    "model": {
+      "filename": "SmolVLM-500M-Instruct-Q8_0.gguf",
+      "sha256": "9d4612de6a42214499e301494a3ecc2be0abdd9de44e663bda63f1152fad1bf4",
+      "size_bytes": 436806912
+    },
+    "projector": {
+      "filename": "mmproj-SmolVLM-500M-Instruct-Q8_0.gguf",
+      "sha256": "d1eb8b6b23979205fdf63703ed10f788131a3f812c7b1f72e0119d5d81295150",
+      "size_bytes": 108783360
+    },
+    "source_repo": "ggml-org/SmolVLM-500M-Instruct-GGUF",
+    "source_revision": "72e986006ef53e37cdd3f6d4241c90b0f01df376"
+  },
+  "architecture": {
+    "language": {
+      "general_architecture": "llama",
+      "model_name": "SmolVLM 500M Instruct",
+      "parameter_count_millions": 409.25,
+      "tensor_count": 291,
+      "block_count": 32,
+      "embedding_length": 960,
+      "feed_forward_length": 2560,
+      "attention_heads": 15,
+      "attention_kv_heads": 5,
+      "vocabulary_size": 49280
+    },
+    "vision": {
+      "projector": "idefics3",
+      "tensor_count": 198,
+      "embedding_length": 768,
+      "attention_heads": 12,
+      "feed_forward_length": 3072,
+      "block_count": 12,
+      "projection_dimension": 960,
+      "image_size": 512,
+      "patch_size": 16
+    }
+  },
+  "candidate_policy": {
+    "artifacts_must_match_baseline": true
+  },
+  "runtime": {
+    "submodule_path": "ported_models/llama_cpp_et/src/llama.cpp-et"
+  },
+  "input_contract": {
+    "frames_per_second": 1.0,
+    "processor_image_size": 512,
+    "prompt_template": "<|im_start|>User: {media_markers}\n{question}<end_of_utterance>\nAssistant:",
+    "fixtures": {
+      "coco_cat": {
+        "artifact": "smolvlm2_coco_cat_jpg",
+        "source": "http://images.cocodataset.org/val2017/000000524280.jpg",
+        "sha256": "3b83ffd2d2ce4c28a05b1dcd486edf8a06542584a05c9a66cf208df9ed6e2c7d"
+      },
+      "coco_giraffes": {
+        "artifact": "smolvlm2_coco_giraffes_jpg",
+        "source": "http://images.cocodataset.org/val2017/000000296969.jpg",
+        "sha256": "1032b203f4b7faf2ea0268dddc1d9568e7ad8cbc39eb077b62ecf7b171bf90ff"
+      }
+    },
+    "cases": [
+      {
+        "name": "coco_cat",
+        "fixtures": ["coco_cat"],
+        "question": "What animal is shown? Answer one word.",
+        "accepted_answers": ["cat", "tabby"]
+      },
+      {
+        "name": "coco_giraffes",
+        "fixtures": ["coco_giraffes"],
+        "question": "What animal is shown? Answer one word.",
+        "accepted_answers": ["giraffe", "giraffes"]
+      },
+      {
+        "name": "cat_then_giraffes",
+        "fixtures": ["coco_cat", "coco_giraffes"],
+        "question": "Name the animal in the second image in one word.",
+        "accepted_answers": ["giraffe", "giraffes"]
+      },
+      {
+        "name": "giraffes_then_cat",
+        "fixtures": ["coco_giraffes", "coco_cat"],
+        "question": "Name the animal in the second image in one word.",
+        "accepted_answers": ["cat", "tabby"]
+      }
+    ],
+    "order_pair": ["cat_then_giraffes", "giraffes_then_cat"]
+  },
+  "correctness": {
+    "host_reference": "CPU execution of the candidate artifact through the main-owned runtime harness",
+    "answer_comparison": "lowercase alphanumeric tokens, exact match",
+    "minimum_task_accuracy": 1.0,
+    "minimum_host_agreement": 1.0,
+    "ci_cases": ["coco_cat"],
+    "require_order_pair_difference": true,
+    "require_full_offload": true,
+    "require_zero_vision_fallbacks": true,
+    "allowed_vision_fallback_ops": []
+  },
+  "quality": {
+    "perplexity": {
+      "corpus_artifact": "wikitext2_raw_test",
+      "corpus_sha256": "173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08",
+      "context_size": 128,
+      "batch_size": 128,
+      "ubatch_size": 128,
+      "chunks": 4,
+      "first_run_perplexity": 25.37,
+      "first_run_error": 0.0,
+      "first_run_tokens": 512,
+      "max_relative_regression": 0.2,
+      "maximum_perplexity": 30.444,
+      "maximum_et_cpu_relative_difference": 0.01
+    }
+  },
+  "performance": {
+    "metric": "pmc_cycles",
+    "primary_counter": "device_cmd_exec_dur",
+    "profile_schema_version": 3,
+    "profile_class": "ResponseReceived",
+    "response_type": "Kernel",
+    "performance_case": "coco_cat",
+    "warmup_repetitions": 0,
+    "measured_repetitions": 1,
+    "reuse_measured_request_for_correctness": true,
+    "generation_tokens": 3,
+    "aggregation": "median of per-request summed firmware cycles",
+    "minimum_kernel_launches_per_request": 500,
+    "minimum_relative_improvement": 0.01,
+    "maximum_paired_baseline_drift": 0.005,
+    "minimum_end_to_end_improvement": 0.0025,
+    "maximum_paired_end_to_end_drift": 0.01,
+    "lower_is_better": true,
+    "secondary_metric": "real_time_factor"
+  }
+}

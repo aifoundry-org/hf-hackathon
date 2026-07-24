@@ -1,9 +1,8 @@
 # Most Models Ported by One Individual: Trusted CI Plan
 
-Status: implemented in trusted shadow mode. The PR gate, ET-SoC1 execution,
-credit ledger, and deterministic standings are implemented. Award writes remain
-disabled until the organizer freezes the contest end time and approves the
-historical identity/backfill review.
+Status: activated in trusted enforcement mode. The contest interval is frozen,
+the historical review and first defensible backfill are committed, and future
+credits require the trusted PR and merge-time ET-SoC1 workflow.
 
 ## Award definition
 
@@ -43,17 +42,36 @@ The seed commit predates the central benchmark config, so
 present at that commit. Preflight compares this inventory with Git rather than
 assuming the current benchmark model list existed at the baseline.
 
-Current release blockers are explicit:
+The published contest end is `2026-07-25T11:59:59Z`, equivalent to July 24 end
+of day Anywhere on Earth. `data/model-port-historical-review.json` freezes the
+organizer review through commit `c2b9a217ab8307363515ca501e0f9fec84ac927e`.
+Later merges are handled by the enforced claim workflow and are rejected when
+their merge timestamp is outside the contest interval.
 
-- `contest_end` is not published in the repository;
-- the historical contest submissions have not been mapped to reviewed trusted
-  artifacts and canonical identities; and
-- branch protection cannot require the new status until this workflow is on
-  `main`.
+Policy validation refuses `enforce` unless the cutoff is frozen, the historical
+review is marked complete, and its committed audit and backfilled ledger agree.
 
-For those reasons, `activation_mode` is `shadow`: CI produces real verdicts but
-does not create award credits. Policy validation refuses `enforce` unless
-`contest_end` is set and `historical_review_complete` is true.
+## Historical review and backfill
+
+The review covers 11 merged model-port candidates. It records the canonical PR
+author and merge provenance for every decision, including ten ineligible
+submissions and one credit:
+
+- PRs #11, #12, and #23 reuse seed Qwen execution families;
+- PRs #92, #93, and #94 target SmolLM2 models already present at the baseline;
+- PR #55 replaces the implementation under the frozen DnCNN seed root;
+- PR #103 is an organizer-owned validation baseline;
+- PRs #26 and #110 exercise only SmolVLM's text backbone and have no image,
+  projector, or visual-answer oracle; and
+- PR #27 is the first SmolVLM/Idefics3-family submission with a pinned image
+  oracle, real projector execution, full ET offload, no vision fallback, a PPL
+  quality gate, and a passing ET-SoC1 score.
+
+PR #27 therefore contributes one `smolvlm` identity credit to
+`Ashish-Soni08`. SmolVLM-256M and SmolVLM-500M remain one execution-family
+identity, so parameter size does not multiply the credit. The backfill is bound
+to the `smolvlm_500m` contract hash and board run
+<https://github.com/aifoundry-org/hf-hackathon/actions/runs/29910365911>.
 
 ## Two-stage identity approval
 
@@ -163,8 +181,9 @@ A credit preserves:
 - identity and benchmark model;
 - canonical participant login, PR, participant SHA, merge SHA, and merge time;
 - pinned source, recipe, and benchmark-config hash; and
-- trusted run URL, score SHA, contract hash, `soc1sim` device, metric name, and
-  finite metric value.
+- issuance mode and historical review ID when backfilled;
+- trusted run URL, score SHA, contract hash, approved runner, `soc1sim` device,
+  metric name, and finite metric value.
 
 Records are never edited or deleted. An organizer correction appends a
 content-addressed `revocation` or `supersession` with a reason and an existing
@@ -212,30 +231,20 @@ The focused unit suite covers:
 - exact merged-PR claim attribution;
 - idempotent issuance and first-writer-wins race handling;
 - content-addressed ledger tamper detection and append-only revocation; and
-- deterministic count/tie ordering and shadow-mode no-write behavior.
+- exact historical oracle/run reconciliation;
+- deterministic count/tie ordering and shadow-mode no-write behavior; and
+- rejection of credits outside the contest interval or identity registry.
 
 Repository preflight additionally parses both workflows, validates JSON and
 shell syntax, checks baseline-root inventory, regenerates standings in memory,
 and runs the full existing CI test suite.
 
-## Activation and operations plan
+## Operations through the deadline
 
-Before changing `activation_mode` to `enforce`:
-
-1. Publish `contest_end` and confirm the start/baseline boundary.
-2. Review historical qualifying PRs. For each, record the canonical PR author,
-   distinct identity, source pin, and a passing trusted ET-SoC1 run. Publish the
-   proposed backfill for disputes.
-3. Decide whether collaboration is excluded or handled in a separate team
-   prize; this implementation credits exactly one PR author.
-4. Merge the workflow and require `trusted-track/model-port-credit` in branch
-   protection, alongside the normal leaderboard gate.
-5. Run shadow mode over representative real PRs and confirm organizer decisions
-   match CI.
-6. Append reviewed historical credits, regenerate standings, then switch to
-   `enforce` in a main-owned policy PR.
-7. At the deadline, reject later merge timestamps, resolve recorded disputes,
-   and archive the final ledger plus trusted run links.
-
-Until steps 1–5 are complete, the label `track: model-ports` is classification
-only and the README must say that no award credits have been issued.
+1. Require `trusted-track/model-port-credit` in branch protection alongside the
+   normal leaderboard gate once this activation lands on `main`.
+2. Keep identity and oracle approval separate from participant implementation
+   claims; an identity can receive only its first valid credit.
+3. At the deadline, let the frozen timestamp reject later merges, resolve any
+   recorded disputes through append-only revocation or supersession records,
+   and archive the final ledger, standings, review, and trusted run links.

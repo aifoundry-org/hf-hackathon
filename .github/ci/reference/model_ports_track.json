@@ -1,10 +1,11 @@
 {
   "schema_version": 1,
   "track": "most_models_ported",
-  "activation_mode": "shadow",
-  "historical_review_complete": false,
+  "activation_mode": "enforce",
+  "historical_review_complete": true,
+  "historical_review": "data/model-port-historical-review.json",
   "contest_start": "2026-06-15T13:01:08Z",
-  "contest_end": null,
+  "contest_end": "2026-07-25T11:59:59Z",
   "baseline_sha": "cb4d6118881ccfcc022e4f007b606f364d36a77f",
   "excluded_logins": [
     "AFOliveira",
@@ -15,7 +16,8 @@
   "required_device": "soc1sim",
   "claim_root": "ported_models/submissions/model_ports",
   "allowed_runners": [
-    "elf"
+    "elf",
+    "smolvlm2_video"
   ],
   "max_added_files": 500,
   "max_added_bytes": 50000000,
