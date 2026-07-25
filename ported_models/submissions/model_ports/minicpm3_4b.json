@@ -8,7 +8,9 @@
     "revision": "d6b14ddaefdb11c624dd75c3c779549bc90b08cb",
     "license": "apache-2.0"
   },
-  "implementation_paths": ["ported_models/minicpm3_4b"],
-  "benchmark_config": ".github/ci/benchmark_config.json",
+  "implementation_paths": [
+    "ported_models/minicpm3_4b"
+  ],
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/minicpm3_4b.json",
   "recipe": "ported_models/minicpm3_4b/docs/RECIPE.md"
 }
