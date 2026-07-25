@@ -442,6 +442,18 @@ static void yr_hart_elem_range(uint32_t count, uint32_t *lo, uint32_t *hi)
 #define YR_CONV_3X3_FAST 0
 #endif
 
+/*
+ * Packed vector version of the 3x3 stride-1 same-pad path, ET target only. The
+ * interior columns, whose whole 3x3 neighbourhood is in bounds, run eight
+ * output positions at a time on the vector unit across all sixteen harts; the
+ * border columns and rows stay on the scalar per-pixel helper. Fused
+ * multiply-add rounds differently from the scalar path, so a build with this
+ * validates by tolerance.
+ */
+#ifndef YR_CONV_3X3_VPU
+#define YR_CONV_3X3_VPU 0
+#endif
+
 
 /*
  * One output pixel of a 3x3 stride-1 pad-1 dilation-1 ungrouped Conv, for a
@@ -616,6 +628,94 @@ static uint32_t yr_conv3x3_s1(
     }
     return YR_STATUS_OK;
 }
+
+
+#if YR_CONV_3X3_VPU && defined(__riscv)
+/*
+ * Packed eight-wide 3x3 stride-1 same-pad conv. One output channel at a time so
+ * every channel count maps cleanly across harts, the interior columns whose
+ * whole neighbourhood is in bounds run eight positions at a time on the vector
+ * unit, and the first and last column of each interior row plus the top and
+ * bottom rows fall back to the scalar per-pixel helper. Accumulates over input
+ * channel then ky then kx from the bias, the same order the scalar path uses.
+ */
+static uint32_t yr_conv3x3_vpu(
+    uint32_t batches, uint32_t input_channels, uint32_t output_channels,
+    uint32_t input_h, uint32_t input_w,
+    const float *input, const float *weight, const float *bias, float *output)
+{
+    const uint32_t hw = input_h * input_w;
+    const uint32_t weight_oc_stride = input_channels * 9u;
+    uint32_t oc_lo, oc_hi, n, oc, icg;
+    int32_t oh, ow;
+    yr_hart_range(output_channels, &oc_lo, &oc_hi);
+    for (n = 0; n < batches; ++n) {
+        const float *const batch_input =
+            input + (uint64_t)n * input_channels * hw;
+        float *const batch_output =
+            output + (uint64_t)n * output_channels * hw;
+        for (oc = oc_lo; oc < oc_hi; ++oc) {
+            const float *const weight_oc =
+                weight + (uint64_t)oc * weight_oc_stride;
+            const float bias_value = bias == (const float *)0 ? 0.0f : bias[oc];
+            union { float f; uint32_t u; } bo = { bias_value };
+            float *const out_oc = batch_output + (uint64_t)oc * hw;
+            for (oh = 0; oh < (int32_t)input_h; ++oh) {
+                if (oh >= 1 && oh <= (int32_t)input_h - 2) {
+                    float *const row = out_oc + (uint64_t)oh * input_w;
+                    row[0] = yr_conv3x3_pixel(batch_input, weight_oc, bias_value,
+                        input_channels, input_h, input_w, oh, 0);
+                    ow = 1;
+                    while (ow + 8 <= (int32_t)input_w - 1) {
+                        float acc;
+                        __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(acc)
+                            : "r"((uint64_t)bo.u));
+                        for (icg = 0; icg < input_channels; ++icg) {
+                            const float *const wc = weight_oc + (uint64_t)icg * 9u;
+                            const float *const top_left = batch_input
+                                + (uint64_t)icg * hw
+                                + (uint64_t)(oh - 1) * input_w + (ow - 1);
+                            uint32_t ky, kx;
+                            for (ky = 0u; ky < 3u; ++ky) {
+                                const float *const pr = top_left
+                                    + (uint64_t)ky * input_w;
+                                for (kx = 0u; kx < 3u; ++kx) {
+                                    union { float f; uint32_t u; } cw =
+                                        { wc[ky * 3u + kx] };
+                                    float iv, wv;
+                                    __asm__ volatile("flq2 %0, 0(%1)\n"
+                                        : "=f"(iv) : "r"(pr + kx));
+                                    __asm__ volatile("fbcx.ps %0, %1\n"
+                                        : "=f"(wv) : "r"((uint64_t)cw.u));
+                                    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n"
+                                        : "+f"(acc) : "f"(iv), "f"(wv));
+                                }
+                            }
+                        }
+                        __asm__ volatile("fsq2 %1, 0(%0)\n" :: "r"(row + ow),
+                            "f"(acc) : "memory");
+                        ow += 8;
+                    }
+                    for (; ow <= (int32_t)input_w - 2; ++ow) {
+                        row[ow] = yr_conv3x3_pixel(batch_input, weight_oc,
+                            bias_value, input_channels, input_h, input_w, oh, ow);
+                    }
+                    row[input_w - 1u] = yr_conv3x3_pixel(batch_input, weight_oc,
+                        bias_value, input_channels, input_h, input_w, oh,
+                        (int32_t)input_w - 1);
+                } else {
+                    for (ow = 0; ow < (int32_t)input_w; ++ow) {
+                        out_oc[(uint64_t)oh * input_w + ow] = yr_conv3x3_pixel(
+                            batch_input, weight_oc, bias_value, input_channels,
+                            input_h, input_w, oh, ow);
+                    }
+                }
+            }
+        }
+    }
+    return YR_STATUS_OK;
+}
+#endif
 
 
 /*
@@ -1198,6 +1298,18 @@ static uint32_t yr_conv(
      * arithmetic cost. Same-padding here means one pixel on every side, which
      * with a 3x3 kernel keeps output spatial dims equal to input.
      */
+#if YR_CONV_3X3_VPU && defined(__riscv)
+    if (node->kernel_h == 3 && node->kernel_w == 3
+        && node->stride_h == 1 && node->stride_w == 1
+        && node->dilation_h == 1 && node->dilation_w == 1
+        && node->group == 1
+        && node->pad_top == 1 && node->pad_left == 1
+        && node->pad_bottom == 1 && node->pad_right == 1) {
+        return yr_conv3x3_vpu(
+            batches, input_channels, output_channels, input_h, input_w,
+            input, weight, bias, output);
+    }
+#endif
     if (YR_CONV_3X3_FAST
         && node->kernel_h == 3 && node->kernel_w == 3
         && node->stride_h == 1 && node->stride_w == 1
@@ -2144,15 +2256,17 @@ static uint32_t yr_matmul(
     const struct yr_tensor_desc *output_desc,
     const float *left,
     const float *right,
-    float *output)
+    float *output,
+    uint32_t flat_row_lo,
+    uint32_t flat_row_hi)
 {
     uint32_t batch_count;
-    uint32_t batch;
     uint32_t row;
     uint32_t column;
     uint32_t reduction;
     uint32_t dimension;
     uint32_t m, k, n;
+    uint32_t flat_row;
     if (yr_tensor_dtype(left_desc) != YR_DTYPE_FLOAT
         || yr_tensor_dtype(right_desc) != YR_DTYPE_FLOAT
         || yr_tensor_dtype(output_desc) != YR_DTYPE_FLOAT
@@ -2179,20 +2293,20 @@ static uint32_t yr_matmul(
             left_desc, 0u, left_desc->rank - 2u, &batch_count)) {
         return YR_STATUS_UNSUPPORTED_SHAPE;
     }
-    for (batch = 0u; batch < batch_count; ++batch) {
+    (void)batch_count;
+    for (flat_row = flat_row_lo; flat_row < flat_row_hi; ++flat_row) {
+        const uint32_t batch = flat_row / m;
         const uint32_t left_base = batch * m * k;
         const uint32_t right_base = batch * k * n;
-        const uint32_t output_base = batch * m * n;
-        for (row = 0u; row < m; ++row) {
-            for (column = 0u; column < n; ++column) {
-                float accumulator = 0.0f;
-                for (reduction = 0u; reduction < k; ++reduction) {
-                    accumulator +=
-                        left[left_base + row * k + reduction]
-                        * right[right_base + reduction * n + column];
-                }
-                output[output_base + row * n + column] = accumulator;
+        row = flat_row - batch * m;
+        for (column = 0u; column < n; ++column) {
+            float accumulator = 0.0f;
+            for (reduction = 0u; reduction < k; ++reduction) {
+                accumulator +=
+                    left[left_base + row * k + reduction]
+                    * right[right_base + reduction * n + column];
             }
+            output[(uint64_t)flat_row * n + column] = accumulator;
         }
     }
     return YR_STATUS_OK;
@@ -2779,6 +2893,17 @@ uint32_t yr_prepare_result(
 #define YR_SILU_CONV_FUSE 0
 #endif
 
+/*
+ * Split MatMul across harts by whole output rows. Each hart owns a contiguous
+ * row range, and since a row is the last dimension of the output (a multiple of
+ * sixteen for this graph's MatMuls) each hart's slice is cache-line aligned and
+ * disjoint, the same safe pattern the parallel elementwise ops use. Reuses the
+ * is_parallel_ew publish path with a row-aligned element range.
+ */
+#ifndef YR_MATMUL_MH
+#define YR_MATMUL_MH 1
+#endif
+
 #if YR_SILU_FUSE || YR_SILU_CONV_FUSE
 /*
  * A SiLU is a Sigmoid whose output feeds a Mul that also takes the Sigmoid's
@@ -2873,6 +2998,9 @@ uint32_t yr_run_node_span(
         uint32_t ew_lo = 0u;
         uint32_t ew_hi = 0u;
         int silu_skip_publish = 0;
+#if YR_MATMUL_MH
+        int is_matmul_mh = 0;
+#endif
         /*
          * Nodes fall into three execution classes.
          *
@@ -2931,6 +3059,21 @@ uint32_t yr_run_node_span(
                 is_parallel_ew = 1;
             }
         }
+#if YR_MATMUL_MH
+        if (node->op == YR_OP_MATMUL && node->output_count == 1u
+            && node->outputs[0] < YR_TENSOR_COUNT) {
+            const struct yr_tensor_desc *mm_out =
+                &yr_tensors[node->outputs[0]];
+            const uint32_t mm_last = mm_out->dims[mm_out->rank - 1u];
+            if (mm_out->storage == YR_STORAGE_WORKSPACE
+                && (mm_out->offset % 64u) == 0u
+                && (mm_out->nbytes % 64u) == 0u
+                && mm_last != 0u && (mm_last % 16u) == 0u) {
+                is_parallel_ew = 1;
+                is_matmul_mh = 1;
+            }
+        }
+#endif
         if (node->op != YR_OP_CONV && !is_parallel_ew && yr_hart_id() != 0u) {
             yr_hart_barrier();
             continue;
@@ -2961,6 +3104,15 @@ uint32_t yr_run_node_span(
             goto fail;
         }
         if (is_parallel_ew) {
+#if YR_MATMUL_MH
+            if (is_matmul_mh) {
+                const uint32_t mm_last = out0->dims[out0->rank - 1u];
+                uint32_t mm_r_lo, mm_r_hi;
+                yr_hart_range(out0->elements / mm_last, &mm_r_lo, &mm_r_hi);
+                ew_lo = mm_r_lo * mm_last;
+                ew_hi = mm_r_hi * mm_last;
+            } else
+#endif
             yr_hart_elem_range(out0->elements, &ew_lo, &ew_hi);
         }
 
@@ -3267,9 +3419,20 @@ uint32_t yr_run_node_span(
                 status = YR_STATUS_BAD_MANIFEST;
                 goto fail;
             }
-            status = yr_matmul(
-                in0, in1, out0, (float *)in0_raw, (float *)in1_raw,
-                (float *)out0_raw);
+            {
+                const uint32_t mm_last = out0->dims[out0->rank - 1u];
+                uint32_t mm_lo = 0u;
+                uint32_t mm_hi = mm_last != 0u ? out0->elements / mm_last : 0u;
+#if YR_MATMUL_MH
+                if (is_matmul_mh) {
+                    mm_lo = ew_lo / mm_last;
+                    mm_hi = ew_hi / mm_last;
+                }
+#endif
+                status = yr_matmul(
+                    in0, in1, out0, (float *)in0_raw, (float *)in1_raw,
+                    (float *)out0_raw, mm_lo, mm_hi);
+            }
         } else if (node->op == YR_OP_SOFTMAX) {
             if (node->input_count != 1u || node->output_count != 1u) {
                 status = YR_STATUS_BAD_MANIFEST;
