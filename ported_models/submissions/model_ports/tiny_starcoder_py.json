@@ -11,6 +11,6 @@
   "implementation_paths": [
     "ported_models/tiny_starcoder_py"
   ],
-  "benchmark_config": ".github/ci/benchmark_config.json",
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/tiny_starcoder_py.json",
   "recipe": "ported_models/tiny_starcoder_py/docs/RECIPE.md"
 }
