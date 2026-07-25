@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "distilbert_sst2",
+  "identity_id": "bert",
+  "source": {
+    "repo": "distilbert-base-uncased-finetuned-sst-2-english",
+    "revision": "714eb0fa89d2f80546fda750413ed43d93601a13",
+    "license": "apache-2.0"
+  },
+  "implementation_paths": ["ported_models/distilbert_sst2"],
+  "benchmark_config": ".github/ci/benchmark_config.json",
+  "recipe": "ported_models/distilbert_sst2/docs/RECIPE.md"
+}
