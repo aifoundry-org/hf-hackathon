@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "smollm3_3b",
+  "identity_id": "smollm3",
+  "source": {
+    "repo": "HuggingFaceTB/SmolLM3-3B",
+    "revision": "a07cc9a04f16550a088caea529712d1d335b0ac1",
+    "license": "apache-2.0"
+  },
+  "implementation_paths": ["ported_models/smollm3_3b"],
+  "benchmark_config": ".github/ci/benchmark_config.json",
+  "recipe": "ported_models/smollm3_3b/docs/RECIPE.md"
+}

@@ -485,6 +485,74 @@
       "sha256": "d1eb8b6b23979205fdf63703ed10f788131a3f812c7b1f72e0119d5d81295150",
       "size_bytes": 108783360,
       "note": "SmolVLM 500M vision projector (SigLIP ~93M + MLP). Q8_0 quantized. Must be loaded alongside smolvlm_500m_q8_gguf."
+    },
+    "smollm3_3b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "SmolLM3-3B-Q8_0",
+      "filename": "SmolLM3-3B-Q8_0.gguf",
+      "env": "SMOLLM3_3B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "ggml-org/SmolLM3-3B-GGUF",
+        "revision": "main",
+        "filename": "SmolLM3-Q8_0.gguf",
+        "url": "https://huggingface.co/ggml-org/SmolLM3-3B-GGUF/resolve/main/SmolLM3-Q8_0.gguf"
+      },
+      "sha256": "8aa8cc74656137174a1988d993b00828e65a86fd68773412b632a75aa1373248",
+      "local_cache": "local-artifacts/models/SmolLM3-3B-Q8_0.gguf",
+      "board_path": "/data/models/SmolLM3-3B-Q8_0.gguf"
+    },
+    "nemotron_mini_4b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "Nemotron-Mini-4B-Instruct-Q8_0",
+      "filename": "Nemotron-Mini-4B-Instruct-Q8_0.gguf",
+      "env": "NEMOTRON_MINI_4B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "bartowski/Nemotron-Mini-4B-Instruct-GGUF",
+        "revision": "main",
+        "filename": "Nemotron-Mini-4B-Instruct-Q8_0.gguf",
+        "url": "https://huggingface.co/bartowski/Nemotron-Mini-4B-Instruct-GGUF/resolve/main/Nemotron-Mini-4B-Instruct-Q8_0.gguf"
+      },
+      "sha256": "8ed6d148ded733d4401495e44dc834ffa79e8cfee6f44d8fb60808dddd78b8eb",
+      "local_cache": "local-artifacts/models/Nemotron-Mini-4B-Instruct-Q8_0.gguf",
+      "board_path": "/data/models/Nemotron-Mini-4B-Instruct-Q8_0.gguf"
+    },
+    "apertus_8b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "swiss-ai.Apertus-8B-Instruct-2509-Q8_0",
+      "filename": "swiss-ai.Apertus-8B-Instruct-2509-Q8_0.gguf",
+      "env": "APERTUS_8B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "DevQuasar/swiss-ai.Apertus-8B-Instruct-2509-GGUF",
+        "revision": "main",
+        "filename": "swiss-ai.Apertus-8B-Instruct-2509.Q8_0.gguf",
+        "url": "https://huggingface.co/DevQuasar/swiss-ai.Apertus-8B-Instruct-2509-GGUF/resolve/main/swiss-ai.Apertus-8B-Instruct-2509.Q8_0.gguf"
+      },
+      "sha256": "823a2ce1b89f8e31c197167e144fb4e5220f0adb44132b8e54ccdb2dd5bedae7",
+      "local_cache": "local-artifacts/models/swiss-ai.Apertus-8B-Instruct-2509-Q8_0.gguf",
+      "board_path": "/data/models/swiss-ai.Apertus-8B-Instruct-2509-Q8_0.gguf"
+    },
+    "glm4_9b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "GLM-4-9B-0414-Q8_0",
+      "filename": "GLM-4-9B-0414-Q8_0.gguf",
+      "env": "GLM4_9B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "bartowski/THUDM_GLM-4-9B-0414-GGUF",
+        "revision": "main",
+        "filename": "THUDM_GLM-4-9B-0414-Q8_0.gguf",
+        "url": "https://huggingface.co/bartowski/THUDM_GLM-4-9B-0414-GGUF/resolve/main/THUDM_GLM-4-9B-0414-Q8_0.gguf"
+      },
+      "sha256": "7b4ea2795934ca05dc409251dddd289160a194a4d920b575d1de4516808bb50d",
+      "local_cache": "local-artifacts/models/GLM-4-9B-0414-Q8_0.gguf",
+      "board_path": "/data/models/GLM-4-9B-0414-Q8_0.gguf"
     }
   }
 }
