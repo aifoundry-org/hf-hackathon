@@ -485,6 +485,60 @@
       "sha256": "d1eb8b6b23979205fdf63703ed10f788131a3f812c7b1f72e0119d5d81295150",
       "size_bytes": 108783360,
       "note": "SmolVLM 500M vision projector (SigLIP ~93M + MLP). Q8_0 quantized. Must be loaded alongside smolvlm_500m_q8_gguf."
+    },
+    "pythia410m_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "Pythia-410M-Q8_0",
+      "filename": "pythia-410m.Q8_0.gguf",
+      "env": "PYTHIA410M_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "mradermacher/pythia-410m-GGUF",
+        "revision": "29569dd6a296a653472b3086dbc8ded8479e9707",
+        "filename": "pythia-410m.Q8_0.gguf",
+        "url": "https://huggingface.co/mradermacher/pythia-410m-GGUF/resolve/29569dd6a296a653472b3086dbc8ded8479e9707/pythia-410m.Q8_0.gguf"
+      },
+      "local_cache": "local-artifacts/models/pythia410m/pythia-410m.Q8_0.gguf",
+      "sha256": "c311c4fa92afc7ca7ce00994288cf1cfab7aa568ce43218c01803da51f4a8025",
+      "size_bytes": 433397664,
+      "note": "Pythia-410M (GPT-NeoX arch with parallel attention & FFN, Rotary embeddings)."
+    },
+    "bloomz560m_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "BLOOMZ-560M-Q8_0",
+      "filename": "bloomz-560m.Q8_0.gguf",
+      "env": "BLOOMZ560M_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "mradermacher/bloomz-560m-GGUF",
+        "revision": "44a3d4feab10b694d0f5017290156cde12982759",
+        "filename": "bloomz-560m.Q8_0.gguf",
+        "url": "https://huggingface.co/mradermacher/bloomz-560m-GGUF/resolve/44a3d4feab10b694d0f5017290156cde12982759/bloomz-560m.Q8_0.gguf"
+      },
+      "local_cache": "local-artifacts/models/bloomz560m/bloomz-560m.Q8_0.gguf",
+      "sha256": "ada5a7ebd0b8aaa6e52e85bb9f7843769e558dcd83eb59f96e0393bc86374f18",
+      "size_bytes": 880696832,
+      "note": "BLOOMZ-560M (multilingual BLOOM arch with ALiBi position encodings, LayerNorm, GeLU)."
+    },
+    "stablelm2_16b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "StableLM-2-Zephyr-1.6B-Q8_0",
+      "filename": "stablelm-2-zephyr-1_6b.Q8_0.gguf",
+      "env": "STABLELM2_16B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "mradermacher/stablelm-2-zephyr-1_6b-GGUF",
+        "revision": "daa1b606c82775d42973f745fa24dc8006486ee0",
+        "filename": "stablelm-2-zephyr-1_6b.Q8_0.gguf",
+        "url": "https://huggingface.co/mradermacher/stablelm-2-zephyr-1_6b-GGUF/resolve/daa1b606c82775d42973f745fa24dc8006486ee0/stablelm-2-zephyr-1_6b.Q8_0.gguf"
+      },
+      "local_cache": "local-artifacts/models/stablelm2_16b/stablelm-2-zephyr-1_6b.Q8_0.gguf",
+      "sha256": "6c2a6e9ad6f4960211a2673dfcff602e592d6b2ee78c8c65a4d136037ea73cf5",
+      "size_bytes": 1751882336,
+      "note": "StableLM-2-Zephyr-1.6B (Stability AI architecture with parallel attention & SwiGLU)."
     }
   }
 }

@@ -315,6 +315,15 @@
     },
     "smolvlm_500m": {
       "config": "ported_models/llama_cpp_et/benchmarks/smolvlm_500m.json"
+    },
+    "pythia410m": {
+      "config": "ported_models/llama_cpp_et/benchmarks/pythia410m.json"
+    },
+    "bloomz560m": {
+      "config": "ported_models/llama_cpp_et/benchmarks/bloomz560m.json"
+    },
+    "stablelm2_16b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/stablelm2_16b.json"
     }
   }
 }
