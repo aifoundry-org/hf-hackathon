@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "exaone_2_4b",
+  "identity_id": "exaone",
+  "source": {
+    "repo": "LGAI-EXAONE/EXAONE-3.5-2.4B-Instruct-GGUF",
+    "revision": "142acae803a41c206e8d0fa978c6102c748911bb",
+    "license": "other"
+  },
+  "implementation_paths": ["ported_models/exaone"],
+  "benchmark_config": ".github/ci/benchmark_config.json",
+  "recipe": "ported_models/exaone/docs/RECIPE.md"
+}

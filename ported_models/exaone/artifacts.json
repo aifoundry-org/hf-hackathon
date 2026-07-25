@@ -1,0 +1,80 @@
+{
+  "artifacts": {
+    "llama_cpp_source": {
+      "kind": "framework_source",
+      "framework": "llama.cpp-et",
+      "submodule_path": "ported_models/llama_cpp_et/src/llama.cpp-et",
+      "license": "MIT",
+      "license_file": "LICENSE",
+      "upstream": {
+        "type": "git",
+        "url": "https://github.com/aifoundry-org/llama.cpp.git",
+        "branch": "et",
+        "revision": "cc4049d86b14e4ef72f827f3bb767b577f18fbcd",
+        "note": "Informational only. CI builds from the committed submodule_path; the exaone port reuses the same shared framework source as the other llama.cpp-et models and does not repin it."
+      },
+      "note": "Framework source comes from the committed shared submodule. The exaone port adds no framework code; EXAONE (LLM_ARCH_EXAONE, src/models/exaone.cpp) is already implemented in this pinned revision."
+    },
+    "llama_cpp_build": {
+      "kind": "framework_workdir",
+      "framework": "llama.cpp-et",
+      "env": "LLAMA_CPP_ET_WORKDIR",
+      "local_cache": "local-artifacts/frameworks/llama.cpp-et/build-et",
+      "build": {
+        "cmake": "cmake",
+        "configure_args": [
+          "-DGGML_ET=ON",
+          "-DCMAKE_BUILD_TYPE=Release",
+          "-DCMAKE_CXX_STANDARD_LIBRARIES=-lglog"
+        ],
+        "build_args": ["--config", "Release"],
+        "targets": ["llama-server", "llama-perplexity", "llama-bench"]
+      },
+      "note": "Out-of-tree CMake build of the committed shared llama_cpp_source submodule."
+    },
+    "llama_server": {
+      "kind": "framework_binary",
+      "framework": "llama.cpp-et",
+      "env": "LLAMA_CPP_ET_SERVER",
+      "relative_to": "llama_cpp_build",
+      "relative_path": "bin/llama-server"
+    },
+    "llama_perplexity": {
+      "kind": "framework_binary",
+      "framework": "llama.cpp-et",
+      "env": "LLAMA_CPP_ET_PERPLEXITY",
+      "relative_to": "llama_cpp_build",
+      "relative_path": "bin/llama-perplexity"
+    },
+    "wikitext2_raw_test": {
+      "kind": "validation_dataset",
+      "dataset": "wikitext-2-raw-v1",
+      "split": "test",
+      "filename": "wiki.test.raw",
+      "env": "WIKITEXT_RAW_PATH",
+      "local_cache": "local-artifacts/datasets/wikitext-2-raw/wiki.test.raw",
+      "source_url": "https://cosmo.zip/pub/datasets/wikitext-2-raw/wiki.test.raw",
+      "sha256": "173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08",
+      "note": "WikiText-2 raw test corpus. Shared perplexity corpus, identical to the other llama.cpp-et models."
+    },
+    "exaone_2_4b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "EXAONE-3.5-2.4B-Instruct-Q8_0",
+      "filename": "EXAONE-3.5-2.4B-Instruct-Q8_0.gguf",
+      "env": "EXAONE_2_4B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "LGAI-EXAONE/EXAONE-3.5-2.4B-Instruct-GGUF",
+        "revision": "142acae803a41c206e8d0fa978c6102c748911bb",
+        "filename": "EXAONE-3.5-2.4B-Instruct-Q8_0.gguf",
+        "url": "https://huggingface.co/LGAI-EXAONE/EXAONE-3.5-2.4B-Instruct-GGUF/resolve/142acae803a41c206e8d0fa978c6102c748911bb/EXAONE-3.5-2.4B-Instruct-Q8_0.gguf"
+      },
+      "sha256": "464d3b40dabdc0fb0d1c05c84d51372bc7da44e038708e6924dd2bd4c9128a35",
+      "size_bytes": 2838845952,
+      "local_cache": "local-artifacts/models/exaone_2_4b/EXAONE-3.5-2.4B-Instruct-Q8_0.gguf",
+      "board_path": "/data/models/EXAONE-3.5-2.4B-Instruct-Q8_0.gguf",
+      "note": "Weights are not committed. The board CI downloads the GGUF from the pinned Hugging Face revision by url + sha256. Base model license is the EXAONE AI Model License (non-commercial); see docs/HF_REFERENCES.md."
+    }
+  }
+}

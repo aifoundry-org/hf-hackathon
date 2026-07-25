@@ -1,0 +1,17 @@
+{
+  "_comment": "Stage-1 registry entry for the exaone identity. A maintainer adds this object to the identities list in data/model-port-identities.json to make the identity eligible. NOTE: EXAONE uses a non-commercial license (license:other) — confirm the track admits it before registering. The two sha256 values are precomputed against this port; recompute per docs/RECIPE.md if any file changes. Drop the _comment key before committing.",
+  "identity_id": "exaone",
+  "execution_family": "exaone",
+  "benchmark_models": ["exaone_2_4b"],
+  "aliases": ["exaone-3.5-2.4b-instruct"],
+  "eligible": true,
+  "canonical_source": {
+    "repo": "LGAI-EXAONE/EXAONE-3.5-2.4B-Instruct-GGUF",
+    "revision": "142acae803a41c206e8d0fa978c6102c748911bb",
+    "license": "other"
+  },
+  "approved_runner": "llama_server",
+  "benchmark_config_sha256": "e6bdcf69c7a8c19123369cf404de96ec04880f6d55ba306d6091bb385dd406fc",
+  "validation_contract": ".github/ci/reference/exaone_2_4b.json",
+  "validation_contract_sha256": "90e92668fa0093c8c86bac7de0139ed3e1b6aaea973a19aa231dd2056c4fd087"
+}
