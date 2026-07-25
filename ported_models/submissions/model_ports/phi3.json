@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "phi3_mini",
+  "identity_id": "phi3",
+  "source": {
+    "repo": "bartowski/Phi-3-mini-4k-instruct-GGUF",
+    "revision": "e1447f6da0be91f91683c5d19f938d4f51122d88",
+    "license": "mit"
+  },
+  "implementation_paths": ["ported_models/phi3"],
+  "benchmark_config": ".github/ci/benchmark_config.json",
+  "recipe": "ported_models/phi3/docs/RECIPE.md"
+}

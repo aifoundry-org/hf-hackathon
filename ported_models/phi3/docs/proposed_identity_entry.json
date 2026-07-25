@@ -1,0 +1,17 @@
+{
+  "_comment": "Stage-1 registry entry for the phi3 identity. A maintainer adds this object to the identities list in data/model-port-identities.json to make the identity eligible. The two sha256 values are precomputed against this port; recompute per docs/RECIPE.md if any file changes. Drop the _comment key before committing.",
+  "identity_id": "phi3",
+  "execution_family": "phi3",
+  "benchmark_models": ["phi3_mini"],
+  "aliases": ["phi-3-mini-4k-instruct"],
+  "eligible": true,
+  "canonical_source": {
+    "repo": "bartowski/Phi-3-mini-4k-instruct-GGUF",
+    "revision": "e1447f6da0be91f91683c5d19f938d4f51122d88",
+    "license": "mit"
+  },
+  "approved_runner": "llama_server",
+  "benchmark_config_sha256": "c8c37874e6c221d68a330da80abe5a1ae77fac26a57c0a050d78a552213a9c31",
+  "validation_contract": ".github/ci/reference/phi3_mini.json",
+  "validation_contract_sha256": "c9e8c38f8b4a7906a693627dda93141e5baba2d2b39682b26635f708622d9768"
+}
