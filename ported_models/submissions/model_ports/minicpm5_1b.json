@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "minicpm5_1b",
+  "identity_id": "minicpm",
+  "source": {
+    "repo": "openbmb/MiniCPM5-1B",
+    "revision": "4e9de7a0778dc1c362e983e6858f0e77542cbdca",
+    "license": "apache-2.0"
+  },
+  "implementation_paths": [
+    "ported_models/minicpm5_1b"
+  ],
+  "benchmark_config": ".github/ci/benchmark_config.json",
+  "recipe": "ported_models/minicpm5_1b/docs/RECIPE.md"
+}
