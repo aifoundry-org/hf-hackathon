@@ -8,7 +8,9 @@
     "revision": "6e46eae61c27280517feef46f536d16b91076f08",
     "license": "unspecified"
   },
-  "implementation_paths": ["ported_models/mamba_1_4b"],
-  "benchmark_config": ".github/ci/benchmark_config.json",
+  "implementation_paths": [
+    "ported_models/mamba_1_4b"
+  ],
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/mamba_1_4b.json",
   "recipe": "ported_models/mamba_1_4b/docs/RECIPE.md"
 }

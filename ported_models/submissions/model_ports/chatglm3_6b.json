@@ -8,7 +8,9 @@
     "revision": "e9e0406d062cdb887444fe5bd546833920abd4ac",
     "license": "apache-2.0"
   },
-  "implementation_paths": ["ported_models/chatglm3_6b"],
-  "benchmark_config": ".github/ci/benchmark_config.json",
+  "implementation_paths": [
+    "ported_models/chatglm3_6b"
+  ],
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/chatglm3_6b.json",
   "recipe": "ported_models/chatglm3_6b/docs/RECIPE.md"
 }
