@@ -1416,6 +1416,90 @@ static uint32_t yr_sigmoid(
 }
 
 
+#ifndef YR_SILU_VPU
+#define YR_SILU_VPU 1
+#endif
+
+#if YR_SILU_VPU && defined(__riscv)
+/*
+ * Packed eight-wide SiLU on the vector unit, out = x * sigmoid(x). Builds the
+ * sigmoid straight from the hardware exponential and reciprocal instead of the
+ * scalar polynomial, eight lanes at a time. sigmoid(x) is 1 / (1 + e^-x), and
+ * e^-x is exp2(-x * log2(e)) since the hardware exponential is base two. Runs
+ * only on the ET target where these packed ops exist, and never on the host
+ * reference, so it sits behind its own build flag. The exponential differs in
+ * the last bits from the scalar path, so a build using this validates by
+ * tolerance, not by the workspace hash. The parallel elementwise slices are
+ * cache-line aligned, so the length is a multiple of sixteen and the eight-wide
+ * loop needs no scalar tail.
+ */
+static void yr_silu_vpu_slice(
+    const float *input, float *output, uint32_t elem_lo, uint32_t elem_hi)
+{
+    union { float f; uint32_t u; } z = { 0.0f };
+    union { float f; uint32_t u; } o = { 1.0f };
+    union { float f; uint32_t u; } l = { 1.4426950408889634f };
+    float vz, vo, vl2e;
+    uint32_t i;
+    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(vz) : "r"((uint64_t)z.u));
+    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(vo) : "r"((uint64_t)o.u));
+    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(vl2e) : "r"((uint64_t)l.u));
+    for (i = elem_lo; i + 8u <= elem_hi; i += 8u) {
+        float x, t;
+        __asm__ volatile("flq2 %0, 0(%1)\n" : "=f"(x) : "r"(input + i));
+        __asm__ volatile(
+            "fsub.ps %[t], %[z], %[x]\n"
+            "fmul.ps %[t], %[t], %[l2e]\n"
+            "fexp.ps %[t], %[t]\n"
+            "fadd.ps %[t], %[t], %[o]\n"
+            "frcp.ps %[t], %[t]\n"
+            "fmul.ps %[t], %[t], %[x]\n"
+            : [t] "=&f"(t)
+            : [x] "f"(x), [z] "f"(vz), [o] "f"(vo), [l2e] "f"(vl2e));
+        __asm__ volatile("fsq2 %1, 0(%0)\n" :: "r"(output + i), "f"(t)
+                         : "memory");
+    }
+}
+#endif
+
+
+/*
+ * Fused SiLU over one elementwise slice, out = x * sigmoid(x). Folds a
+ * Sigmoid node and the Mul node that follows it into a single pass, so the
+ * intermediate sigmoid tensor is never written or read back. The scalar op is
+ * the same yr_sigmoid_scalar and a multiply the standalone Sigmoid then Mul
+ * would run, in the same order, so the fused output is bit identical to the
+ * two-node path and validates against the same workspace hash. With the packed
+ * vector build the same slice runs through yr_silu_vpu_slice instead, faster
+ * but only tolerance close to the scalar hash.
+ */
+static uint32_t yr_silu(
+    const struct yr_tensor_desc *input_desc,
+    const struct yr_tensor_desc *output_desc,
+    const float *input,
+    float *output,
+    uint32_t elem_lo,
+    uint32_t elem_hi)
+{
+    uint32_t index;
+    if (yr_tensor_dtype(input_desc) != 1u
+        || yr_tensor_dtype(output_desc) != 1u
+        || !yr_same_shape(input_desc, output_desc)) {
+        return YR_STATUS_UNSUPPORTED_SHAPE;
+    }
+#if YR_SILU_VPU && defined(__riscv)
+    yr_silu_vpu_slice(input, output, elem_lo, elem_hi);
+    return YR_STATUS_OK;
+#else
+    for (index = elem_lo; index < elem_hi; ++index) {
+        const float x = input[index];
+        output[index] = x * yr_sigmoid_scalar(x);
+    }
+    return YR_STATUS_OK;
+#endif
+}
+
+
 static uint32_t yr_mul(
     const struct yr_tensor_desc *left_desc,
     const struct yr_tensor_desc *right_desc,
@@ -2558,6 +2642,75 @@ uint32_t yr_prepare_result(
 }
 
 
+#ifndef YR_SILU_FUSE
+#define YR_SILU_FUSE 1
+#endif
+
+#ifndef YR_SILU_CONV_FUSE
+#define YR_SILU_CONV_FUSE 0
+#endif
+
+#if YR_SILU_FUSE || YR_SILU_CONV_FUSE
+/*
+ * A SiLU is a Sigmoid whose output feeds a Mul that also takes the Sigmoid's
+ * own input, giving out = x * sigmoid(x). When node sig_index is that Sigmoid
+ * and the very next node is that Mul, the pair folds into a single yr_silu
+ * pass written into the Mul output, with the Sigmoid writing nothing. This
+ * checks the pattern on the static node list so every hart decides the same
+ * way, and only when both nodes sit in one span (sig_index + 1 <= last_node)
+ * so a stage boundary never splits a pair into a half-fused state. Each hart
+ * still reaches the per-node barrier once for each of the two nodes, so the
+ * fold changes no barrier count.
+ */
+static int yr_silu_pair(uint32_t sig_index, uint32_t last_node)
+{
+    const struct yr_node_desc *sig;
+    const struct yr_node_desc *mul;
+    uint32_t x_tensor, s_tensor;
+    if (sig_index >= last_node) {
+        return 0;
+    }
+    sig = &yr_nodes[sig_index];
+    mul = &yr_nodes[sig_index + 1u];
+    if (sig->op != YR_OP_SIGMOID || mul->op != YR_OP_MUL
+        || sig->input_count != 1u || sig->output_count != 1u
+        || mul->input_count != 2u || mul->output_count != 1u) {
+        return 0;
+    }
+    x_tensor = sig->inputs[0];
+    s_tensor = sig->outputs[0];
+    return (mul->inputs[0] == x_tensor && mul->inputs[1] == s_tensor)
+        || (mul->inputs[0] == s_tensor && mul->inputs[1] == x_tensor);
+}
+#endif
+
+#if YR_SILU_CONV_FUSE
+/*
+ * True when this Conv is immediately followed by its own SiLU, that is node
+ * conv_index + 1 is the Sigmoid and conv_index + 2 the Mul of a fuseable SiLU
+ * pair whose x input is this Conv's output. All three sit in one span. Lets the
+ * Conv apply the SiLU to its just-written output slice while it is still warm
+ * in this hart's L1, publishing the Mul output so the Conv result never has to
+ * go out to DRAM and come back through two separate elementwise nodes.
+ */
+static int yr_silu_conv_at(uint32_t conv_index, uint32_t last_node)
+{
+    const struct yr_node_desc *conv;
+    if (conv_index + 2u > last_node) {
+        return 0;
+    }
+    conv = &yr_nodes[conv_index];
+    if (conv->op != YR_OP_CONV || conv->output_count < 1u) {
+        return 0;
+    }
+    if (!yr_silu_pair(conv_index + 1u, last_node)) {
+        return 0;
+    }
+    return yr_nodes[conv_index + 1u].inputs[0] == conv->outputs[0];
+}
+#endif
+
+
 uint32_t yr_run_node_span(
     uint8_t *device_base,
     struct yr_result_header *result,
@@ -2566,6 +2719,9 @@ uint32_t yr_run_node_span(
 {
     uint32_t node_index;
     uint32_t status = YR_STATUS_OK;
+#if YR_SILU_CONV_FUSE
+    uint32_t silu_conv_done = 0xFFFFFFFFu;
+#endif
 
     if (device_base == (uint8_t *)0
         || result == (struct yr_result_header *)0
@@ -2587,6 +2743,7 @@ uint32_t yr_run_node_span(
         uint32_t output_index;
         uint32_t ew_lo = 0u;
         uint32_t ew_hi = 0u;
+        int silu_skip_publish = 0;
         /*
          * Nodes fall into three execution classes.
          *
@@ -2707,6 +2864,24 @@ uint32_t yr_run_node_span(
                     goto fail;
                 }
             }
+#if YR_SILU_CONV_FUSE
+            int silu_conv_here = 0;
+            if (yr_silu_conv_at(node_index, last_local_node)) {
+                const struct yr_tensor_desc *m_desc =
+                    &yr_tensors[yr_nodes[node_index + 2u].outputs[0]];
+                uint8_t *m_raw = yr_tensor_raw(device_base, m_desc);
+                if (m_raw != (uint8_t *)0 && yr_same_shape(out0, m_desc)) {
+                    /*
+                     * Point the conv output at the Mul tensor so it writes M
+                     * straight away. C is never materialized, which avoids
+                     * leaving unpublished dirty C lines in this minion's L1
+                     * that could later evict over a tensor reusing C's region.
+                     */
+                    out0_raw = m_raw;
+                    silu_conv_here = 1;
+                }
+            }
+#endif
             /*
              * yr_conv_tensor() partitions its own work per hart, computing
              * only its tile-aligned slice of output channels and reporting
@@ -2737,10 +2912,31 @@ uint32_t yr_run_node_span(
                 const uint32_t oc_lo = tensor_oc_lo;
                 const uint32_t oc_hi = tensor_oc_hi;
                 if (oc_hi > oc_lo) {
-                    const uint32_t plane_bytes =
-                        out0->dims[2] * out0->dims[3] * 4u;
+                    const uint32_t plane = out0->dims[2] * out0->dims[3];
+                    const uint32_t plane_bytes = plane * 4u;
                     const uint32_t batch_bytes = out0->dims[1] * plane_bytes;
                     uint32_t batch_index;
+#if YR_SILU_CONV_FUSE
+                    if (silu_conv_here) {
+                        /*
+                         * The conv wrote the Mul output tensor directly, so C
+                         * was never materialized. Apply the SiLU in place on
+                         * that slice, still warm in this hart's L1, then let
+                         * the publish below evict M. The Sigmoid and Mul that
+                         * follow skip their work and keep their barrier.
+                         */
+                        for (batch_index = 0u;
+                             batch_index < out0->dims[0]; ++batch_index) {
+                            const uint32_t base_i =
+                                batch_index * out0->dims[1] * plane;
+                            (void)yr_silu(
+                                out0, out0, (const float *)out0_raw,
+                                (float *)out0_raw, base_i + oc_lo * plane,
+                                base_i + oc_hi * plane);
+                        }
+                        silu_conv_done = node_index + 2u;
+                    }
+#endif
                     for (batch_index = 0u; batch_index < out0->dims[0];
                          ++batch_index) {
                         yr_publish(
@@ -2756,9 +2952,35 @@ uint32_t yr_run_node_span(
                 status = YR_STATUS_BAD_MANIFEST;
                 goto fail;
             }
-            status = yr_sigmoid(
-                in0, out0, (float *)in0_raw, (float *)out0_raw,
-                ew_lo, ew_hi);
+#if YR_SILU_CONV_FUSE
+            if (silu_conv_done == node_index + 1u) {
+                /*
+                 * This Sigmoid's SiLU was already applied by the Conv two
+                 * nodes back, which wrote the Mul output directly. Skip the
+                 * work and the publish, keep the barrier so every hart stays
+                 * in step.
+                 */
+                status = YR_STATUS_OK;
+                silu_skip_publish = 1;
+            } else
+#endif
+#if YR_SILU_FUSE
+            if (yr_silu_pair(node_index, last_local_node)) {
+                /*
+                 * The next node is this Sigmoid's Mul, and yr_silu there does
+                 * x * sigmoid(x) in one pass, so the sigmoid output is neither
+                 * written nor published here. The barrier still runs below so
+                 * every hart stays in step.
+                 */
+                status = YR_STATUS_OK;
+                silu_skip_publish = 1;
+            } else
+#endif
+            {
+                status = yr_sigmoid(
+                    in0, out0, (float *)in0_raw, (float *)out0_raw,
+                    ew_lo, ew_hi);
+            }
         } else if (node->op == YR_OP_MUL) {
             const struct yr_tensor_desc *in1;
             uint8_t *in1_raw;
@@ -2773,9 +2995,40 @@ uint32_t yr_run_node_span(
                 status = YR_STATUS_BAD_MANIFEST;
                 goto fail;
             }
-            status = yr_mul(
-                in0, in1, out0, (float *)in0_raw,
-                (float *)in1_raw, (float *)out0_raw, ew_lo, ew_hi);
+#if YR_SILU_CONV_FUSE
+            if (silu_conv_done == node_index) {
+                /*
+                 * The Conv three nodes back already wrote this Mul output as
+                 * silu of its result. Skip work and publish, keep the barrier.
+                 */
+                status = YR_STATUS_OK;
+                silu_skip_publish = 1;
+            } else
+#endif
+#if YR_SILU_FUSE
+            if (node_index > first_local_node
+                && yr_silu_pair(node_index - 1u, last_local_node)) {
+                /*
+                 * Second half of a SiLU whose Sigmoid was folded away above.
+                 * x is the Mul input that is the Sigmoid's own input; the
+                 * other input is the sigmoid output, never written, so only x
+                 * is read and yr_silu recomputes sigmoid(x) inline.
+                 */
+                const uint32_t x_tensor = yr_nodes[node_index - 1u].inputs[0];
+                if (node->inputs[0] == x_tensor) {
+                    status = yr_silu(in0, out0, (const float *)in0_raw,
+                                     (float *)out0_raw, ew_lo, ew_hi);
+                } else {
+                    status = yr_silu(in1, out0, (const float *)in1_raw,
+                                     (float *)out0_raw, ew_lo, ew_hi);
+                }
+            } else
+#endif
+            {
+                status = yr_mul(
+                    in0, in1, out0, (float *)in0_raw,
+                    (float *)in1_raw, (float *)out0_raw, ew_lo, ew_hi);
+            }
         } else if (node->op == YR_OP_CONCAT) {
             const struct yr_tensor_desc *input_descs[4] = {0, 0, 0, 0};
             const float *input_data[4] = {0, 0, 0, 0};
@@ -3053,13 +3306,13 @@ uint32_t yr_run_node_span(
          * them waiting for a call that never comes.
          */
         if (is_parallel_ew) {
-            if (status == YR_STATUS_OK && ew_hi > ew_lo) {
+            if (status == YR_STATUS_OK && ew_hi > ew_lo && !silu_skip_publish) {
                 yr_publish(out0_raw + (uint64_t)ew_lo * sizeof(float),
                            (ew_hi - ew_lo) * (uint32_t)sizeof(float));
             }
             yr_hart_barrier();
         } else if (node->op != YR_OP_CONV) {
-            if (status == YR_STATUS_OK) {
+            if (status == YR_STATUS_OK && !silu_skip_publish) {
                 uint32_t output_publish_index;
                 for (output_publish_index = 0u;
                      output_publish_index < node->output_count;
