@@ -8,7 +8,9 @@
     "revision": "920c3fd9916e3d5e543fc4f609e827cad8a32983",
     "license": "mit"
   },
-  "implementation_paths": ["ported_models/ling_mini_2"],
-  "benchmark_config": ".github/ci/benchmark_config.json",
+  "implementation_paths": [
+    "ported_models/ling_mini_2"
+  ],
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/ling_mini_2.json",
   "recipe": "ported_models/ling_mini_2/docs/RECIPE.md"
 }

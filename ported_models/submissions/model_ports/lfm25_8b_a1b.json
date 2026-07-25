@@ -8,7 +8,9 @@
     "revision": "5673e0de372b64331504de73bbbc33b0dde71903",
     "license": "lfm-open-license-v1.0"
   },
-  "implementation_paths": ["ported_models/lfm25_8b_a1b"],
-  "benchmark_config": ".github/ci/benchmark_config.json",
+  "implementation_paths": [
+    "ported_models/lfm25_8b_a1b"
+  ],
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/lfm25_8b_a1b.json",
   "recipe": "ported_models/lfm25_8b_a1b/docs/RECIPE.md"
 }
