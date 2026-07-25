@@ -11,6 +11,6 @@
   "implementation_paths": [
     "ported_models/gpt2"
   ],
-  "benchmark_config": ".github/ci/benchmark_config.json",
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/gpt2.json",
   "recipe": "ported_models/gpt2/docs/RECIPE.md"
 }
