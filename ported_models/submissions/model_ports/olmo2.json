@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "olmo2_1b",
+  "identity_id": "olmo2",
+  "source": {
+    "repo": "allenai/OLMo-2-0425-1B-Instruct-GGUF",
+    "revision": "62f8c199538474c3e33ed5d7e0580abd66686a27",
+    "license": "apache-2.0"
+  },
+  "implementation_paths": ["ported_models/olmo2"],
+  "benchmark_config": ".github/ci/benchmark_config.json",
+  "recipe": "ported_models/olmo2/docs/RECIPE.md"
+}
