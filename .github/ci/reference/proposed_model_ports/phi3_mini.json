@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "model": {
+    "repo": "microsoft/Phi-3-mini-4k-instruct",
+    "revision": "f39ac1d28e925b323eae81227eaba4464caced4e",
+    "license": "mit"
+  },
+  "baseline_artifacts": {
+    "model": {
+      "sha256": "8a83c7fb9049a9b2e92266fa7ad04933bb53aa1e85136b7b30f1b8000ff2edef",
+      "quantization": "Q4",
+      "hf_repo": "microsoft/Phi-3-mini-4k-instruct-gguf"
+    },
+    "note": "Downloaded from a third-party community GGUF repo, not the original authors -- sha256 verified locally against the exact file used."
+  },
+  "architecture": {
+    "general_architecture": "phi3"
+  },
+  "runtime": {
+    "submodule_path": "ported_models/llama_cpp_et/src/llama.cpp-et",
+    "required_device": "ET",
+    "required_gpu_layers": 99,
+    "require_full_offload": true
+  },
+  "quality": {
+    "perplexity": {
+      "corpus_artifact": "wikitext2_raw_test",
+      "corpus_sha256": "173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08",
+      "context_size": 128,
+      "batch_size": 128,
+      "ubatch_size": 128,
+      "chunks": 4,
+      "measurement_status": "measured_host_cpu_only",
+      "host_cpu_perplexity": 9.485,
+      "host_cpu_perplexity_error": 1.86142,
+      "note": "Real host-CPU perplexity measured this session (plain GGML_ET=OFF build, board-pinned corpus, board's own ctx/batch/chunks params). ET-SoC1 board perplexity is NOT measured -- that needs the maintainer's trusted workflow."
+    }
+  },
+  "correctness": {
+    "host_reference": "CPU execution of the candidate artifact through the main-owned runtime harness",
+    "measurement_status": "measured_host_cpu_only"
+  },
+  "recipe": "ported_models/phi3_mini/docs/RECIPE.md"
+}
