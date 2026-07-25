@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "phi3_mini",
+  "identity_id": "phi3",
+  "source": {
+    "repo": "microsoft/Phi-3-mini-4k-instruct",
+    "revision": "f39ac1d28e925b323eae81227eaba4464caced4e",
+    "license": "mit"
+  },
+  "implementation_paths": ["ported_models/phi3_mini"],
+  "benchmark_config": ".github/ci/benchmark_config.json",
+  "recipe": "ported_models/phi3_mini/docs/RECIPE.md"
+}
