@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "plamo3_nict_8b",
+  "identity_id": "plamo3",
+  "source": {
+    "repo": "pfnet/plamo-3-nict-8b-base",
+    "revision": "7adeb6e9fc79016d4e99e2e3cb8fde6441b42366",
+    "license": "plamo-community-license"
+  },
+  "implementation_paths": [
+    "ported_models/plamo3_nict_8b"
+  ],
+  "benchmark_config": ".github/ci/benchmark_config.json",
+  "recipe": "ported_models/plamo3_nict_8b/docs/RECIPE.md"
+}
