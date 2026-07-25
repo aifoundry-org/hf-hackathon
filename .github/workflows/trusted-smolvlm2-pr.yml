@@ -116,25 +116,33 @@ jobs:
     name: Trusted SmolVLM2 board evaluation
     needs: resolve
     if: needs.resolve.outputs.targeted == '1' && needs.resolve.outputs.needs_approval != '1'
-    runs-on: [self-hosted, Linux, X64, et-soc1, board-ci, single-board, aifoundry2]
+    runs-on: [self-hosted, Linux, X64, et-soc1, board-ci, single-board, aifoundry3]
     timeout-minutes: 10
     outputs:
       verdict_kind: ${{ steps.evaluate.outputs.verdict_kind }}
     env:
       HOME: /root
+      ET_BOARD_EPOCH: et-soc1-aifoundry3-600-400-tdp0-v1
+      ET_BOARD_ID: aifoundry3
+      ET_BOARD_HOSTNAME: aifoundry3
+      ET_MINION_FREQUENCY_MHZ: "600"
+      ET_NOC_FREQUENCY_MHZ: "400"
+      ET_BOARD_TDP_W: "0"
+      ET_DEV_MNGT_SERVICE: /opt/et/bin/dev_mngt_service
+      LLAMA_CPP_ET_BUILD_JOBS: "4"
       SOC3_LOCAL: ${{ vars.SOC3_LOCAL || '1' }}
       SOC3_HOST: ${{ vars.SOC3_HOST || 'local' }}
-      SOC3_SSH_ALIAS: ${{ vars.SOC3_SSH_ALIAS || 'aifoundry1' }}
+      SOC3_SSH_ALIAS: ${{ vars.SOC3_SSH_ALIAS || 'esperanto-soc3' }}
       SOC3_SSH_KEY: ${{ vars.SOC3_SSH_KEY || '/root/.ssh/id_rsa' }}
       USE_TAILSCALE_SSH: "0"
-      SOC3_BUILD_ET: ${{ vars.AIFOUNDRY1_SOC3_BUILD_ET || '/opt/et' }}
-      SOC3_REMOTE_ET_INSTALL: ${{ vars.AIFOUNDRY1_SOC3_REMOTE_ET_INSTALL || '/opt/et' }}
-      SOC3_REMOTE_ET_PLATFORM: ${{ vars.AIFOUNDRY1_SOC3_REMOTE_ET_PLATFORM || '/opt/et' }}
-      ET_PLATFORM_SRC: ${{ vars.AIFOUNDRY1_ET_PLATFORM_SRC || '' }}
-      ET_LIB_PATH: ${{ vars.AIFOUNDRY1_SOC3_ET_LIB_PATH || '/opt/et/lib:/opt/et/host' }}
+      SOC3_BUILD_ET: ${{ vars.SOC3_BUILD_ET || vars.AIFOUNDRY1_SOC3_BUILD_ET || '/opt/et' }}
+      SOC3_REMOTE_ET_INSTALL: ${{ vars.SOC3_REMOTE_ET_INSTALL || vars.AIFOUNDRY1_SOC3_REMOTE_ET_INSTALL || '/opt/et' }}
+      SOC3_REMOTE_ET_PLATFORM: ${{ vars.SOC3_REMOTE_ET_PLATFORM || vars.AIFOUNDRY1_SOC3_REMOTE_ET_PLATFORM || '/opt/et' }}
+      ET_PLATFORM_SRC: ${{ vars.ET_PLATFORM_SRC || vars.AIFOUNDRY1_ET_PLATFORM_SRC || '' }}
+      ET_LIB_PATH: ${{ vars.SOC3_ET_LIB_PATH || vars.AIFOUNDRY1_SOC3_ET_LIB_PATH || '/opt/et/lib:/opt/et/host' }}
       GITHUB_ACTOR: ${{ needs.resolve.outputs.actor }}
       LEADERBOARD_TEAM: ${{ needs.resolve.outputs.actor }}
-      WIKITEXT_RAW_PATH: ${{ vars.AIFOUNDRY1_WIKITEXT_RAW_PATH || '' }}
+      WIKITEXT_RAW_PATH: ${{ vars.WIKITEXT_RAW_PATH || vars.AIFOUNDRY1_WIKITEXT_RAW_PATH || '' }}
     steps:
       - uses: actions/checkout@v4
         with:

@@ -118,6 +118,16 @@ class BoardLockTests(unittest.TestCase):
                     (root / relative).read_text(),
                 )
 
+        boot_service = (
+            root / ".github/ci/platform/deploy/et-board-clock-guard.service"
+        ).read_text()
+        self.assertIn("/usr/local/sbin/et-board-lock", boot_service)
+        self.assertIn("/var/lock/etsoc-shire0.lock", boot_service)
+        installer = (
+            root / ".github/ci/platform/deploy/install-aifoundry3-clock-guard.sh"
+        ).read_text()
+        self.assertIn('"$ROOT/.github/ci/scripts/board_lock.py"', installer)
+
         selector = (root / ".github/ci/scripts/changed_benchmark_models.py").read_text()
         workflow = (root / ".github/workflows/benchmark-board.yml").read_text()
         for relative in (

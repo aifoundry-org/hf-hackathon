@@ -128,6 +128,8 @@ jobs:
               .github/ci/reference/yolo.json|\
               .github/ci/platform/deploy/*|\
               .github/ci/scripts/board_lock.py|\
+              .github/ci/scripts/board_provenance.py|\
+              .github/ci/scripts/configure_board_clock.sh|\
               .github/ci/scripts/prepare_board_lock.sh|\
               .github/ci/scripts/benchmark_config_helpers.py|\
               .github/ci/scripts/build_leaderboard_elf.sh|\
@@ -210,6 +212,7 @@ jobs:
           uncovered=""
           trusted_yolo=0
           trusted_runtime=0
+          hardware_migration=0
           zero_sha="0000000000000000000000000000000000000000"
           if [[ "$TRUSTED_YOLO_MODE" == "1" ]]; then
             git fetch --no-tags origin \
@@ -243,17 +246,29 @@ jobs:
               --base "$PR_BASE_SHA" \
               --head "$PR_HEAD_SHA" \
               --scope changed \
+              --hardware-migration smoke \
               --format space \
               --unregistered-out unregistered.txt \
               --uncovered-out uncovered.txt)"
             unregistered="$(cat unregistered.txt 2>/dev/null || true)"
             uncovered="$(cat uncovered.txt 2>/dev/null || true)"
+            hardware_migration="$(python3 - "$PR_BASE_SHA" <<'PY'
+          import sys
+          from pathlib import Path
+
+          sys.path.insert(0, str(Path(".github/ci/scripts").resolve()))
+          from changed_benchmark_models import board_hardware_changed
+
+          print(1 if board_hardware_changed(sys.argv[1]) else 0)
+          PY
+          )"
           elif [[ "$EVENT_NAME" == "push" && -n "$PUSH_BEFORE_SHA" && "$PUSH_BEFORE_SHA" != "$zero_sha" ]]; then
             models="$(python3 .github/ci/scripts/changed_benchmark_models.py \
               --target board \
               --base "$PUSH_BEFORE_SHA" \
               --head "$PUSH_HEAD_SHA" \
               --scope changed \
+              --hardware-migration bootstrap \
               --format space \
               --unregistered-out unregistered.txt \
               --uncovered-out uncovered.txt)"
@@ -266,6 +281,7 @@ jobs:
               --format space)"
           fi
           if [[ "$TRUSTED_YOLO_MODE" != "1" && "$EVENT_NAME" == "pull_request" ]] \
+            && [[ "$hardware_migration" != "1" ]] \
             && git cat-file -e "$PR_BASE_SHA:.github/workflows/trusted-yolo-pr.yml" 2>/dev/null \
             && [[ " $models " == *" yolo "* ]]; then
             trusted_yolo=1
@@ -276,6 +292,7 @@ jobs:
           )"
           fi
           if [[ "$EVENT_NAME" == "pull_request" ]] \
+            && [[ "$hardware_migration" != "1" ]] \
             && git cat-file -e "$PR_BASE_SHA:.github/workflows/trusted-smolvlm2-pr.yml" 2>/dev/null \
             && [[ " $models " == *" smolvlm2_500m_video "* ]]; then
             if git cat-file -e "$PR_BASE_SHA:.github/workflows/trusted-llama32-pr.yml" 2>/dev/null \
@@ -328,6 +345,10 @@ jobs:
               echo
               echo "Changed runtime source not covered by an adequate benchmark row: \`$uncovered\`"
             fi
+            if [[ "$hardware_migration" == "1" ]]; then
+              echo
+              echo "Hardware migration smoke retains all representative board runners in this workflow."
+            fi
             if [[ "$trusted_yolo" == "1" ]]; then
               echo
               echo "YOLO is delegated to the main-controlled \`Trusted YOLO leaderboard gate\`."
@@ -342,7 +363,7 @@ jobs:
     name: board (${{ needs.select-board-models.outputs.models || 'no models' }})
     needs: [authorize-board-run, select-board-models]
     if: needs.authorize-board-run.outputs.allowed == '1' && needs.select-board-models.outputs.has_models == '1'
-    runs-on: [self-hosted, Linux, X64, et-soc1, board-ci, single-board, aifoundry2]
+    runs-on: [self-hosted, Linux, X64, et-soc1, board-ci, single-board, aifoundry3]
     timeout-minutes: 240
     outputs:
       trusted_main_sha: ${{ steps.trusted-candidate.outputs.main_sha }}
@@ -351,26 +372,37 @@ jobs:
       benchmark_ref: ${{ steps.bench.outputs.ref }}
     env:
       HOME: /root
+      ET_BOARD_EPOCH: et-soc1-aifoundry3-600-400-tdp0-v1
+      ET_BOARD_ID: aifoundry3
+      ET_BOARD_HOSTNAME: aifoundry3
+      ET_MINION_FREQUENCY_MHZ: "600"
+      ET_NOC_FREQUENCY_MHZ: "400"
+      ET_BOARD_TDP_W: "0"
+      ET_DEV_MNGT_SERVICE: /opt/et/bin/dev_mngt_service
+      LLAMA_CPP_ET_BUILD_JOBS: "4"
       MODELS: ${{ needs.select-board-models.outputs.models }}
       SOC3_LOCAL: ${{ vars.SOC3_LOCAL || '1' }}
       SOC3_HOST: ${{ vars.SOC3_HOST || 'local' }}
-      SOC3_SSH_ALIAS: ${{ vars.SOC3_SSH_ALIAS || 'aifoundry1' }}
+      SOC3_SSH_ALIAS: ${{ vars.SOC3_SSH_ALIAS || 'esperanto-soc3' }}
       SOC3_SSH_KEY: ${{ vars.SOC3_SSH_KEY || '/root/.ssh/id_rsa' }}
       USE_TAILSCALE_SSH: "0"
-      SOC3_BUILD_ET: ${{ vars.AIFOUNDRY1_SOC3_BUILD_ET || '/opt/et' }}
-      ET_INSTALL: ${{ vars.AIFOUNDRY1_SOC3_BUILD_ET || '/opt/et' }}
-      SOC3_REMOTE_ET_INSTALL: ${{ vars.AIFOUNDRY1_SOC3_REMOTE_ET_INSTALL || '/opt/et' }}
-      SOC3_REMOTE_ET_PLATFORM: ${{ vars.AIFOUNDRY1_SOC3_REMOTE_ET_PLATFORM || '/opt/et' }}
-      SOC3_FAIL_ON_MODEL_FAILURE: ${{ inputs.trusted_yolo && '1' || vars.AIFOUNDRY1_SOC3_FAIL_ON_MODEL_FAILURE || '0' }}
-      ET_PLATFORM_SRC: ${{ vars.AIFOUNDRY1_ET_PLATFORM_SRC || '' }}
-      LAUNCHER: ${{ vars.AIFOUNDRY1_SOC3_LAUNCHER || '' }}
-      ET_LIB_PATH: ${{ vars.AIFOUNDRY1_SOC3_ET_LIB_PATH || '/opt/et/host:/opt/et/lib' }}
+      SOC3_BUILD_ET: ${{ vars.SOC3_BUILD_ET || vars.AIFOUNDRY1_SOC3_BUILD_ET || '/opt/et' }}
+      ET_INSTALL: ${{ vars.SOC3_BUILD_ET || vars.AIFOUNDRY1_SOC3_BUILD_ET || '/opt/et' }}
+      SOC3_REMOTE_ET_INSTALL: ${{ vars.SOC3_REMOTE_ET_INSTALL || vars.AIFOUNDRY1_SOC3_REMOTE_ET_INSTALL || '/opt/et' }}
+      SOC3_REMOTE_ET_PLATFORM: ${{ vars.SOC3_REMOTE_ET_PLATFORM || vars.AIFOUNDRY1_SOC3_REMOTE_ET_PLATFORM || '/opt/et' }}
+      # A PR step may be marked continue-on-error below, but the board driver
+      # must still run every model and report failure. Main must never publish
+      # a partial hardware-epoch bootstrap.
+      SOC3_FAIL_ON_MODEL_FAILURE: "1"
+      ET_PLATFORM_SRC: ${{ vars.ET_PLATFORM_SRC || vars.AIFOUNDRY1_ET_PLATFORM_SRC || '' }}
+      LAUNCHER: ${{ vars.SOC3_LAUNCHER || vars.AIFOUNDRY1_SOC3_LAUNCHER || '' }}
+      ET_LIB_PATH: ${{ vars.SOC3_ET_LIB_PATH || vars.AIFOUNDRY1_SOC3_ET_LIB_PATH || '/opt/et/host:/opt/et/lib' }}
       ET_PLATFORM_REF: ${{ vars.ET_PLATFORM_REF || 'master' }}
       GITHUB_TOKEN: ${{ !inputs.trusted_yolo && github.token || '' }}
-      BENCHMARK_ASSETS_DIR: ${{ vars.AIFOUNDRY1_BENCHMARK_ASSETS_DIR || vars.BENCHMARK_ASSETS_DIR || '' }}
+      BENCHMARK_ASSETS_DIR: ${{ vars.BENCHMARK_ASSETS_DIR || vars.AIFOUNDRY1_BENCHMARK_ASSETS_DIR || '' }}
       BENCHMARK_ASSETS_URL: ${{ !inputs.trusted_yolo && secrets.BENCHMARK_ASSETS_URL || '' }}
-      LFM25_MODEL_PATH: ${{ vars.AIFOUNDRY1_LFM25_MODEL_PATH || '' }}
-      WIKITEXT_RAW_PATH: ${{ vars.AIFOUNDRY1_WIKITEXT_RAW_PATH || '' }}
+      LFM25_MODEL_PATH: ${{ vars.LFM25_MODEL_PATH || vars.AIFOUNDRY1_LFM25_MODEL_PATH || '' }}
+      WIKITEXT_RAW_PATH: ${{ vars.WIKITEXT_RAW_PATH || vars.AIFOUNDRY1_WIKITEXT_RAW_PATH || '' }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -712,6 +744,7 @@ jobs:
               --scores-dir board-scores \
               --models "$SELECTED_MODELS" \
               --target board \
+              --enforce-hardware-epoch \
               --base-ref "$PR_BASE_SHA" \
               "${extra_args[@]}" \
               --output /tmp/trusted-yolo-gate.md || true
@@ -782,6 +815,7 @@ jobs:
             --unregistered "$UNREGISTERED" \
             --uncovered "$UNCOVERED" \
             --target board \
+            --enforce-hardware-epoch \
             --base-ref "$PR_BASE_SHA" \
             --output /tmp/leaderboard-gate.md || true
           {
@@ -884,6 +918,7 @@ jobs:
             --unregistered "$UNREGISTERED" \
             --uncovered "$UNCOVERED" \
             --target board \
+            --enforce-hardware-epoch \
             --base-ref "$PR_BASE_SHA" \
             "${extra_args[@]}" \
             --output "$GITHUB_STEP_SUMMARY"
@@ -945,17 +980,25 @@ jobs:
         run: |
           set -euo pipefail
           git fetch --no-tags origin main
-          git merge-base --is-ancestor "$GITHUB_SHA" origin/main
-          git switch --detach origin/main
+          current_main="$(git rev-parse origin/main)"
+          if [[ "$current_main" != "$GITHUB_SHA" ]]; then
+            echo "Main advanced from measured commit $GITHUB_SHA to $current_main; refusing stale board scores." >&2
+            exit 1
+          fi
+          git switch --detach "$GITHUB_SHA"
 
       - name: Merge board scores into leaderboard
         env:
           SELECTED_MODELS: ${{ needs.select-board-models.outputs.models }}
+          EXPECTED_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           python3 .github/ci/scripts/merge_leaderboard.py \
             --scores-dir board-scores \
             --models "$SELECTED_MODELS" \
-            --participant-login "$PARTICIPANT_LOGIN"
+            --participant-login "$PARTICIPANT_LOGIN" \
+            --expected-sha "$GITHUB_SHA" \
+            --expected-ref "refs/heads/main" \
+            --expected-run-url "$EXPECTED_RUN_URL"
 
       - name: Validate and issue model-port credits
         env:

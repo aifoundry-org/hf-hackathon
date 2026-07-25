@@ -18,26 +18,26 @@ ET-SoC1 boards and reports reproducible benchmark results.
 <!-- leaderboard:start -->
 ## ET-SoC1 Board Leaderboard
 
-Results are from real ET-SoC1 silicon via the main-branch board workflow. Each model uses its own primary metric.
+Results are from real ET-SoC1 silicon via the main-branch board workflow, hardware epoch `et-soc1-aifoundry3-600-400-tdp0-v1`. Each model uses its own primary metric.
 
 | Model | Best participant | Variant | Metric | Score | PPL | Run |
 |-------|------------------|---------|--------|-------|-----|-----|
-| yolo | AFOliveira | `yolo_m30` | Mean end-to-end latency | 0.917813s | - | [6ab913e](https://github.com/aifoundry-org/hf-hackathon/actions/runs/29435700695) |
-| dncnn | karabambus | `dncnn20l64` | Denoise kernel wait (64x64 tile) | 0.221240s | - | [a967098](https://github.com/aifoundry-org/hf-hackathon/actions/runs/29410925196) |
-| lfm25 | Afonso Oliveira | `LFM2.5-1.2B-Instruct-Q8_0` | Decode tokens/s | 3.12 | 21.70 (+/- 4.45) | [44e0041](https://github.com/aifoundry-org/hf-hackathon/actions/runs/29103369466) |
-| llama32_1b | RehanQasim-dev | `Llama-3.2-1B-Instruct-Q8_0` | Decode tokens/s | 14.71 | 15.21 (+/- 2.87) | [328802a](https://github.com/aifoundry-org/hf-hackathon/actions/runs/29846814130) |
-| gemma3n_e2b | RehanQasim-dev | `gemma-3n-E2B-it-Q8_0` | Decode tokens/s | 2.11 | 35.05 (+/- 11.05) | [328802a](https://github.com/aifoundry-org/hf-hackathon/actions/runs/29846814130) |
-| tinyllama11b | RehanQasim-dev | `TinyLlama-1.1B-Chat-v1.0-Q8_0` | Decode tokens/s | 12.46 | 29.24 (+/- 7.71) | [328802a](https://github.com/aifoundry-org/hf-hackathon/actions/runs/29846814130) |
-| rwkv7_15b | RehanQasim-dev | `rwkv7-1.5B-world-q8_0` | Decode tokens/s | 1.79 | 16.47 (+/- 3.01) | [328802a](https://github.com/aifoundry-org/hf-hackathon/actions/runs/29846814130) |
-| qwen25_05b | RehanQasim-dev | `Qwen2.5-0.5B-Instruct-Q8_0` | Decode tokens/s | 12.29 | 18.23 (+/- 3.85) | [328802a](https://github.com/aifoundry-org/hf-hackathon/actions/runs/29846814130) |
-| qwen3_8b | Ashish Soni | `Qwen3-8B-Q8_0` | Decode tokens/s | 3.30 | 10.50 (+/- 2.29) | [af95906](https://github.com/aifoundry-org/hf-hackathon/actions/runs/28949135516) |
-| smollm2_135m | RehanQasim-dev | `SmolLM2-135M-Instruct-Q8_0` | Decode tokens/s | 12.48 | 25.43 (+/- 5.40) | [328802a](https://github.com/aifoundry-org/hf-hackathon/actions/runs/29846814130) |
-| smollm2_360m | RehanQasim-dev | `SmolLM2-360M-Instruct-Q8_0` | Decode tokens/s | 10.93 | 18.31 (+/- 3.83) | [328802a](https://github.com/aifoundry-org/hf-hackathon/actions/runs/29846814130) |
-| smollm2_17b | RehanQasim-dev | `SmolLM2-1.7B-Instruct-Q8_0` | Decode tokens/s | 9.93 | 13.82 (+/- 3.01) | [328802a](https://github.com/aifoundry-org/hf-hackathon/actions/runs/29846814130) |
-| deepseek_r1_15b | RehanQasim-dev | `DeepSeek-R1-Distill-Qwen-1.5B-Q8_0` | Decode tokens/s | 8.71 | 47.36 (+/- 12.09) | [328802a](https://github.com/aifoundry-org/hf-hackathon/actions/runs/29846814130) |
-| smolvlm_256m | noor-malaika | `SmolVLM-256M-Instruct-Q8_0` | Decode tokens/s | 12.47 | 31.21 (+/- 6.43) | [eb96bd5](https://github.com/aifoundry-org/hf-hackathon/actions/runs/29845872886) |
-| smolvlm2_500m_video | RehanQasim-dev | `SmolVLM2-500M-Video-Instruct` | ET firmware cycles | 1270809440 | 22.28 (+/- 4.80) | [328802a](https://github.com/aifoundry-org/hf-hackathon/actions/runs/29846814130) |
-| smolvlm_500m | Ashish-Soni08 | `SmolVLM-500M-Instruct` | ET firmware cycles | 616919265 | 25.37 (+/- 5.55) | [4ca6fbf](https://github.com/aifoundry-org/hf-hackathon/actions/runs/29910365911) |
+| yolo | AFOliveira | `yolo_m30` | Mean end-to-end latency | 0.917323s | - | [9910b2a](https://github.com/aifoundry-org/hf-hackathon/actions/runs/30111392825) |
+| dncnn | karabambus | `dncnn20l64` | Denoise kernel wait (64x64 tile) | 0.221179s | - | [9910b2a](https://github.com/aifoundry-org/hf-hackathon/actions/runs/30111392825) |
+| lfm25 | Afonso Oliveira | `LFM2.5-1.2B-Instruct-Q8_0` | Decode tokens/s | 3.25 | 21.90 (+/- 4.44) | [9910b2a](https://github.com/aifoundry-org/hf-hackathon/actions/runs/30111392825) |
+| llama32_1b | RehanQasim-dev | `Llama-3.2-1B-Instruct-Q8_0` | Decode tokens/s | 13.53 | 15.21 (+/- 2.87) | [9910b2a](https://github.com/aifoundry-org/hf-hackathon/actions/runs/30111392825) |
+| gemma3n_e2b | RehanQasim-dev | `gemma-3n-E2B-it-Q8_0` | Decode tokens/s | 1.84 | 35.05 (+/- 11.06) | [9910b2a](https://github.com/aifoundry-org/hf-hackathon/actions/runs/30111392825) |
+| tinyllama11b | RehanQasim-dev | `TinyLlama-1.1B-Chat-v1.0-Q8_0` | Decode tokens/s | 11.40 | 29.24 (+/- 7.71) | [9910b2a](https://github.com/aifoundry-org/hf-hackathon/actions/runs/30111392825) |
+| rwkv7_15b | RehanQasim-dev | `rwkv7-1.5B-world-q8_0` | Decode tokens/s | 1.83 | 16.47 (+/- 3.01) | [9910b2a](https://github.com/aifoundry-org/hf-hackathon/actions/runs/30111392825) |
+| qwen25_05b | RehanQasim-dev | `Qwen2.5-0.5B-Instruct-Q8_0` | Decode tokens/s | 11.46 | 18.23 (+/- 3.85) | [9910b2a](https://github.com/aifoundry-org/hf-hackathon/actions/runs/30111392825) |
+| qwen3_8b | Ashish Soni | `Qwen3-8B-Q8_0` | Decode tokens/s | 3.36 | 10.49 (+/- 2.28) | [9910b2a](https://github.com/aifoundry-org/hf-hackathon/actions/runs/30111392825) |
+| smollm2_135m | RehanQasim-dev | `SmolLM2-135M-Instruct-Q8_0` | Decode tokens/s | 11.70 | 25.43 (+/- 5.40) | [9910b2a](https://github.com/aifoundry-org/hf-hackathon/actions/runs/30111392825) |
+| smollm2_360m | RehanQasim-dev | `SmolLM2-360M-Instruct-Q8_0` | Decode tokens/s | 10.17 | 18.31 (+/- 3.83) | [9910b2a](https://github.com/aifoundry-org/hf-hackathon/actions/runs/30111392825) |
+| smollm2_17b | RehanQasim-dev | `SmolLM2-1.7B-Instruct-Q8_0` | Decode tokens/s | 9.36 | 13.82 (+/- 3.01) | [9910b2a](https://github.com/aifoundry-org/hf-hackathon/actions/runs/30111392825) |
+| deepseek_r1_15b | RehanQasim-dev | `DeepSeek-R1-Distill-Qwen-1.5B-Q8_0` | Decode tokens/s | 8.05 | 47.37 (+/- 12.09) | [9910b2a](https://github.com/aifoundry-org/hf-hackathon/actions/runs/30111392825) |
+| smolvlm_256m | noor-malaika | `SmolVLM-256M-Instruct-Q8_0` | Decode tokens/s | 11.70 | 31.21 (+/- 6.43) | [9910b2a](https://github.com/aifoundry-org/hf-hackathon/actions/runs/30111392825) |
+| smolvlm2_500m_video | RehanQasim-dev | `SmolVLM2-500M-Video-Instruct` | ET firmware cycles | 1805649301 | 22.28 (+/- 4.80) | [9910b2a](https://github.com/aifoundry-org/hf-hackathon/actions/runs/30111392825) |
+| smolvlm_500m | Ashish-Soni08 | `SmolVLM-500M-Instruct` | ET firmware cycles | 608248522 | 25.37 (+/- 5.55) | [9910b2a](https://github.com/aifoundry-org/hf-hackathon/actions/runs/30111392825) |
 
 Full JSON data lives in [`data/`](data/).
 <!-- leaderboard:end -->

@@ -635,10 +635,23 @@ def read_firmware_cycles(
     return measurements, summary
 
 
+def compatible_runtime_library_path() -> str:
+    explicit = os.environ.get("LLAMA_CPP_ET_LD_LIBRARY_PATH", "").strip()
+    if explicit:
+        return explicit
+    for name in ("ET_PLATFORM", "ET_INSTALL"):
+        root = os.environ.get(name, "").strip()
+        if root:
+            candidate = Path(root) / "lib"
+            if candidate.is_dir():
+                return str(candidate)
+    return ""
+
+
 def runtime_env(server_bin: Path, server_cfg: dict[str, Any], *, mode: str) -> dict[str, str]:
     env = os.environ.copy()
     env["TMPDIR"] = env.get("TMPDIR", "/dev/shm")
-    configured_library_path = os.environ.get("LLAMA_CPP_ET_LD_LIBRARY_PATH", "")
+    configured_library_path = compatible_runtime_library_path()
     env["LD_LIBRARY_PATH"] = ":".join(
         value for value in (str(server_bin.parent), configured_library_path) if value
     )
@@ -892,7 +905,7 @@ def run_cpu_perplexity(
     env = os.environ.copy()
     env["LD_LIBRARY_PATH"] = ":".join(
         value
-        for value in (str(ppl_bin.parent), os.environ.get("LLAMA_CPP_ET_LD_LIBRARY_PATH", ""))
+        for value in (str(ppl_bin.parent), compatible_runtime_library_path())
         if value
     )
     try:
@@ -1320,7 +1333,11 @@ def main() -> int:
     quality_note = (
         "trusted paired-main PPL check skipped"
         if skip_ppl
-        else f"PPL {float(ppl):.4f} <= {maximum_ppl:.4f}"
+        else (
+            f"PPL {float(ppl):.4f} <= {maximum_ppl:.4f}"
+            if isinstance(ppl, (int, float))
+            else "PPL unavailable (validation failed)"
+        )
     )
     note = "; ".join(failures) if failures else (
         f"{len(cases)} public video/order cases passed; {quality_note}; "

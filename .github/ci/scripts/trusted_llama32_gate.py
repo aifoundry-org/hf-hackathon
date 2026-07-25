@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
+LEGACY_HARDWARE_EPOCH = "et-soc1-aifoundry2-legacy-v1"
 
 
 def load_json(path: Path) -> dict[str, Any]:
@@ -24,8 +25,30 @@ def leaderboard_entries(model: str) -> list[dict[str, Any]]:
     if not path.is_file():
         return []
     value = load_json(path)
-    entries = value.get("entries", [])
+    entries = list(value.get("entries", []))
+    entries.extend(value.get("legacy_entries", []))
     return [entry for entry in entries if isinstance(entry, dict)]
+
+
+def score_hardware_epoch(score: dict[str, Any]) -> str:
+    return str(score.get("hardware_epoch") or LEGACY_HARDWARE_EPOCH)
+
+
+def hardware_key(score: dict[str, Any]) -> tuple[Any, ...] | None:
+    hardware = score.get("hardware")
+    if not isinstance(hardware, dict):
+        return None
+    values = (
+        score_hardware_epoch(score),
+        hardware.get("board_id"),
+        hardware.get("boot_id"),
+        hardware.get("minion_frequency_mhz"),
+        hardware.get("noc_frequency_mhz"),
+        hardware.get("tdp_w"),
+    )
+    if any(value is None or value == "" for value in values):
+        return None
+    return values
 
 
 def best(entries: list[dict[str, Any]], key: str, *, higher: bool) -> float | None:
@@ -101,11 +124,15 @@ def main() -> int:
     baseline_speed = baseline.get("tokens_per_second")
     candidate_speed = candidate.get("tokens_per_second")
     candidate_ppl = candidate.get("perplexity")
+    active_epoch = score_hardware_epoch(baseline)
+    baseline_hardware = hardware_key(baseline)
+    candidate_hardware = hardware_key(candidate)
     historical = leaderboard_entries(model)
     contract_historical = [
         entry
         for entry in historical
         if entry.get("validation_contract_sha256") == contract_sha
+        and score_hardware_epoch(entry) == active_epoch
     ]
     historical_speed = best(contract_historical, "tokens_per_second", higher=True)
     historical_ppl = best(historical, "perplexity", higher=False)
@@ -118,6 +145,12 @@ def main() -> int:
     if not baseline.get("passed"):
         target_ok = False
         target_notes.append("current-main paired baseline failed")
+    if baseline_hardware is None:
+        target_ok = False
+        target_notes.append("paired baseline has no complete hardware identity")
+    if candidate_hardware is None or candidate_hardware != baseline_hardware:
+        target_ok = False
+        target_notes.append("candidate and paired baseline are not from the same board boot")
     if baseline.get("validation_contract_sha256") != contract_sha:
         target_ok = False
         target_notes.append("paired baseline contract hash is stale or missing")
@@ -188,9 +221,12 @@ def main() -> int:
     for regression_model in regression_models:
         score_path = scores_dir / f"score-{regression_model}.json"
         score = load_json(score_path) if score_path.is_file() else {}
-        entries = leaderboard_entries(regression_model)
+        entries = [
+            entry for entry in leaderboard_entries(regression_model)
+            if score_hardware_epoch(entry) == active_epoch
+        ]
         current_speed = best(entries, "tokens_per_second", higher=True)
-        current_ppl = best(entries, "perplexity", higher=False)
+        current_ppl = best(leaderboard_entries(regression_model), "perplexity", higher=False)
         speed = score.get("tokens_per_second")
         ppl = score.get("perplexity")
         notes: list[str] = []
@@ -198,6 +234,9 @@ def main() -> int:
         if not score.get("passed"):
             ok = False
             notes.append(str(score.get("valid_note") or score.get("note") or "candidate failed"))
+        if hardware_key(score) != candidate_hardware:
+            ok = False
+            notes.append("regression score is not from the candidate board boot")
         if current_speed is None:
             ok = False
             notes.append("main has no trusted speed baseline")

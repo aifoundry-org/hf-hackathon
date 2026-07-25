@@ -315,7 +315,16 @@ def main() -> int:
             raise RuntimeError(f"missing llama-bench: {bench_bin}")
 
         env = os.environ.copy()
-        env["LD_LIBRARY_PATH"] = f"{server_bin.parent}:{env.get('LD_LIBRARY_PATH', '')}"
+        runtime_library_path = os.environ.get("LLAMA_CPP_ET_LD_LIBRARY_PATH", "").strip()
+        if not runtime_library_path:
+            et_platform = os.environ.get("ET_PLATFORM", "").strip()
+            if et_platform and (Path(et_platform) / "lib").is_dir():
+                runtime_library_path = str(Path(et_platform) / "lib")
+        # Do not inherit the standalone launcher's host bundle here: it may have
+        # been built on a newer distro and is not part of the scored llama runtime.
+        env["LD_LIBRARY_PATH"] = ":".join(
+            value for value in (str(server_bin.parent), runtime_library_path) if value
+        )
         bench = run_bench(
             bench_bin=bench_bin,
             model_path=model_path,
