@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "ling_mini_2",
+  "identity_id": "bailingmoe2",
+  "source": {
+    "repo": "inclusionAI/Ling-mini-2.0",
+    "revision": "920c3fd9916e3d5e543fc4f609e827cad8a32983",
+    "license": "mit"
+  },
+  "implementation_paths": ["ported_models/ling_mini_2"],
+  "benchmark_config": ".github/ci/benchmark_config.json",
+  "recipe": "ported_models/ling_mini_2/docs/RECIPE.md"
+}

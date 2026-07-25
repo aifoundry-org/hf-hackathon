@@ -503,6 +503,42 @@
       "size": 9010195680,
       "local_cache": "local-artifacts/models/LFM2.5-8B-A1B-Q8_0.gguf",
       "board_path": "/data/models/LFM2.5-8B-A1B-Q8_0.gguf"
+    },
+    "plamo_13b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "plamo-13b-Q8_0",
+      "filename": "plamo-13b.Q8_0.gguf",
+      "env": "PLAMO_13B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "RichardErkhov/pfnet_-_plamo-13b-gguf",
+        "revision": "main",
+        "filename": "plamo-13b.Q8_0.gguf",
+        "url": "https://huggingface.co/RichardErkhov/pfnet_-_plamo-13b-gguf/resolve/main/plamo-13b.Q8_0.gguf"
+      },
+      "sha256": "7f3f26fd8eb337e82f4e1a5916eccf2b96a7d0e2bd20af71b4c52946c327c66f",
+      "size": 13920140960,
+      "local_cache": "local-artifacts/models/plamo-13b.Q8_0.gguf",
+      "board_path": "/data/models/plamo-13b.Q8_0.gguf"
+    },
+    "ling_mini_2_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "Ling-mini-2.0-Q8_0",
+      "filename": "Ling-mini-2.0-Q8_0.gguf",
+      "env": "LING_MINI_2_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "inclusionAI/Ling-mini-2.0-GGUF",
+        "revision": "main",
+        "filename": "Ling-mini-2.0-Q8_0.gguf",
+        "url": "https://huggingface.co/inclusionAI/Ling-mini-2.0-GGUF/resolve/main/Ling-mini-2.0-Q8_0.gguf"
+      },
+      "sha256": "a87cc4911217c4ec24734959f547666d5c8d970bff3da55a14fdb818963b5f88",
+      "size": 17307656736,
+      "local_cache": "local-artifacts/models/Ling-mini-2.0-Q8_0.gguf",
+      "board_path": "/data/models/Ling-mini-2.0-Q8_0.gguf"
     }
   }
 }

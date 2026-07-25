@@ -346,6 +346,12 @@
     },
     "lfm25_8b_a1b": {
       "config": "ported_models/llama_cpp_et/benchmarks/lfm25_8b_a1b.json"
+    },
+    "plamo_13b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/plamo_13b.json"
+    },
+    "ling_mini_2": {
+      "config": "ported_models/llama_cpp_et/benchmarks/ling_mini_2.json"
     }
   }
 }

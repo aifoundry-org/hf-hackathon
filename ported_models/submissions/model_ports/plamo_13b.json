@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "plamo_13b",
+  "identity_id": "plamo",
+  "source": {
+    "repo": "pfnet/plamo-13b",
+    "revision": "88237e8483cdf6672faf3144f76f73f89b96d30c",
+    "license": "apache-2.0"
+  },
+  "implementation_paths": ["ported_models/plamo_13b"],
+  "benchmark_config": ".github/ci/benchmark_config.json",
+  "recipe": "ported_models/plamo_13b/docs/RECIPE.md"
+}
