@@ -27,22 +27,34 @@ scheme related to DeepSeek-V2's MLA, unlike MiniCPM/MiniCPM5's plain GQA).
 
 ## Verification performed this round
 
-GGUF-metadata-level only (downloaded exact file, verified sha256, confirmed
-`general.architecture` + tensor count) -- not a full ET sysemu load/offload
-test this round.
+Host reference: built a plain CPU-only (`GGML_ET=OFF`) configuration of the
+same vendored `llama.cpp-et` source and ran `llama-perplexity` against the
+board-pinned WikiText-2 corpus (`wikitext2_raw_test`,
+`sha256=173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08`),
+context 128 / batch 128 / ubatch 128 / 4 chunks. The model loads and runs
+cleanly on `ggml-cpu`:
 
-## Why this port's ET-SoC1 kernel support is an open question
+```
+Final estimate: PPL = 11.8752 +/- 2.29542
+```
 
-MiniCPM3's MLA-style attention needs low-rank KV compression (down-projecting
-K/V into a small latent space, then up-projecting per-head at attention time)
--- this is still expressible as `GGML_OP_MUL_MAT` chains (no new op type
-needed in principle), but it has NOT been checked against the real ET sysemu
-backend this round. Flagging as unconfirmed rather than assuming it works
-like a plain-GQA model would.
+This confirms MiniCPM3's MLA-style compressed attention (low-rank KV
+down/up-projection) works correctly through the CPU backend.
+
+## Why this port's ET-SoC1 kernel support is still an open question
+
+CPU-backend success does not prove the ET-SoC1 backend's own `MUL_MAT` chain
+handles the same low-rank-compression graph shape correctly -- that has not
+been checked against the real ET sysemu backend or board. Flagging as
+genuinely unconfirmed on ET specifically, not a formality.
 
 ## Open items for maintainer review
 
-- Not board-registered; `ported_models/submissions/model_ports/minicpm3_4b.json`
-  is the model-ports track claim, pending identity approval.
+- Registered in `artifacts.json`, `ported_models/llama_cpp_et/benchmarks/minicpm3_4b.json`,
+  and `.github/ci/benchmark_config.json` (port 18134) -- board-testable now,
+  independent of the model-ports track claim below.
+- `ported_models/submissions/model_ports/minicpm3_4b.json` is the model-ports
+  track claim, pending identity approval.
 - No changes to any protected file or the vendored submodule.
-- MLA attention path not live-verified against ET sysemu.
+- MLA attention path confirmed on CPU, NOT live-verified against ET sysemu
+  specifically.

@@ -24,9 +24,16 @@ weight packing than phi2).
 
 ## Verification performed this round
 
-GGUF-metadata-level only (downloaded exact file, verified sha256, confirmed
-`general.architecture` + tensor count) -- not a full ET sysemu load/offload
-test this round, given the scale of this porting batch.
+Host reference: built a plain CPU-only (`GGML_ET=OFF`) configuration of the
+same vendored `llama.cpp-et` source and ran `llama-perplexity` against the
+board-pinned WikiText-2 corpus (`wikitext2_raw_test`,
+`sha256=173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08`),
+context 128 / batch 128 / ubatch 128 / 4 chunks. The model loads and runs
+cleanly:
+
+```
+Final estimate: PPL = 9.4850 +/- 1.86142
+```
 
 ## Why this port likely needs no new ET-SoC1 kernel work
 
@@ -38,8 +45,11 @@ already handles. Not confirmed live this round.
 
 ## Open items for maintainer review
 
-- Not board-registered; `ported_models/submissions/model_ports/phi3_mini.json`
-  is the model-ports track claim, pending identity approval.
+- Registered in `artifacts.json`, `ported_models/llama_cpp_et/benchmarks/phi3_mini.json`,
+  and `.github/ci/benchmark_config.json` (port 18133) -- board-testable now,
+  independent of the model-ports track claim below.
+- `ported_models/submissions/model_ports/phi3_mini.json` is the model-ports
+  track claim, pending identity approval.
 - No changes to any protected file or the vendored submodule.
 - Quantization is Q4 not Q8_0 (source constraint, not a choice) -- flagged
   honestly since Q8_0 has been this campaign's default elsewhere.
