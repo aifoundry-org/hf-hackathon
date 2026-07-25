@@ -1,0 +1,17 @@
+{
+  "_comment": "Stage-1 registry entry for the granite identity. A maintainer adds this object to the identities list in data/model-port-identities.json to make the identity eligible. The two sha256 values are precomputed against this port; recompute per docs/RECIPE.md if any file changes. Drop the _comment key before committing.",
+  "identity_id": "granite",
+  "execution_family": "granite",
+  "benchmark_models": ["granite_2b"],
+  "aliases": ["granite-3.0-2b-instruct"],
+  "eligible": true,
+  "canonical_source": {
+    "repo": "lmstudio-community/granite-3.0-2b-instruct-GGUF",
+    "revision": "0f35cb534c61d4f1ea9a8e266efc522db70dc2fa",
+    "license": "apache-2.0"
+  },
+  "approved_runner": "llama_server",
+  "benchmark_config_sha256": "bb18b01f4c55ac9c55ee812b0d2482f5e3ec5ec0b3881de3bad3ee81f6339a37",
+  "validation_contract": ".github/ci/reference/granite_2b.json",
+  "validation_contract_sha256": "a68dcc52a37d287008a374ce648b8616979c3d1dcad0ed4c8b792b7f3f8c5216"
+}

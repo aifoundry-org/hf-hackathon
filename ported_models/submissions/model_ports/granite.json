@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "granite_2b",
+  "identity_id": "granite",
+  "source": {
+    "repo": "lmstudio-community/granite-3.0-2b-instruct-GGUF",
+    "revision": "0f35cb534c61d4f1ea9a8e266efc522db70dc2fa",
+    "license": "apache-2.0"
+  },
+  "implementation_paths": ["ported_models/granite"],
+  "benchmark_config": ".github/ci/benchmark_config.json",
+  "recipe": "ported_models/granite/docs/RECIPE.md"
+}
