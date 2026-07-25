@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "gemma_2b",
+  "identity_id": "gemma",
+  "source": {
+    "repo": "MaziyarPanahi/gemma-2b-it-GGUF",
+    "revision": "72164ae6fc4003cecf37bc07f3a825b8a20b8cbb",
+    "license": "gemma"
+  },
+  "implementation_paths": ["ported_models/gemma"],
+  "benchmark_config": ".github/ci/benchmark_config.json",
+  "recipe": "ported_models/gemma/docs/RECIPE.md"
+}
