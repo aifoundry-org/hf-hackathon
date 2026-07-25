@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "xverse7b",
+  "identity_id": "xverse",
+  "source": {
+    "repo": "xverse/XVERSE-7B-Chat",
+    "revision": "60acc8c453c067b54df88be98bfdf60585ab5441",
+    "license": "apache-2.0"
+  },
+  "implementation_paths": [
+    "ported_models/xverse7b"
+  ],
+  "benchmark_config": ".github/ci/benchmark_config.json",
+  "recipe": "ported_models/xverse7b/docs/RECIPE.md"
+}
