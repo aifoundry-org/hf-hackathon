@@ -485,6 +485,24 @@
       "sha256": "d1eb8b6b23979205fdf63703ed10f788131a3f812c7b1f72e0119d5d81295150",
       "size_bytes": 108783360,
       "note": "SmolVLM 500M vision projector (SigLIP ~93M + MLP). Q8_0 quantized. Must be loaded alongside smolvlm_500m_q8_gguf."
+    },
+    "baichuan2_7b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "baichuan2-7b-chat-Q8_0",
+      "filename": "baichuan2-7b-chat.Q8_0.gguf",
+      "env": "BAICHUAN2_7B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "shaowenchen/baichuan2-7b-chat-gguf",
+        "revision": "main",
+        "filename": "baichuan2-7b-chat.Q8_0.gguf",
+        "url": "https://huggingface.co/shaowenchen/baichuan2-7b-chat-gguf/resolve/main/baichuan2-7b-chat.Q8_0.gguf"
+      },
+      "sha256": "7388d78f8b68209106aeb8b591e6404d07a66153cb8c134678bb833e2baf5c46",
+      "size": 7978757472,
+      "local_cache": "local-artifacts/models/baichuan2-7b-chat.Q8_0.gguf",
+      "board_path": "/data/models/baichuan2-7b-chat.Q8_0.gguf"
     }
   }
 }

@@ -315,6 +315,9 @@
     },
     "smolvlm_500m": {
       "config": "ported_models/llama_cpp_et/benchmarks/smolvlm_500m.json"
+    },
+    "baichuan2_7b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/baichuan2_7b.json"
     }
   }
 }
