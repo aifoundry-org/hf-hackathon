@@ -315,6 +315,15 @@
     },
     "smolvlm_500m": {
       "config": "ported_models/llama_cpp_et/benchmarks/smolvlm_500m.json"
+    },
+    "refact16b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/refact16b.json"
+    },
+    "plamo3_nict_8b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/plamo3_nict_8b.json"
+    },
+    "internlm3_8b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/internlm3_8b.json"
     }
   }
 }

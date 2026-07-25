@@ -485,6 +485,60 @@
       "sha256": "d1eb8b6b23979205fdf63703ed10f788131a3f812c7b1f72e0119d5d81295150",
       "size_bytes": 108783360,
       "note": "SmolVLM 500M vision projector (SigLIP ~93M + MLP). Q8_0 quantized. Must be loaded alongside smolvlm_500m_q8_gguf."
+    },
+    "refact16b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "Refact-1.6B-fim-Q8_0",
+      "filename": "refact-1_6b-Q8_0.gguf",
+      "env": "REFACT16B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "oblivious/Refact-1.6B-fim-GGUF",
+        "revision": "main",
+        "filename": "refact-1_6b-Q8_0.gguf",
+        "url": "https://huggingface.co/oblivious/Refact-1.6B-fim-GGUF/resolve/main/refact-1_6b-Q8_0.gguf"
+      },
+      "sha256": "2298c7e2ad48d17e9db5c46e783b55dfe9e8ed99a00364b9c1f3bd14c0f6519f",
+      "size": 1687086368,
+      "local_cache": "local-artifacts/models/refact-1_6b-Q8_0.gguf",
+      "board_path": "/data/models/refact-1_6b-Q8_0.gguf"
+    },
+    "plamo3_nict_8b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "plamo-3-nict-8b-base-Q8_0",
+      "filename": "plamo-3-nict-8b-base-Q8_0.gguf",
+      "env": "PLAMO3_NICT_8B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "mmnga-o/plamo-3-nict-8b-base-gguf",
+        "revision": "main",
+        "filename": "plamo-3-nict-8b-base-Q8_0.gguf",
+        "url": "https://huggingface.co/mmnga-o/plamo-3-nict-8b-base-gguf/resolve/main/plamo-3-nict-8b-base-Q8_0.gguf"
+      },
+      "sha256": "339e0c93206fbf495dd35d47ec2d942286c26a0cb70294546a75588eb5129bbb",
+      "size": 8601238080,
+      "local_cache": "local-artifacts/models/plamo-3-nict-8b-base-Q8_0.gguf",
+      "board_path": "/data/models/plamo-3-nict-8b-base-Q8_0.gguf"
+    },
+    "internlm3_8b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "internlm3-8b-instruct-Q8_0",
+      "filename": "internlm3-8b-instruct-q8_0.gguf",
+      "env": "INTERNLM3_8B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "internlm/internlm3-8b-instruct-gguf",
+        "revision": "main",
+        "filename": "internlm3-8b-instruct-q8_0.gguf",
+        "url": "https://huggingface.co/internlm/internlm3-8b-instruct-gguf/resolve/main/internlm3-8b-instruct-q8_0.gguf"
+      },
+      "sha256": "4b6cd620c74ff56aa465d31f30b9e54a0a73defe18dd979de84e82d6ef54174b",
+      "size": 9358826688,
+      "local_cache": "local-artifacts/models/internlm3-8b-instruct-q8_0.gguf",
+      "board_path": "/data/models/internlm3-8b-instruct-q8_0.gguf"
     }
   }
 }
