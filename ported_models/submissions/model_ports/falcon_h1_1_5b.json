@@ -8,7 +8,9 @@
     "revision": "80ebc50d7799a440b96c93bb6686a3924a09b0cb",
     "license": "falcon-llm-license"
   },
-  "implementation_paths": ["ported_models/falcon_h1_1_5b"],
-  "benchmark_config": ".github/ci/benchmark_config.json",
+  "implementation_paths": [
+    "ported_models/falcon_h1_1_5b"
+  ],
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/falcon_h1_1_5b.json",
   "recipe": "ported_models/falcon_h1_1_5b/docs/RECIPE.md"
 }
