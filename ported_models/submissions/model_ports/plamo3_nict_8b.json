@@ -11,6 +11,6 @@
   "implementation_paths": [
     "ported_models/plamo3_nict_8b"
   ],
-  "benchmark_config": ".github/ci/benchmark_config.json",
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/plamo3_nict_8b.json",
   "recipe": "ported_models/plamo3_nict_8b/docs/RECIPE.md"
 }
