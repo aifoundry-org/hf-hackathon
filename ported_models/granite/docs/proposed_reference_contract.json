@@ -1,0 +1,76 @@
+{
+  "schema_version": 2,
+  "model": {
+    "repo": "ibm-granite/granite-3.0-2b-instruct",
+    "revision": "0f35cb534c61d4f1ea9a8e266efc522db70dc2fa",
+    "license": "apache-2.0"
+  },
+  "baseline_artifacts": {
+    "model": {
+      "filename": "granite-3.0-2b-instruct-Q8_0.gguf",
+      "sha256": "41f268169c7f0ab6758d0a51f497d9e55af0226bc71723e0a99a291b08e2ebda",
+      "size_bytes": 2801068896,
+      "source_repo": "lmstudio-community/granite-3.0-2b-instruct-GGUF",
+      "source_revision": "0f35cb534c61d4f1ea9a8e266efc522db70dc2fa"
+    }
+  },
+  "architecture": {
+    "general_architecture": "granite",
+    "model_name": "Granite-3.0-2B-Instruct",
+    "parameter_count": 2533539840,
+    "block_count": 40,
+    "embedding_length": 2048,
+    "feed_forward_length": 8192,
+    "attention_heads": 32,
+    "attention_kv_heads": 8,
+    "head_dim": 64,
+    "vocabulary_size": 49155,
+    "rope_theta": 10000,
+    "rms_norm_eps": 1e-05,
+    "notes": "Granite 3.0: RMSNorm + RoPE-NEOX + SwiGLU FFN + GQA (8 KV heads); scalar multipliers embedding=12.0, residual=0.22, attention=0.015625, logits_scaling=8.0 applied as SCALE; no bias, no LayerNorm"
+  },
+  "candidate_policy": {
+    "artifacts_must_match_baseline": true
+  },
+  "runtime": {
+    "submodule_path": "ported_models/llama_cpp_et/src/llama.cpp-et",
+    "required_device": "ET",
+    "required_gpu_layers": 99,
+    "require_full_offload": true
+  },
+  "generation_validation": {
+    "prompt": "Repeat this token sequence without commentary: OK OK OK OK OK OK OK OK OK OK",
+    "max_tokens": 96,
+    "temperature": 0,
+    "ignore_eos": true,
+    "min_completion_tokens": 32
+  },
+  "correctness": {
+    "host_reference": "CPU execution of the candidate GGUF through the main-owned llama.cpp-et harness",
+    "answer_comparison": "lowercase alphanumeric tokens, exact match",
+    "minimum_host_agreement": 1.0,
+    "require_full_offload": true,
+    "require_zero_op_fallbacks": true,
+    "allowed_op_fallbacks": []
+  },
+  "quality": {
+    "perplexity": {
+      "corpus_artifact": "wikitext2_raw_test",
+      "corpus_sha256": "173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08",
+      "context_size": 128,
+      "batch_size": 128,
+      "ubatch_size": 128,
+      "chunks": 4,
+      "max_relative_regression": 0.2,
+      "maximum_et_cpu_relative_difference": 0.01
+    }
+  },
+  "performance": {
+    "metric": "tokens_per_second",
+    "lower_is_better": false,
+    "generation_tokens": 128,
+    "prompt_tokens": 256,
+    "repetitions": 3,
+    "max_sample_cv": 0.05
+  }
+}
