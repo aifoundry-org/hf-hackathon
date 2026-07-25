@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "gpt2",
+  "identity_id": "gpt2",
+  "source": {
+    "repo": "mradermacher/gpt2-GGUF",
+    "revision": "0cda0c2b1459ccd32256c6ddde9d230934112c1c",
+    "license": "mit"
+  },
+  "implementation_paths": ["ported_models/gpt2"],
+  "benchmark_config": ".github/ci/benchmark_config.json",
+  "recipe": "ported_models/gpt2/docs/RECIPE.md"
+}

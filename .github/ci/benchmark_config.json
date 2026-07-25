@@ -315,6 +315,9 @@
     },
     "smolvlm_500m": {
       "config": "ported_models/llama_cpp_et/benchmarks/smolvlm_500m.json"
+    },
+    "gpt2": {
+      "config": "ported_models/gpt2/benchmarks/gpt2.json"
     }
   }
 }
