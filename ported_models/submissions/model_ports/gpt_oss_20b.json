@@ -8,7 +8,9 @@
     "revision": "6cee5e81ee83917806bbde320786a8fb61efebee",
     "license": "apache-2.0"
   },
-  "implementation_paths": ["ported_models/gpt_oss_20b"],
-  "benchmark_config": ".github/ci/benchmark_config.json",
+  "implementation_paths": [
+    "ported_models/gpt_oss_20b"
+  ],
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/gpt_oss_20b.json",
   "recipe": "ported_models/gpt_oss_20b/docs/RECIPE.md"
 }
