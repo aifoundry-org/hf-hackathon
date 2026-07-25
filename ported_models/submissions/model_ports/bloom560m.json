@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "bloom560m",
+  "identity_id": "bloom",
+  "source": {
+    "repo": "bigscience/bloom-560m",
+    "revision": "ac2ae5fab2ce3f9f40dc79b5ca9f637430d24971",
+    "license": "bigscience-bloom-rail-1.0"
+  },
+  "implementation_paths": [
+    "ported_models/bloom560m"
+  ],
+  "benchmark_config": ".github/ci/benchmark_config.json",
+  "recipe": "ported_models/bloom560m/docs/RECIPE.md"
+}
