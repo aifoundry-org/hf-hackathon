@@ -14,7 +14,7 @@
     "label": "Decode tokens/s",
     "higher_is_better": true
   },
-  "note": "SmolVLM-256M is a VLM (Idefics3 arch) but benchmarked here as text-only. The LLM backbone is SmolLM2-135M-Instruct (already proven on ET-SoC1). Vision capability via the mmproj projector is an additional feature not exercised by this benchmark.",
+  "note": "SmolVLM-256M is a VLM (Idefics3 arch) but benchmarked here as text-only. The LLM backbone is SmolLM2-135M-Instruct (already proven on ET-SoC1). Vision capability via the mmproj projector is an additional feature not exercised by this benchmark. Optimizations: flash_attn, reduced ctx_size, -nkvo.",
   "llama_server": {
     "source_artifact": "llama_cpp_source",
     "model_artifact": "smolvlm_256m_q8_gguf",
@@ -24,14 +24,14 @@
     "port": 18100,
     "device": "ET",
     "gpu_layers": 99,
-    "ctx_size": 2048,
+    "ctx_size": 256,
     "batch_size": 256,
     "ubatch_size": 128,
     "parallel": 1,
     "cache_ram_mib": 0,
     "ready_timeout_s": 120,
     "request_timeout_s": 240,
-    "flash_attn": false,
+    "flash_attn": true,
     "api": "completion",
     "prompt": "Repeat this token sequence without commentary: OK OK OK OK OK OK OK OK OK OK",
     "max_tokens": 96,
@@ -49,6 +49,9 @@
       "min_ppl": 1.0,
       "max_ppl": 1000.0,
       "chunks": 4
-    }
+    },
+    "extra_args": [
+      "-nkvo"
+    ]
   }
 }
