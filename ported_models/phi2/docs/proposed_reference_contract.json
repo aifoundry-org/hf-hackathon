@@ -1,0 +1,76 @@
+{
+  "schema_version": 2,
+  "model": {
+    "repo": "microsoft/phi-1_5",
+    "revision": "main",
+    "license": "mit"
+  },
+  "baseline_artifacts": {
+    "model": {
+      "filename": "phi-1_5.Q8_0.gguf",
+      "sha256": "d44836d19a3203c1f5137965cd7244ceddd69bebe42075e2d5979795f4f36ba7",
+      "size_bytes": 1510471040,
+      "source_repo": "mradermacher/phi-1_5-GGUF",
+      "source_revision": "fb3f2464a557228caf113b4d6ca7bebb2dc6c08c"
+    }
+  },
+  "architecture": {
+    "general_architecture": "phi2",
+    "model_name": "Phi-1.5",
+    "parameter_count": 1418270720,
+    "block_count": 24,
+    "embedding_length": 2048,
+    "feed_forward_length": 8192,
+    "attention_heads": 32,
+    "attention_kv_heads": 32,
+    "head_dim": 64,
+    "rotary_dim": 32,
+    "vocabulary_size": 51200,
+    "context_length": 2048,
+    "notes": "Phi-2 architecture: partial rotary (rotary_dim 32 = 0.5*head_dim), LayerNorm with bias, GELU FFN, parallel attention+FFN off a single pre-LayerNorm; no GQA"
+  },
+  "candidate_policy": {
+    "artifacts_must_match_baseline": true
+  },
+  "runtime": {
+    "submodule_path": "ported_models/llama_cpp_et/src/llama.cpp-et",
+    "required_device": "ET",
+    "required_gpu_layers": 99,
+    "require_full_offload": true
+  },
+  "generation_validation": {
+    "prompt": "Repeat this token sequence without commentary: OK OK OK OK OK OK OK OK OK OK",
+    "max_tokens": 96,
+    "temperature": 0,
+    "ignore_eos": true,
+    "min_completion_tokens": 32
+  },
+  "correctness": {
+    "host_reference": "CPU execution of the candidate GGUF through the main-owned llama.cpp-et harness",
+    "answer_comparison": "lowercase alphanumeric tokens, exact match",
+    "minimum_host_agreement": 1.0,
+    "require_full_offload": true,
+    "require_zero_op_fallbacks": true,
+    "allowed_op_fallbacks": []
+  },
+  "quality": {
+    "perplexity": {
+      "corpus_artifact": "wikitext2_raw_test",
+      "corpus_sha256": "173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08",
+      "context_size": 128,
+      "batch_size": 128,
+      "ubatch_size": 128,
+      "chunks": 4,
+      "max_relative_regression": 0.2,
+      "maximum_et_cpu_relative_difference": 0.01
+    }
+  },
+  "performance": {
+    "metric": "tokens_per_second",
+    "lower_is_better": false,
+    "generation_tokens": 128,
+    "prompt_tokens": 256,
+    "repetitions": 3,
+    "max_sample_cv": 0.05
+  }
+}

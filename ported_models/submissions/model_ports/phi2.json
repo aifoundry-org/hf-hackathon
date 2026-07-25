@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "phi1_5",
+  "identity_id": "phi2",
+  "source": {
+    "repo": "mradermacher/phi-1_5-GGUF",
+    "revision": "fb3f2464a557228caf113b4d6ca7bebb2dc6c08c",
+    "license": "mit"
+  },
+  "implementation_paths": ["ported_models/phi2"],
+  "benchmark_config": ".github/ci/benchmark_config.json",
+  "recipe": "ported_models/phi2/docs/RECIPE.md"
+}
