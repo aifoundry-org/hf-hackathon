@@ -2,6 +2,6 @@
   "schema_version": 1,
   "track": "llama_3_2_1b_fastest",
   "model": "llama32_1b",
-  "submission_id": "chiruguru99-llama32-rms-minion2-v1",
-  "runtime_revision": "26b1011518a33e15050796630e829c315ab6704f"
+  "submission_id": "chiruguru99-llama32-rope-set-fuse-v1",
+  "runtime_revision": "1c58f0cd97a2665e26635a4c4ab0c8e2fafb6ba4"
 }
