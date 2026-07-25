@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "stablelm2_16b",
+  "identity_id": "stablelm",
+  "source": {
+    "repo": "stabilityai/stablelm-2-1_6b",
+    "revision": "f499ead74c53749bd93cebc6ce8bc0d7bdf1eaef",
+    "license": "stabilityai-stablelm-2-1_6b"
+  },
+  "implementation_paths": [
+    "ported_models/stablelm2_16b"
+  ],
+  "benchmark_config": ".github/ci/benchmark_config.json",
+  "recipe": "ported_models/stablelm2_16b/docs/RECIPE.md"
+}
