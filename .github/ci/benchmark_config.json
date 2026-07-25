@@ -315,6 +315,9 @@
     },
     "smolvlm_500m": {
       "config": "ported_models/llama_cpp_et/benchmarks/smolvlm_500m.json"
+    },
+    "falcon3_1b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/falcon3_1b.json"
     }
   }
 }
