@@ -4,8 +4,20 @@
   "lower_is_better": true,
   "board": {
     "device": "soc1sim",
-    "launcher_timeout_s": 600,
-    "outer_timeout_s": 660,
+    "hardware": {
+      "schema_version": 1,
+      "epoch": "et-soc1-aifoundry3-600-400-tdp0-v1",
+      "board_id": "aifoundry3",
+      "hostnames": [
+        "aifoundry3",
+        "esperanto-soc3"
+      ],
+      "minion_frequency_mhz": 600,
+      "noc_frequency_mhz": 400,
+      "tdp_w": 0
+    },
+    "launcher_timeout_s": 60,
+    "outer_timeout_s": 75,
     "comment": "Real silicon via PCIe on a self-hosted ET board runner.",
     "models": {
       "yolo": {
@@ -300,6 +312,9 @@
     },
     "smolvlm2_500m_video": {
       "config": "ported_models/llama_cpp_et/benchmarks/smolvlm2_500m_video.json"
+    },
+    "smolvlm_500m": {
+      "config": "ported_models/llama_cpp_et/benchmarks/smolvlm_500m.json"
     },
     "minicpm5_1b": {
       "config": "ported_models/llama_cpp_et/benchmarks/minicpm5_1b.json"

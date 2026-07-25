@@ -450,6 +450,42 @@
       "sha256": "1032b203f4b7faf2ea0268dddc1d9568e7ad8cbc39eb077b62ecf7b171bf90ff",
       "size_bytes": 282714
     },
+    "smolvlm_500m_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "SmolVLM-500M-Instruct-Q8_0",
+      "filename": "SmolVLM-500M-Instruct-Q8_0.gguf",
+      "env": "SMOLVLM_500M_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "ggml-org/SmolVLM-500M-Instruct-GGUF",
+        "revision": "72e986006ef53e37cdd3f6d4241c90b0f01df376",
+        "filename": "SmolVLM-500M-Instruct-Q8_0.gguf",
+        "url": "https://huggingface.co/ggml-org/SmolVLM-500M-Instruct-GGUF/resolve/72e986006ef53e37cdd3f6d4241c90b0f01df376/SmolVLM-500M-Instruct-Q8_0.gguf"
+      },
+      "local_cache": "local-artifacts/models/smolvlm_500m/SmolVLM-500M-Instruct-Q8_0.gguf",
+      "sha256": "9d4612de6a42214499e301494a3ecc2be0abdd9de44e663bda63f1152fad1bf4",
+      "size_bytes": 436806912,
+      "note": "SmolVLM 500M LLM Q8_0 (Idefics3 arch). LLM backbone is SmolLM2-360M-Instruct (already ported). Requires mmproj for vision."
+    },
+    "smolvlm_500m_mmproj_q8": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "SmolVLM-500M-mmproj-Q8_0",
+      "filename": "mmproj-SmolVLM-500M-Instruct-Q8_0.gguf",
+      "env": "SMOLVLM_500M_MMPROJ_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "ggml-org/SmolVLM-500M-Instruct-GGUF",
+        "revision": "72e986006ef53e37cdd3f6d4241c90b0f01df376",
+        "filename": "mmproj-SmolVLM-500M-Instruct-Q8_0.gguf",
+        "url": "https://huggingface.co/ggml-org/SmolVLM-500M-Instruct-GGUF/resolve/72e986006ef53e37cdd3f6d4241c90b0f01df376/mmproj-SmolVLM-500M-Instruct-Q8_0.gguf"
+      },
+      "local_cache": "local-artifacts/models/smolvlm_500m/mmproj-SmolVLM-500M-Instruct-Q8_0.gguf",
+      "sha256": "d1eb8b6b23979205fdf63703ed10f788131a3f812c7b1f72e0119d5d81295150",
+      "size_bytes": 108783360,
+      "note": "SmolVLM 500M vision projector (SigLIP ~93M + MLP). Q8_0 quantized. Must be loaded alongside smolvlm_500m_q8_gguf."
+    },
     "minicpm5_1b_q8_gguf": {
       "kind": "model",
       "framework": "llama.cpp-et",

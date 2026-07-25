@@ -36,6 +36,7 @@ python3 "$repo_root/.github/ci/scripts/prepare_trusted_smolvlm2_candidate.py" \
   --baseline-config "$baseline_config" \
   --output-config "$candidate_config" \
   --metadata "$metadata"
+cp "$metadata" "$output_dir/candidate-metadata.json"
 
 if [[ "$(jq -r 'if .targeted then 1 else 0 end' "$metadata")" != "1" ]]; then
   echo "PR does not change the SmolVLM2 runtime." >&2
@@ -81,24 +82,12 @@ echo "==> Trusted SmolVLM2 candidate: $candidate_runtime_url@$candidate_runtime_
 git -C "$repo_root/$runtime_path" remote remove trusted-candidate >/dev/null 2>&1 || true
 git -C "$repo_root/$runtime_path" remote add trusted-candidate "$candidate_runtime_url"
 git -C "$repo_root/$runtime_path" fetch --no-tags --depth 1 trusted-candidate "$candidate_runtime_sha"
-
-invalid_runtime_paths=()
-while IFS= read -r path; do
-  case "$path" in
-    ggml/src/ggml-et/et-kernels/src/*.c|\
-    ggml/src/ggml-et/et-kernels/src/*.h|\
-    ggml/src/ggml-et/et-kernels/src/*.S|\
-    ggml/src/ggml-et/et-kernels/src/*.inc)
-      mode="$(git -C "$repo_root/$runtime_path" ls-tree "$candidate_runtime_sha" -- "$path" | awk '{print $1}')"
-      if [[ -n "$mode" && "$mode" != 100644 ]]; then
-        invalid_runtime_paths+=("$path (mode $mode)")
-      fi
-      ;;
-    *) invalid_runtime_paths+=("$path") ;;
-  esac
-done < <(git -C "$repo_root/$runtime_path" diff --name-only "$main_runtime_sha" "$candidate_runtime_sha")
-if [[ "${#invalid_runtime_paths[@]}" -gt 0 ]]; then
-  printf 'error: candidate runtime changes protected paths: %s\n' "${invalid_runtime_paths[@]}" >&2
+if ! python3 "$repo_root/.github/ci/scripts/trusted_smolvlm2_runtime_scope.py" \
+  --repo "$repo_root/$runtime_path" \
+  --base "$main_runtime_sha" \
+  --head "$candidate_runtime_sha" \
+  --output "$output_dir/runtime-changes.json"; then
+  echo "error: candidate runtime changes paths outside the tracked SmolVLM2 implementation surface" >&2
   exit 1
 fi
 git -C "$repo_root/$runtime_path" checkout --detach "$candidate_runtime_sha"

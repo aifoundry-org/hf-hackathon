@@ -29,6 +29,7 @@ class TrustedSmolVLM2Tests(unittest.TestCase):
         *,
         candidate_ppl: float = 22.0,
         candidate_wall: float = 99.0,
+        candidate_boot: str = "test-boot",
         after: int = 1002,
     ) -> int:
         with tempfile.TemporaryDirectory() as raw:
@@ -37,8 +38,16 @@ class TrustedSmolVLM2Tests(unittest.TestCase):
             contract_path.write_text(json.dumps(self.contract))
             contract_sha = hashlib.sha256(contract_path.read_bytes()).hexdigest()
 
-            def score(cycles: int, ppl: float = 22.0, wall: float = 100.0) -> dict:
+            def score(cycles: int, ppl: float = 22.0, wall: float = 100.0, boot: str = "test-boot") -> dict:
                 return {
+                    "hardware_epoch": "et-soc1-aifoundry3-600-400-tdp0-v1",
+                    "hardware": {
+                        "board_id": "aifoundry3",
+                        "boot_id": boot,
+                        "minion_frequency_mhz": 600,
+                        "noc_frequency_mhz": 400,
+                        "tdp_w": 0,
+                    },
                     "passed": True,
                     "pmc_cycles": cycles,
                     "median_end_to_end_s": wall,
@@ -56,7 +65,7 @@ class TrustedSmolVLM2Tests(unittest.TestCase):
             paths = []
             for name, value in (
                 ("before", score(1000)),
-                ("candidate", score(candidate_cycles, candidate_ppl, candidate_wall)),
+                ("candidate", score(candidate_cycles, candidate_ppl, candidate_wall, candidate_boot)),
                 ("after", score(after, wall=100.2)),
             ):
                 path = root / f"{name}.json"
@@ -92,6 +101,9 @@ class TrustedSmolVLM2Tests(unittest.TestCase):
 
     def test_gate_marks_main_drift_as_infrastructure(self) -> None:
         self.assertEqual(self.run_gate(900, after=1100), 2)
+
+    def test_gate_rejects_a_candidate_from_another_board_boot(self) -> None:
+        self.assertEqual(self.run_gate(990, candidate_boot="different-boot"), 2)
 
 
 if __name__ == "__main__":

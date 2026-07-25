@@ -135,8 +135,11 @@ def main() -> int:
         "changed_paths": paths,
         "runtime_changed": runtime_changed,
         "runtime_path": runtime_path,
+        "base_runtime_revision": base_revision,
+        "base_runtime_url": base_url,
         "runtime_revision": runtime_revision,
         "runtime_url": runtime_url,
+        "runtime_url_changed": runtime_url != base_url,
     }
     metadata_path = Path(args.metadata)
     metadata_path.parent.mkdir(parents=True, exist_ok=True)
