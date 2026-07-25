@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "jina_v3",
+  "identity_id": "jina-bert-v3",
+  "source": {
+    "repo": "jinaai/jina-embeddings-v3",
+    "revision": "ab036b023d30b4d1138c4c3bfa9f0c445ab455d6",
+    "license": "cc-by-nc-4.0"
+  },
+  "implementation_paths": ["ported_models/jina_v3"],
+  "benchmark_config": ".github/ci/benchmark_config.json",
+  "recipe": "ported_models/jina_v3/docs/RECIPE.md"
+}
