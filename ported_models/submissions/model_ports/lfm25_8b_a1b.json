@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "lfm25_8b_a1b",
+  "identity_id": "lfm2moe",
+  "source": {
+    "repo": "LiquidAI/LFM2.5-8B-A1B",
+    "revision": "5673e0de372b64331504de73bbbc33b0dde71903",
+    "license": "lfm-open-license-v1.0"
+  },
+  "implementation_paths": ["ported_models/lfm25_8b_a1b"],
+  "benchmark_config": ".github/ci/benchmark_config.json",
+  "recipe": "ported_models/lfm25_8b_a1b/docs/RECIPE.md"
+}
