@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "track": "llama_3_2_1b_fastest",
+  "model": "llama32_1b",
+  "submission_id": "chiruguru99-llama32-rms-minion2-v1",
+  "runtime_revision": "26b1011518a33e15050796630e829c315ab6704f"
+}
