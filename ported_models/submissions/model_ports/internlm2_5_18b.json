@@ -11,6 +11,6 @@
   "implementation_paths": [
     "ported_models/internlm2_5_18b"
   ],
-  "benchmark_config": ".github/ci/benchmark_config.json",
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/internlm2_5_18b.json",
   "recipe": "ported_models/internlm2_5_18b/docs/RECIPE.md"
 }
