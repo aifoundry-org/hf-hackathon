@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "tiny_starcoder_py",
+  "identity_id": "starcoder",
+  "source": {
+    "repo": "bigcode/tiny_starcoder_py",
+    "revision": "8547527bef0bc927268c1653cce6948c5c242dd1",
+    "license": "bigcode-openrail-m"
+  },
+  "implementation_paths": [
+    "ported_models/tiny_starcoder_py"
+  ],
+  "benchmark_config": ".github/ci/benchmark_config.json",
+  "recipe": "ported_models/tiny_starcoder_py/docs/RECIPE.md"
+}
