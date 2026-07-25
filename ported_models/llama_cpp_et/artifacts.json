@@ -485,6 +485,23 @@
       "sha256": "d1eb8b6b23979205fdf63703ed10f788131a3f812c7b1f72e0119d5d81295150",
       "size_bytes": 108783360,
       "note": "SmolVLM 500M vision projector (SigLIP ~93M + MLP). Q8_0 quantized. Must be loaded alongside smolvlm_500m_q8_gguf."
+    },
+    "granite4_h_micro_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "granite-4.0-h-micro-Q8_0",
+      "filename": "granite-4.0-h-micro-Q8_0.gguf",
+      "env": "GRANITE4_H_MICRO_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "ibm-granite/granite-4.0-h-micro-GGUF",
+        "revision": "main",
+        "filename": "granite-4.0-h-micro-Q8_0.gguf",
+        "url": "https://huggingface.co/ibm-granite/granite-4.0-h-micro-GGUF/resolve/main/granite-4.0-h-micro-Q8_0.gguf"
+      },
+      "sha256": "a009111abf2865b7aad1e66326a6c772cddc29bccd22898f470292068b27bb59",
+      "local_cache": "local-artifacts/models/granite-4.0-h-micro-Q8_0.gguf",
+      "board_path": "/data/models/granite-4.0-h-micro-Q8_0.gguf"
     }
   }
 }
