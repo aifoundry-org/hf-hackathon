@@ -1,0 +1,76 @@
+{
+  "schema_version": 2,
+  "model": {
+    "repo": "google/gemma-2b-it",
+    "revision": "main",
+    "license": "gemma"
+  },
+  "baseline_artifacts": {
+    "model": {
+      "filename": "gemma-2b-it.Q8_0.gguf",
+      "sha256": "dae8a0a75dda3553c06af737adfff0c003ed1b6393932964cce72bb4f0fd41f6",
+      "size_bytes": 2669070080,
+      "source_repo": "MaziyarPanahi/gemma-2b-it-GGUF",
+      "source_revision": "72164ae6fc4003cecf37bc07f3a825b8a20b8cbb"
+    }
+  },
+  "architecture": {
+    "general_architecture": "gemma",
+    "model_name": "Gemma-2B-it",
+    "parameter_count": 2506172416,
+    "block_count": 18,
+    "embedding_length": 2048,
+    "feed_forward_length": 16384,
+    "attention_heads": 8,
+    "attention_kv_heads": 1,
+    "head_dim": 256,
+    "vocabulary_size": 256000,
+    "rope_theta": 10000,
+    "rms_norm_eps": 1e-06,
+    "notes": "Gemma v1: RMSNorm + RoPE-NEOX + GeGLU FFN + MQA (1 KV head); embedding scaled by sqrt(hidden_size), query scaled by 1/sqrt(head_dim); no bias, no LayerNorm"
+  },
+  "candidate_policy": {
+    "artifacts_must_match_baseline": true
+  },
+  "runtime": {
+    "submodule_path": "ported_models/llama_cpp_et/src/llama.cpp-et",
+    "required_device": "ET",
+    "required_gpu_layers": 99,
+    "require_full_offload": true
+  },
+  "generation_validation": {
+    "prompt": "Repeat this token sequence without commentary: OK OK OK OK OK OK OK OK OK OK",
+    "max_tokens": 96,
+    "temperature": 0,
+    "ignore_eos": true,
+    "min_completion_tokens": 32
+  },
+  "correctness": {
+    "host_reference": "CPU execution of the candidate GGUF through the main-owned llama.cpp-et harness",
+    "answer_comparison": "lowercase alphanumeric tokens, exact match",
+    "minimum_host_agreement": 1.0,
+    "require_full_offload": true,
+    "require_zero_op_fallbacks": true,
+    "allowed_op_fallbacks": []
+  },
+  "quality": {
+    "perplexity": {
+      "corpus_artifact": "wikitext2_raw_test",
+      "corpus_sha256": "173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08",
+      "context_size": 128,
+      "batch_size": 128,
+      "ubatch_size": 128,
+      "chunks": 4,
+      "max_relative_regression": 0.2,
+      "maximum_et_cpu_relative_difference": 0.01
+    }
+  },
+  "performance": {
+    "metric": "tokens_per_second",
+    "lower_is_better": false,
+    "generation_tokens": 128,
+    "prompt_tokens": 256,
+    "repetitions": 3,
+    "max_sample_cv": 0.05
+  }
+}

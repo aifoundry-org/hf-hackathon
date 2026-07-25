@@ -315,6 +315,9 @@
     },
     "smolvlm_500m": {
       "config": "ported_models/llama_cpp_et/benchmarks/smolvlm_500m.json"
+    },
+    "gemma_2b": {
+      "config": "ported_models/gemma/benchmarks/gemma.json"
     }
   }
 }
