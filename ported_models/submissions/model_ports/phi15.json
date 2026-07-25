@@ -11,6 +11,6 @@
   "implementation_paths": [
     "ported_models/phi15"
   ],
-  "benchmark_config": ".github/ci/benchmark_config.json",
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/phi15.json",
   "recipe": "ported_models/phi15/docs/RECIPE.md"
 }

@@ -11,6 +11,6 @@
   "implementation_paths": [
     "ported_models/stablelm2_16b"
   ],
-  "benchmark_config": ".github/ci/benchmark_config.json",
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/stablelm2_16b.json",
   "recipe": "ported_models/stablelm2_16b/docs/RECIPE.md"
 }
