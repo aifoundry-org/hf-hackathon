@@ -315,6 +315,12 @@
     },
     "smolvlm_500m": {
       "config": "ported_models/llama_cpp_et/benchmarks/smolvlm_500m.json"
+    },
+    "falcon7b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/falcon7b.json"
+    },
+    "afm45b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/afm45b.json"
     }
   }
 }
