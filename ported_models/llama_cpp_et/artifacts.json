@@ -485,6 +485,24 @@
       "sha256": "d1eb8b6b23979205fdf63703ed10f788131a3f812c7b1f72e0119d5d81295150",
       "size_bytes": 108783360,
       "note": "SmolVLM 500M vision projector (SigLIP ~93M + MLP). Q8_0 quantized. Must be loaded alongside smolvlm_500m_q8_gguf."
+    },
+    "gpt_oss_20b_mxfp4_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "gpt-oss-20b-MXFP4",
+      "filename": "gpt-oss-20b-MXFP4.gguf",
+      "env": "GPT_OSS_20B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "ggml-org/gpt-oss-20b-GGUF",
+        "revision": "main",
+        "filename": "gpt-oss-20b-MXFP4.gguf",
+        "url": "https://huggingface.co/ggml-org/gpt-oss-20b-GGUF/resolve/main/gpt-oss-20b-MXFP4.gguf"
+      },
+      "sha256": "27cd6c432c7672cb812a92f611cf3ba7bbc35928262bb1e1253ff4ee6ae35901",
+      "size": 12109566624,
+      "local_cache": "local-artifacts/models/gpt-oss-20b-MXFP4.gguf",
+      "board_path": "/data/models/gpt-oss-20b-MXFP4.gguf"
     }
   }
 }
