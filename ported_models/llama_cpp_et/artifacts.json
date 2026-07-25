@@ -485,6 +485,60 @@
       "sha256": "d1eb8b6b23979205fdf63703ed10f788131a3f812c7b1f72e0119d5d81295150",
       "size_bytes": 108783360,
       "note": "SmolVLM 500M vision projector (SigLIP ~93M + MLP). Q8_0 quantized. Must be loaded alongside smolvlm_500m_q8_gguf."
+    },
+    "ernie45_03b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "ERNIE-4.5-0.3B-PT-Q8_0",
+      "filename": "baidu_ERNIE-4.5-0.3B-PT-Q8_0.gguf",
+      "env": "ERNIE45_03B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "bartowski/baidu_ERNIE-4.5-0.3B-PT-GGUF",
+        "revision": "main",
+        "filename": "baidu_ERNIE-4.5-0.3B-PT-Q8_0.gguf",
+        "url": "https://huggingface.co/bartowski/baidu_ERNIE-4.5-0.3B-PT-GGUF/resolve/main/baidu_ERNIE-4.5-0.3B-PT-Q8_0.gguf"
+      },
+      "sha256": "022ce1cfc46a2818a96b8a683aec0944047cac6745f35aa5a2a48729a58caa74",
+      "size": 385789248,
+      "local_cache": "local-artifacts/models/baidu_ERNIE-4.5-0.3B-PT-Q8_0.gguf",
+      "board_path": "/data/models/baidu_ERNIE-4.5-0.3B-PT-Q8_0.gguf"
+    },
+    "codeshell_7b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "CodeShell-7B-Chat-Q8_0",
+      "filename": "WisdomShell.Shell-7B-Chat.Q8_0.gguf",
+      "env": "CODESHELL_7B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "DevQuasar/WisdomShell.Shell-7B-Chat-GGUF",
+        "revision": "main",
+        "filename": "WisdomShell.Shell-7B-Chat.Q8_0.gguf",
+        "url": "https://huggingface.co/DevQuasar/WisdomShell.Shell-7B-Chat-GGUF/resolve/main/WisdomShell.Shell-7B-Chat.Q8_0.gguf"
+      },
+      "sha256": "207e1ee777455b17d3e58f3174dead52f1c8d007690c96679a7deba355284876",
+      "size": 8482151296,
+      "local_cache": "local-artifacts/models/WisdomShell.Shell-7B-Chat.Q8_0.gguf",
+      "board_path": "/data/models/WisdomShell.Shell-7B-Chat.Q8_0.gguf"
+    },
+    "cohere2_7b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "c4ai-command-r7b-12-2024-Q8_0",
+      "filename": "c4ai-command-r7b-12-2024-Q8_0.gguf",
+      "env": "COHERE2_7B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "bartowski/c4ai-command-r7b-12-2024-GGUF",
+        "revision": "main",
+        "filename": "c4ai-command-r7b-12-2024-Q8_0.gguf",
+        "url": "https://huggingface.co/bartowski/c4ai-command-r7b-12-2024-GGUF/resolve/main/c4ai-command-r7b-12-2024-Q8_0.gguf"
+      },
+      "sha256": "cd7281ec7974bb5810d8f6c922801d6fff3e8bd761073942757dcef990ca9b4d",
+      "size": 8541100160,
+      "local_cache": "local-artifacts/models/c4ai-command-r7b-12-2024-Q8_0.gguf",
+      "board_path": "/data/models/c4ai-command-r7b-12-2024-Q8_0.gguf"
     }
   }
 }
