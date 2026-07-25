@@ -485,6 +485,25 @@
       "sha256": "d1eb8b6b23979205fdf63703ed10f788131a3f812c7b1f72e0119d5d81295150",
       "size_bytes": 108783360,
       "note": "SmolVLM 500M vision projector (SigLIP ~93M + MLP). Q8_0 quantized. Must be loaded alongside smolvlm_500m_q8_gguf."
+    },
+    "modernbert_sentiment_f32_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "modernBERT-base-multilingual-sentiment-F32",
+      "filename": "modernbert_sentiment_f32.gguf",
+      "env": "MODERNBERT_SENTIMENT_MODEL_PATH",
+      "source": {
+        "type": "github_release",
+        "repo": "DarthCeltic/hf-hackathon",
+        "tag": "model-port-modernbert-sentiment-v1",
+        "filename": "modernbert_sentiment_f32.gguf",
+        "url": "https://github.com/DarthCeltic/hf-hackathon/releases/download/model-port-modernbert-sentiment-v1/modernbert_sentiment_f32.gguf",
+        "note": "GGUF conversion of upstream clapAI/modernBERT-base-multilingual-sentiment (huggingface.co, revision baa7f26fee4eca5aec35538caa5fdda7b86d83c6, license apache-2.0), produced with this repo's own convert_hf_to_gguf.py (ggml LLM_ARCH_MODERN_BERT). Hosted as a GitHub Release asset because we do not have a Hugging Face upload token; reproducible from the committed recipe (ported_models/modernbert_sentiment/docs/RECIPE.md)."
+      },
+      "sha256": "7896d82f2548762409157ae4e68732cd2c78796b5c8cea5e0145b964e916ab4c",
+      "size": 600207808,
+      "local_cache": "local-artifacts/models/modernbert_sentiment_f32.gguf",
+      "board_path": "/data/models/modernbert_sentiment_f32.gguf"
     }
   }
 }
