@@ -485,6 +485,60 @@
       "sha256": "d1eb8b6b23979205fdf63703ed10f788131a3f812c7b1f72e0119d5d81295150",
       "size_bytes": 108783360,
       "note": "SmolVLM 500M vision projector (SigLIP ~93M + MLP). Q8_0 quantized. Must be loaded alongside smolvlm_500m_q8_gguf."
+    },
+    "openelm_1_1b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "OpenELM-1_1B-Instruct-Q8_0",
+      "filename": "OpenELM-1_1B-Instruct-Q8_0.gguf",
+      "env": "OPENELM_1_1B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "LiteLLMs/OpenELM-1_1B-Instruct-GGUF",
+        "revision": "main",
+        "filename": "Q8_0/Q8_0-00001-of-00001.gguf",
+        "url": "https://huggingface.co/LiteLLMs/OpenELM-1_1B-Instruct-GGUF/resolve/main/Q8_0/Q8_0-00001-of-00001.gguf"
+      },
+      "sha256": "13dc6676b2355d0356d7892d8b34d8518233d79a28f9ea1d14f94e81d7decad5",
+      "size": 1148477504,
+      "local_cache": "local-artifacts/models/OpenELM-1_1B-Instruct-Q8_0.gguf",
+      "board_path": "/data/models/OpenELM-1_1B-Instruct-Q8_0.gguf"
+    },
+    "olmo_1b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "OLMo-1B-hf-Q8_0",
+      "filename": "OLMo-1B-hf-Q8_0.gguf",
+      "env": "OLMO_1B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "RichardErkhov/allenai_-_OLMo-1B-hf-gguf",
+        "revision": "main",
+        "filename": "OLMo-1B-hf.Q8_0.gguf",
+        "url": "https://huggingface.co/RichardErkhov/allenai_-_OLMo-1B-hf-gguf/resolve/main/OLMo-1B-hf.Q8_0.gguf"
+      },
+      "sha256": "11ad66bb4b0c4b9d4b40ccef351a506e322fc8265b87e3638b18802768d8875e",
+      "size": 1252087840,
+      "local_cache": "local-artifacts/models/OLMo-1B-hf-Q8_0.gguf",
+      "board_path": "/data/models/OLMo-1B-hf-Q8_0.gguf"
+    },
+    "granite_1b_a400m_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "granite-3.0-1b-a400m-instruct-Q8_0",
+      "filename": "granite-3.0-1b-a400m-instruct-Q8_0.gguf",
+      "env": "GRANITE_3_1B_A400M_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "bartowski/granite-3.0-1b-a400m-instruct-GGUF",
+        "revision": "main",
+        "filename": "granite-3.0-1b-a400m-instruct-Q8_0.gguf",
+        "url": "https://huggingface.co/bartowski/granite-3.0-1b-a400m-instruct-GGUF/resolve/main/granite-3.0-1b-a400m-instruct-Q8_0.gguf"
+      },
+      "sha256": "8c37dd0c10b73e9304b98a242be4adcd3050c09e9042c4862d49e2cfccf35411",
+      "size": 1422237440,
+      "local_cache": "local-artifacts/models/granite-3.0-1b-a400m-instruct-Q8_0.gguf",
+      "board_path": "/data/models/granite-3.0-1b-a400m-instruct-Q8_0.gguf"
     }
   }
 }

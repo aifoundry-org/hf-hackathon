@@ -25,28 +25,36 @@ model attempted in this specific porting campaign.
 
 ## Verification performed this round
 
-GGUF-metadata-level only (downloaded exact file, verified sha256, confirmed
-`general.architecture` + tensor count) -- not a full ET sysemu load/offload
-test this round. This is the first MoE architecture in this campaign, so the
-ET-SoC1 kernel-support question below is a real open question, not a
-formality like the dense models in this same PR.
+Host reference: built a plain CPU-only (`GGML_ET=OFF`) configuration of the
+same vendored `llama.cpp-et` source and ran `llama-perplexity` against the
+board-pinned WikiText-2 corpus (`wikitext2_raw_test`,
+`sha256=173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08`),
+context 128 / batch 128 / ubatch 128 / 4 chunks. The model loads and runs
+cleanly on the CPU backend:
 
-## Open question: MoE routing op support (not confirmed either way)
+```
+Final estimate: PPL = 5.7635 +/- 0.84793
+```
 
-MoE inference needs `GGML_OP_MUL_MAT_ID` (indexed/batched matmul against a
-per-token-selected expert weight subset) in addition to the standard dense
-ops. Earlier this session's op-coverage audit of `ggml-et.cpp` (see
-`falcon7b_recipe.md`'s ET-op list from earlier in this campaign) found
-`MUL_MAT_ID` already listed as supported -- but that finding was never
-exercised against a REAL MoE model until now. This port has not yet been
-loaded against the ET sysemu backend to confirm the routing path actually
-works end-to-end; flagging as an open verification item rather than
-asserting success.
+This confirms the MoE routing path (`GGML_OP_MUL_MAT_ID`, indexed/batched
+matmul against a per-token-selected expert weight subset) works correctly
+on `ggml-cpu` -- the first MoE model actually exercised in this campaign.
+
+## Open question: MoE routing on the ET backend specifically (not confirmed)
+
+CPU-backend success does not prove the ET-SoC1 backend's own `MUL_MAT_ID`
+implementation works -- `ggml-et.cpp` lists it as supported (per the
+op-coverage audit in `falcon7b_recipe.md` from earlier in this campaign),
+but that has never been exercised against a real MoE model on ET sysemu or
+board. Flagging as a genuinely open verification item, not a formality.
 
 ## Open items for maintainer review
 
-- Not board-registered; `ported_models/submissions/model_ports/granite_3_1b_a400m.json`
-  is the model-ports track claim, pending identity approval.
+- Registered in `artifacts.json`, `ported_models/llama_cpp_et/benchmarks/granite_3_1b_a400m.json`,
+  and `.github/ci/benchmark_config.json` (port 18132) -- board-testable now,
+  independent of the model-ports track claim below.
+- `ported_models/submissions/model_ports/granite_3_1b_a400m.json` is the
+  model-ports track claim, pending identity approval.
 - No changes to any protected file or the vendored submodule.
-- MoE routing (`MUL_MAT_ID`) not live-verified against ET sysemu -- see note
-  above. Genuinely unproven, not a hedge.
+- MoE routing (`MUL_MAT_ID`) confirmed on CPU, NOT live-verified against ET
+  sysemu specifically -- see note above. Genuinely unproven on ET, not a hedge.
