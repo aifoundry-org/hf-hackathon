@@ -11,6 +11,6 @@
   "implementation_paths": [
     "ported_models/maincoder_1b"
   ],
-  "benchmark_config": ".github/ci/benchmark_config.json",
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/maincoder_1b.json",
   "recipe": "ported_models/maincoder_1b/docs/RECIPE.md"
 }
