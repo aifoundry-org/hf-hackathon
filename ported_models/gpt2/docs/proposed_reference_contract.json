@@ -1,0 +1,76 @@
+{
+  "schema_version": 2,
+  "model": {
+    "repo": "openai-community/gpt2",
+    "revision": "main",
+    "license": "mit"
+  },
+  "baseline_artifacts": {
+    "model": {
+      "filename": "gpt2.Q8_0.gguf",
+      "sha256": "9ab5d3c0b9ac838651c2bfd2db2d5b75d40077562557ccd23fca9569bdc2eee0",
+      "size_bytes": 177669376,
+      "source_repo": "mradermacher/gpt2-GGUF",
+      "source_revision": "0cda0c2b1459ccd32256c6ddde9d230934112c1c"
+    }
+  },
+  "architecture": {
+    "general_architecture": "gpt2",
+    "model_name": "GPT-2-124M",
+    "parameter_count": 124439808,
+    "block_count": 12,
+    "embedding_length": 768,
+    "feed_forward_length": 3072,
+    "attention_heads": 12,
+    "attention_kv_heads": 12,
+    "head_dim": 64,
+    "vocabulary_size": 50257,
+    "context_length": 1024,
+    "positional_encoding": "learned",
+    "notes": "GPT-2 classic architecture: learned positional embeddings (no RoPE), LayerNorm with bias, GELU FFN, fused QKV projection; multi-head attention (no GQA)"
+  },
+  "candidate_policy": {
+    "artifacts_must_match_baseline": true
+  },
+  "runtime": {
+    "submodule_path": "ported_models/llama_cpp_et/src/llama.cpp-et",
+    "required_device": "ET",
+    "required_gpu_layers": 99,
+    "require_full_offload": true
+  },
+  "generation_validation": {
+    "prompt": "Repeat this token sequence without commentary: OK OK OK OK OK OK OK OK OK OK",
+    "max_tokens": 96,
+    "temperature": 0,
+    "ignore_eos": true,
+    "min_completion_tokens": 32
+  },
+  "correctness": {
+    "host_reference": "CPU execution of the candidate GGUF through the main-owned llama.cpp-et harness",
+    "answer_comparison": "lowercase alphanumeric tokens, exact match",
+    "minimum_host_agreement": 1.0,
+    "require_full_offload": true,
+    "require_zero_op_fallbacks": true,
+    "allowed_op_fallbacks": []
+  },
+  "quality": {
+    "perplexity": {
+      "corpus_artifact": "wikitext2_raw_test",
+      "corpus_sha256": "173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08",
+      "context_size": 128,
+      "batch_size": 128,
+      "ubatch_size": 128,
+      "chunks": 4,
+      "max_relative_regression": 0.2,
+      "maximum_et_cpu_relative_difference": 0.01
+    }
+  },
+  "performance": {
+    "metric": "tokens_per_second",
+    "lower_is_better": false,
+    "generation_tokens": 128,
+    "prompt_tokens": 256,
+    "repetitions": 3,
+    "max_sample_cv": 0.05
+  }
+}
