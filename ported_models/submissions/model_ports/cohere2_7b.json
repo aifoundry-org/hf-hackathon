@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "cohere2_7b",
+  "identity_id": "cohere2",
+  "source": {
+    "repo": "CohereLabs/c4ai-command-r7b-12-2024",
+    "revision": "4f3d0aa6856e322f2f4480fe65420d5d53d297b8",
+    "license": "cc-by-nc-4.0"
+  },
+  "implementation_paths": [
+    "ported_models/cohere2_7b"
+  ],
+  "benchmark_config": ".github/ci/benchmark_config.json",
+  "recipe": "ported_models/cohere2_7b/docs/RECIPE.md"
+}
