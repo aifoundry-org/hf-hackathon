@@ -456,6 +456,24 @@ static void yr_hart_elem_range(uint32_t count, uint32_t *lo, uint32_t *hi)
 
 
 /*
+ * Packed vector version of the 3x3 stride-1 same-pad DEPTHWISE path (group ==
+ * channels, one input channel per output channel), ET target only. Depthwise is
+ * the only conv class the graph never specialised, the general grouped path
+ * cannot pair two output channels because outputs_per_group is 1, so every
+ * depthwise channel runs pure scalar single-oc. These convs are only 0.7 percent
+ * of the graph's multiply-accumulates but about 11 percent of its conv memory
+ * traffic, and this graph is memory bound. Each channel is independent with no
+ * input-channel reduction, so the interior eight-wide vector loop is the same as
+ * yr_conv3x3_vpu with the icg loop removed and the input plane indexed by the
+ * output channel. Fused multiply-add rounds differently from the scalar path, so
+ * a build with this validates by tolerance.
+ */
+#ifndef YR_CONV_DW3X3_VPU
+#define YR_CONV_DW3X3_VPU 1
+#endif
+
+
+/*
  * One output pixel of a 3x3 stride-1 pad-1 dilation-1 ungrouped Conv, for a
  * single output channel whose 3x3-per-input-channel weights start at w_oc.
  * Used only for the border pixels of yr_conv3x3_s1, where some taps fall
@@ -708,6 +726,118 @@ static uint32_t yr_conv3x3_vpu(
                         out_oc[(uint64_t)oh * input_w + ow] = yr_conv3x3_pixel(
                             batch_input, weight_oc, bias_value, input_channels,
                             input_h, input_w, oh, ow);
+                    }
+                }
+            }
+        }
+    }
+    return YR_STATUS_OK;
+}
+#endif
+
+
+#if YR_CONV_DW3X3_VPU && defined(__riscv)
+/*
+ * One output pixel of a 3x3 stride-1 pad-1 dilation-1 depthwise Conv, for a
+ * single channel whose nine weights start at w9 and whose input plane starts at
+ * chan. Used only for the border pixels of yr_conv_dw3x3_s1_vpu, where some taps
+ * fall outside the input. Skips out-of-range taps and accumulates in (ky, kx)
+ * order from the bias, matching the general depthwise loop for that pixel.
+ */
+static float yr_dw3x3_pixel(
+    const float *chan, const float *w9, float bias_value,
+    uint32_t input_h, uint32_t input_w, int32_t oh, int32_t ow)
+{
+    float acc = bias_value;
+    int32_t ky;
+    for (ky = 0; ky < 3; ++ky) {
+        const int32_t ih = oh + ky - 1;
+        int32_t kx;
+        if (ih < 0 || ih >= (int32_t)input_h) {
+            continue;
+        }
+        for (kx = 0; kx < 3; ++kx) {
+            const int32_t iw = ow + kx - 1;
+            if (iw < 0 || iw >= (int32_t)input_w) {
+                continue;
+            }
+            acc += w9[ky * 3 + kx]
+                * chan[(uint64_t)ih * input_w + iw];
+        }
+    }
+    return acc;
+}
+
+/*
+ * Packed eight-wide 3x3 stride-1 same-pad depthwise conv. One channel at a time
+ * so the channel count maps cleanly across harts; the interior columns whose
+ * whole 3x3 neighbourhood is in bounds run eight positions at a time on the
+ * vector unit, and the first and last column of each interior row plus the top
+ * and bottom rows fall back to the scalar per-pixel helper. Each channel reads
+ * only its own input plane (no input-channel reduction) and accumulates over ky
+ * then kx from the bias, the same order the scalar path uses.
+ */
+static uint32_t yr_conv_dw3x3_s1_vpu(
+    uint32_t batches, uint32_t channels, uint32_t input_h, uint32_t input_w,
+    const float *input, const float *weight, const float *bias, float *output)
+{
+    const uint32_t hw = input_h * input_w;
+    uint32_t c_lo, c_hi, n, c;
+    int32_t oh, ow;
+    yr_hart_range(channels, &c_lo, &c_hi);
+    for (n = 0; n < batches; ++n) {
+        const float *const batch_input =
+            input + (uint64_t)n * channels * hw;
+        float *const batch_output =
+            output + (uint64_t)n * channels * hw;
+        for (c = c_lo; c < c_hi; ++c) {
+            const float *const chan = batch_input + (uint64_t)c * hw;
+            const float *const w9 = weight + (uint64_t)c * 9u;
+            const float bias_value = bias == (const float *)0 ? 0.0f : bias[c];
+            union { float f; uint32_t u; } bo = { bias_value };
+            float *const out_c = batch_output + (uint64_t)c * hw;
+            for (oh = 0; oh < (int32_t)input_h; ++oh) {
+                if (oh >= 1 && oh <= (int32_t)input_h - 2) {
+                    float *const row = out_c + (uint64_t)oh * input_w;
+                    row[0] = yr_dw3x3_pixel(chan, w9, bias_value,
+                        input_h, input_w, oh, 0);
+                    ow = 1;
+                    while (ow + 8 <= (int32_t)input_w - 1) {
+                        float acc;
+                        const float *const top_left = chan
+                            + (uint64_t)(oh - 1) * input_w + (ow - 1);
+                        uint32_t ky, kx;
+                        __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(acc)
+                            : "r"((uint64_t)bo.u));
+                        for (ky = 0u; ky < 3u; ++ky) {
+                            const float *const pr = top_left
+                                + (uint64_t)ky * input_w;
+                            for (kx = 0u; kx < 3u; ++kx) {
+                                union { float f; uint32_t u; } cw =
+                                    { w9[ky * 3u + kx] };
+                                float iv, wv;
+                                __asm__ volatile("flq2 %0, 0(%1)\n"
+                                    : "=f"(iv) : "r"(pr + kx));
+                                __asm__ volatile("fbcx.ps %0, %1\n"
+                                    : "=f"(wv) : "r"((uint64_t)cw.u));
+                                __asm__ volatile("fmadd.ps %0, %1, %2, %0\n"
+                                    : "+f"(acc) : "f"(iv), "f"(wv));
+                            }
+                        }
+                        __asm__ volatile("fsq2 %1, 0(%0)\n" :: "r"(row + ow),
+                            "f"(acc) : "memory");
+                        ow += 8;
+                    }
+                    for (; ow <= (int32_t)input_w - 2; ++ow) {
+                        row[ow] = yr_dw3x3_pixel(chan, w9, bias_value,
+                            input_h, input_w, oh, ow);
+                    }
+                    row[input_w - 1u] = yr_dw3x3_pixel(chan, w9, bias_value,
+                        input_h, input_w, oh, (int32_t)input_w - 1);
+                } else {
+                    for (ow = 0; ow < (int32_t)input_w; ++ow) {
+                        out_c[(uint64_t)oh * input_w + ow] = yr_dw3x3_pixel(
+                            chan, w9, bias_value, input_h, input_w, oh, ow);
                     }
                 }
             }
@@ -1360,6 +1490,28 @@ static uint32_t yr_conv(
             interior_first, interior_end,
             input, weight, bias, output);
     }
+
+    /*
+     * Dedicated 3x3 stride-1 same-pad depthwise path (group == channels, one
+     * input channel per output channel), the only conv class with no vector or
+     * paired path in the general loop below. Guarded on the exact depthwise
+     * shape so any other grouped conv still falls through to the general path.
+     */
+#if YR_CONV_DW3X3_VPU && defined(__riscv)
+    if ((uint32_t)node->group == input_channels
+        && output_channels == input_channels
+        && channels_per_group == 1u
+        && node->kernel_h == 3 && node->kernel_w == 3
+        && node->stride_h == 1 && node->stride_w == 1
+        && node->dilation_h == 1 && node->dilation_w == 1
+        && node->pad_top == 1 && node->pad_left == 1
+        && node->pad_bottom == 1 && node->pad_right == 1
+        && output_h == input_h && output_w == input_w) {
+        return yr_conv_dw3x3_s1_vpu(
+            batches, input_channels, input_h, input_w,
+            input, weight, bias, output);
+    }
+#endif
 
     /*
      * The tap loops below walk running pointers instead of recomputing the
@@ -2113,6 +2265,112 @@ static uint32_t yr_split(
 
 
 /*
+ * Split across harts, on by default. Split materialises each output as a real
+ * copy (yr_split calls yr_copy_bytes) and otherwise runs on hart 0 alone while
+ * the other fifteen harts idle; it is about 6 percent of the graph's output
+ * traffic and this graph is memory bound. For the outer==1 shape (the C2f
+ * channel splits, where the dims before the split axis multiply to one) each
+ * output is a single contiguous block, so every hart copies a disjoint
+ * cache-line-aligned sub-range of each output and publishes what it wrote. Any
+ * other shape falls back to the serial yr_split, so output stays bit-identical.
+ */
+#ifndef YR_SPLIT_MH
+#define YR_SPLIT_MH 1
+#endif
+
+#if YR_SPLIT_MH
+/*
+ * Multi-hart Split for the outer==1 shape, the dims before the split axis
+ * multiply to one, so each output is a single contiguous block of copy_elements
+ * floats taken from a disjoint slice of the input. Every hart copies a
+ * cache-line-aligned sub-range of each output (yr_hart_elem_range) and publishes
+ * exactly that slice, so the sixteen harts share the copy that yr_split ran
+ * alone. Repeats yr_split's shape validation and returns UNSUPPORTED_SHAPE for
+ * anything it cannot split this way; the caller only routes here after the
+ * dispatch guard confirmed the shape, and every hart sees the same static
+ * manifest so they agree on the outcome. Accumulation-free copy, so the result
+ * is bit-identical to the serial path.
+ */
+static uint32_t yr_split_mh(
+    const struct yr_node_desc *node,
+    const struct yr_tensor_desc *input_desc,
+    const struct yr_tensor_desc *sizes_desc,
+    const struct yr_tensor_desc *const *output_descs,
+    const uint8_t *input,
+    const int64_t *sizes,
+    uint8_t *const *outputs)
+{
+    int32_t axis = yr_normalize_axis(node->axis, input_desc->rank);
+    uint32_t outer;
+    uint32_t inner;
+    uint32_t element_bytes = yr_dtype_bytes(yr_tensor_dtype(input_desc));
+    uint32_t output_index;
+    uint32_t source_axis_offset = 0u;
+    uint64_t axis_sum = 0u;
+
+    if (axis < 0 || node->input_count != 2u
+        || node->output_count == 0u || node->output_count > 3u
+        || yr_tensor_dtype(sizes_desc) != YR_DTYPE_INT64
+        || sizes_desc->elements != node->output_count
+        || element_bytes != (uint32_t)sizeof(float)
+        || !yr_shape_product(input_desc, 0u, (uint32_t)axis, &outer)
+        || !yr_shape_product(
+            input_desc, (uint32_t)axis + 1u, input_desc->rank, &inner)
+        || outer != 1u) {
+        return YR_STATUS_UNSUPPORTED_SHAPE;
+    }
+    for (output_index = 0u; output_index < node->output_count; ++output_index) {
+        const struct yr_tensor_desc *output_desc = output_descs[output_index];
+        uint32_t dimension;
+        if (sizes[output_index] < 0
+            || output_desc == (const struct yr_tensor_desc *)0
+            || outputs[output_index] == (uint8_t *)0
+            || yr_tensor_dtype(output_desc) != yr_tensor_dtype(input_desc)
+            || output_desc->rank != input_desc->rank
+            || output_desc->dims[axis] != (uint32_t)sizes[output_index]) {
+            return YR_STATUS_UNSUPPORTED_SHAPE;
+        }
+        for (dimension = 0u; dimension < input_desc->rank; ++dimension) {
+            if (dimension != (uint32_t)axis
+                && output_desc->dims[dimension]
+                    != input_desc->dims[dimension]) {
+                return YR_STATUS_UNSUPPORTED_SHAPE;
+            }
+        }
+        axis_sum += (uint64_t)sizes[output_index];
+    }
+    if (axis_sum != input_desc->dims[axis]) {
+        return YR_STATUS_UNSUPPORTED_SHAPE;
+    }
+    /*
+     * outer == 1, so output j's destination is the contiguous block
+     * [0, copy_elements) and its source starts at source_axis_offset * inner.
+     * Each hart owns a disjoint line-aligned [lo, hi) of that block.
+     */
+    for (output_index = 0u; output_index < node->output_count; ++output_index) {
+        const uint32_t output_axis = output_descs[output_index]->dims[axis];
+        const uint32_t copy_elements = output_axis * inner;
+        uint32_t lo, hi;
+        yr_hart_elem_range(copy_elements, &lo, &hi);
+        if (hi > lo) {
+            yr_copy_bytes(
+                outputs[output_index] + (uint64_t)lo * element_bytes,
+                input + ((uint64_t)source_axis_offset * inner + lo)
+                    * element_bytes,
+                (hi - lo) * element_bytes);
+            yr_publish(
+                (const void *)(outputs[output_index]
+                    + (uint64_t)lo * element_bytes),
+                (hi - lo) * element_bytes);
+        }
+        source_axis_offset += output_axis;
+    }
+    return YR_STATUS_OK;
+}
+#endif
+
+
+/*
  * channel_lo/channel_hi restrict the sweep to a sub-range of channels, the
  * same per-hart split Conv already uses, so multiple harts can share one
  * node's channels instead of every hart redundantly computing every
@@ -2460,14 +2718,15 @@ static uint32_t yr_reduce_max(
     const struct yr_tensor_desc *input_desc,
     const struct yr_tensor_desc *output_desc,
     const float *input,
-    float *output)
+    float *output,
+    uint32_t out_lo,
+    uint32_t out_hi)
 {
     int32_t axis;
     uint32_t outer;
     uint32_t inner;
     uint32_t axis_size;
-    uint32_t outer_index;
-    uint32_t inner_index;
+    uint32_t flat;
     uint32_t axis_index;
     if (node->axes_count != 1u
         || yr_tensor_dtype(input_desc) != YR_DTYPE_FLOAT
@@ -2503,19 +2762,27 @@ static uint32_t yr_reduce_max(
         }
     }
     axis_size = input_desc->dims[axis];
-    for (outer_index = 0u; outer_index < outer; ++outer_index) {
-        for (inner_index = 0u; inner_index < inner; ++inner_index) {
-            const uint32_t base =
-                outer_index * axis_size * inner + inner_index;
-            float maximum = input[base];
-            for (axis_index = 1u; axis_index < axis_size; ++axis_index) {
-                const float value = input[base + axis_index * inner];
-                if (value > maximum) {
-                    maximum = value;
-                }
+    /*
+     * Flat output index flat = outer_index * inner + inner_index, so a caller
+     * range [out_lo, out_hi) selects a contiguous slice of the output that a
+     * single hart owns. out_hi == 0 is treated as the whole output for the
+     * single-hart callers.
+     */
+    if (out_hi == 0u) {
+        out_hi = outer * inner;
+    }
+    for (flat = out_lo; flat < out_hi; ++flat) {
+        const uint32_t outer_index = inner == 0u ? 0u : flat / inner;
+        const uint32_t inner_index = inner == 0u ? 0u : flat % inner;
+        const uint32_t base = outer_index * axis_size * inner + inner_index;
+        float maximum = input[base];
+        for (axis_index = 1u; axis_index < axis_size; ++axis_index) {
+            const float value = input[base + axis_index * inner];
+            if (value > maximum) {
+                maximum = value;
             }
-            output[outer_index * inner + inner_index] = maximum;
         }
+        output[flat] = maximum;
     }
     return YR_STATUS_OK;
 }
@@ -2988,6 +3255,33 @@ uint32_t yr_prepare_result(
 #define YR_SOFTMAX_MH 1
 #endif
 
+
+/*
+ * Reshape across harts, off by default. Reshape materialises its output as a
+ * flat one-to-one copy of the input (yr_reshape ends in yr_copy_tensor) and
+ * otherwise runs on hart 0 alone; it is about 3 percent of the graph's output
+ * traffic. Because it is a single output whose element i equals input element i,
+ * each hart can copy its published cache-line-aligned element range straight
+ * through the generic is_parallel_ew publish, no bespoke path needed. Enabled
+ * only when input and output hold the same float element count in aligned
+ * workspace; any other shape falls back to the serial yr_reshape, keeping the
+ * output bit-identical.
+ */
+#ifndef YR_RESHAPE_MH
+#define YR_RESHAPE_MH 1
+#endif
+
+/*
+ * ReduceMax across harts, off by default. The head reduces [1,8400,80] to
+ * [1,8400] (max over the class axis) on hart 0 alone, reading 2.7 MB in the
+ * serial topk_selection tail. Each output element is an independent reduction,
+ * so harts split the flat output range in cache-line-aligned slices through the
+ * generic is_parallel_ew publish. Same max in the same order, bit-identical.
+ */
+#ifndef YR_REDUCEMAX_MH
+#define YR_REDUCEMAX_MH 1
+#endif
+
 /*
  * TopK O(1) early reject. The selection keeps a sorted top-k list; a candidate
  * that cannot beat the current k-th (smallest kept) element can never enter, so
@@ -2999,6 +3293,7 @@ uint32_t yr_prepare_result(
 #ifndef YR_TOPK_FAST
 #define YR_TOPK_FAST 1
 #endif
+
 
 #if YR_SILU_FUSE || YR_SILU_CONV_FUSE
 /*
@@ -3099,6 +3394,9 @@ uint32_t yr_run_node_span(
 #endif
 #if YR_SOFTMAX_MH
         int sm_inner_mh = 0;
+#endif
+#if YR_SPLIT_MH
+        int is_split_mh = 0;
 #endif
         uint32_t struct_stride = 0u;
         /*
@@ -3212,6 +3510,94 @@ uint32_t yr_run_node_span(
                 && yr_tensor_dtype(cc_out) == YR_DTYPE_FLOAT
                 && (cc_out->offset % 64u) == 0u
                 && (cc_out->nbytes % 64u) == 0u) {
+                is_parallel_ew = 1;
+            }
+        }
+#endif
+#if YR_SPLIT_MH
+        /*
+         * Split of the outer==1 shape (dims before the axis multiply to one).
+         * every output is a whole number of cache lines in workspace, so each
+         * hart can copy and publish a disjoint line-aligned slice of each
+         * output. is_parallel_ew keeps all harts on the node and takes the
+         * shared publish barrier; is_split_mh routes the dispatch to the
+         * multi-output copy. Any other shape leaves both clear and stays serial.
+         */
+        if (node->op == YR_OP_SPLIT && node->output_count >= 1u
+            && node->output_count <= 3u
+            && node->input_count == 2u
+            && node->inputs[0] < YR_TENSOR_COUNT) {
+            const struct yr_tensor_desc *sp_in = &yr_tensors[node->inputs[0]];
+            const int32_t sp_axis =
+                yr_normalize_axis(node->axis, sp_in->rank);
+            int sp_ok = sp_axis >= 0
+                && yr_tensor_dtype(sp_in) == YR_DTYPE_FLOAT;
+            uint32_t sp_dim, sp_outer = 1u, sp_oi;
+            for (sp_dim = 0u; sp_ok && sp_dim < (uint32_t)sp_axis; ++sp_dim) {
+                sp_outer *= sp_in->dims[sp_dim];
+            }
+            if (sp_outer != 1u) {
+                sp_ok = 0;
+            }
+            for (sp_oi = 0u; sp_ok && sp_oi < node->output_count; ++sp_oi) {
+                if (node->outputs[sp_oi] >= YR_TENSOR_COUNT) {
+                    sp_ok = 0;
+                    break;
+                }
+                {
+                    const struct yr_tensor_desc *sp_out =
+                        &yr_tensors[node->outputs[sp_oi]];
+                    if (sp_out->storage != YR_STORAGE_WORKSPACE
+                        || yr_tensor_dtype(sp_out) != YR_DTYPE_FLOAT
+                        || (sp_out->offset % 64u) != 0u
+                        || (sp_out->nbytes % 64u) != 0u) {
+                        sp_ok = 0;
+                    }
+                }
+            }
+            if (sp_ok) {
+                is_parallel_ew = 1;
+                is_split_mh = 1;
+            }
+        }
+#endif
+#if YR_RESHAPE_MH
+        /*
+         * Reshape is a flat one-to-one copy, so element i of the output equals
+         * element i of the input. When the output is aligned float workspace and
+         * element counts match, each hart copies its published range through the
+         * generic is_parallel_ew path (the reshape dispatch does the ranged copy
+         * in place of yr_reshape's full copy).
+         */
+        if (node->op == YR_OP_RESHAPE && node->output_count == 1u
+            && node->input_count == 2u
+            && node->inputs[0] < YR_TENSOR_COUNT
+            && node->outputs[0] < YR_TENSOR_COUNT) {
+            const struct yr_tensor_desc *rs_in = &yr_tensors[node->inputs[0]];
+            const struct yr_tensor_desc *rs_out = &yr_tensors[node->outputs[0]];
+            if (rs_out->storage == YR_STORAGE_WORKSPACE
+                && yr_tensor_dtype(rs_out) == YR_DTYPE_FLOAT
+                && yr_tensor_dtype(rs_in) == YR_DTYPE_FLOAT
+                && rs_in->elements == rs_out->elements
+                && (rs_out->offset % 64u) == 0u
+                && (rs_out->nbytes % 64u) == 0u) {
+                is_parallel_ew = 1;
+            }
+        }
+#endif
+#if YR_REDUCEMAX_MH
+        /*
+         * ReduceMax output is one element per (outer, inner) reduction, all
+         * independent, so harts split the flat output through the generic
+         * is_parallel_ew publish (the dispatch passes the hart's ew range).
+         */
+        if (node->op == YR_OP_REDUCEMAX && node->output_count == 1u
+            && node->outputs[0] < YR_TENSOR_COUNT) {
+            const struct yr_tensor_desc *rm_out = &yr_tensors[node->outputs[0]];
+            if (rm_out->storage == YR_STORAGE_WORKSPACE
+                && yr_tensor_dtype(rm_out) == YR_DTYPE_FLOAT
+                && (rm_out->offset % 64u) == 0u
+                && (rm_out->nbytes % 64u) == 0u) {
                 is_parallel_ew = 1;
             }
         }
@@ -3577,6 +3963,16 @@ uint32_t yr_run_node_span(
                 status = YR_STATUS_BAD_MANIFEST;
                 goto fail;
             }
+#if YR_SPLIT_MH
+            if (is_split_mh) {
+                /* Every hart copies and publishes its own slice of each output,
+                 * so suppress the generic single-output publish below. */
+                silu_skip_publish = 1;
+                status = yr_split_mh(
+                    node, in0, sizes_desc, output_descs, in0_raw,
+                    (const int64_t *)sizes_raw, output_data);
+            } else
+#endif
             status = yr_split(
                 node, in0, sizes_desc, output_descs, in0_raw,
                 (const int64_t *)sizes_raw, output_data);
@@ -3721,6 +4117,19 @@ uint32_t yr_run_node_span(
                 status = YR_STATUS_BAD_MANIFEST;
                 goto fail;
             }
+#if YR_RESHAPE_MH
+            if (is_parallel_ew) {
+                /* Flat 1:1 copy: this hart copies its published element range.
+                 * The generic is_parallel_ew publish below evicts exactly it. */
+                if (ew_hi > ew_lo) {
+                    yr_copy_bytes(
+                        out0_raw + (uint64_t)ew_lo * sizeof(float),
+                        in0_raw + (uint64_t)ew_lo * sizeof(float),
+                        (ew_hi - ew_lo) * (uint32_t)sizeof(float));
+                }
+                status = YR_STATUS_OK;
+            } else
+#endif
             status = yr_reshape(
                 in0, shape_desc, out0, (const int64_t *)shape_raw,
                 in0_raw, out0_raw);
@@ -3746,12 +4155,18 @@ uint32_t yr_run_node_span(
                     node, in0, out0, in0_raw, out0_raw, tp_lo, tp_hi);
             }
         } else if (node->op == YR_OP_REDUCEMAX) {
+            uint32_t rm_lo = 0u, rm_hi = 0u;
             if (node->input_count != 1u || node->output_count != 1u) {
                 status = YR_STATUS_BAD_MANIFEST;
                 goto fail;
             }
+            if (is_parallel_ew) {
+                rm_lo = ew_lo;
+                rm_hi = ew_hi;
+            }
             status = yr_reduce_max(
-                node, in0, out0, (float *)in0_raw, (float *)out0_raw);
+                node, in0, out0, (float *)in0_raw, (float *)out0_raw,
+                rm_lo, rm_hi);
         } else if (node->op == YR_OP_TOPK) {
             const struct yr_tensor_desc *k_desc;
             const struct yr_tensor_desc *indices_desc;
