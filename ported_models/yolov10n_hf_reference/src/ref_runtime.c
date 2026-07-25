@@ -1808,17 +1808,19 @@ static uint32_t yr_concat(
     const struct yr_tensor_desc *const *input_descs,
     const struct yr_tensor_desc *output_desc,
     const float *const *inputs,
-    float *output)
+    float *output,
+    uint32_t out_lo,
+    uint32_t out_hi)
 {
     int32_t axis = node->axis;
     uint32_t rank = output_desc->rank;
-    uint32_t outer = 1u;
     uint32_t inner = 1u;
     uint32_t expected_axis = 0u;
     uint32_t input_index;
     uint32_t dimension;
-    uint32_t outer_index;
-    uint32_t output_axis_offset = 0u;
+    uint32_t output_block;
+    uint32_t axis_offsets[4] = {0u, 0u, 0u, 0u};
+    uint32_t flat_index;
 
     if (rank == 0u || rank > 6u || node->input_count == 0u
         || node->input_count > 4u
@@ -1830,9 +1832,6 @@ static uint32_t yr_concat(
     }
     if (axis < 0 || axis >= (int32_t)rank) {
         return YR_STATUS_UNSUPPORTED_SHAPE;
-    }
-    for (dimension = 0u; dimension < (uint32_t)axis; ++dimension) {
-        outer *= output_desc->dims[dimension];
     }
     for (dimension = (uint32_t)axis + 1u; dimension < rank; ++dimension) {
         inner *= output_desc->dims[dimension];
@@ -1857,21 +1856,36 @@ static uint32_t yr_concat(
         return YR_STATUS_UNSUPPORTED_SHAPE;
     }
 
-    for (input_index = 0u; input_index < node->input_count; ++input_index) {
-        const uint32_t input_axis = input_descs[input_index]->dims[axis];
-        const uint32_t input_block = input_axis * inner;
-        const uint32_t output_block = output_desc->dims[axis] * inner;
-        for (outer_index = 0u; outer_index < outer; ++outer_index) {
-            uint32_t element;
-            const uint32_t source_base = outer_index * input_block;
-            const uint32_t destination_base =
-                outer_index * output_block + output_axis_offset * inner;
-            for (element = 0u; element < input_block; ++element) {
-                output[destination_base + element] =
-                    inputs[input_index][source_base + element];
-            }
+    output_block = output_desc->dims[axis] * inner;
+    {
+        uint32_t cumulative = 0u;
+        for (input_index = 0u; input_index < node->input_count;
+             ++input_index) {
+            axis_offsets[input_index] = cumulative;
+            cumulative += input_descs[input_index]->dims[axis];
         }
-        output_axis_offset += input_axis;
+    }
+    if (out_hi > output_desc->elements) {
+        out_hi = output_desc->elements;
+    }
+    for (flat_index = out_lo; flat_index < out_hi; ++flat_index) {
+        const uint32_t outer_index = flat_index / output_block;
+        const uint32_t rem = flat_index % output_block;
+        const uint32_t axis_pos = rem / inner;
+        const uint32_t inner_index = rem % inner;
+        uint32_t which = 0u;
+        while (which + 1u < node->input_count
+               && axis_pos >= axis_offsets[which + 1u]) {
+            ++which;
+        }
+        {
+            const uint32_t local_axis = axis_pos - axis_offsets[which];
+            const uint32_t input_block =
+                input_descs[which]->dims[axis] * inner;
+            output[flat_index] =
+                inputs[which][outer_index * input_block
+                              + local_axis * inner + inner_index];
+        }
     }
     return YR_STATUS_OK;
 }
@@ -2318,7 +2332,11 @@ static uint32_t yr_softmax(
     const struct yr_tensor_desc *input_desc,
     const struct yr_tensor_desc *output_desc,
     const float *input,
-    float *output)
+    float *output,
+    uint32_t outer_lo,
+    uint32_t outer_hi,
+    uint32_t inner_lo,
+    uint32_t inner_hi)
 {
     const int32_t axis = yr_normalize_axis(node->axis, input_desc->rank);
     uint32_t outer;
@@ -2337,8 +2355,14 @@ static uint32_t yr_softmax(
         return YR_STATUS_UNSUPPORTED_SHAPE;
     }
     axis_size = input_desc->dims[axis];
-    for (outer_index = 0u; outer_index < outer; ++outer_index) {
-        for (inner_index = 0u; inner_index < inner; ++inner_index) {
+    if (outer_hi > outer) {
+        outer_hi = outer;
+    }
+    if (inner_hi > inner) {
+        inner_hi = inner;
+    }
+    for (outer_index = outer_lo; outer_index < outer_hi; ++outer_index) {
+        for (inner_index = inner_lo; inner_index < inner_hi; ++inner_index) {
             const uint32_t base =
                 outer_index * axis_size * inner + inner_index;
             float maximum = input[base];
@@ -2375,7 +2399,9 @@ static uint32_t yr_transpose(
     const struct yr_tensor_desc *input_desc,
     const struct yr_tensor_desc *output_desc,
     const uint8_t *input,
-    uint8_t *output)
+    uint8_t *output,
+    uint32_t output_lo,
+    uint32_t output_hi)
 {
     uint32_t input_strides[6] = {0u, 0u, 0u, 0u, 0u, 0u};
     uint32_t coordinates[6] = {0u, 0u, 0u, 0u, 0u, 0u};
@@ -2407,7 +2433,7 @@ static uint32_t yr_transpose(
         }
         seen |= 1u << (uint32_t)source_dimension;
     }
-    for (output_index = 0u; output_index < output_desc->elements;
+    for (output_index = output_lo; output_index < output_hi;
          ++output_index) {
         uint32_t remaining = output_index;
         uint32_t input_index = 0u;
@@ -2544,6 +2570,19 @@ static uint32_t yr_topk(
                     + inner_index;
                 const float candidate = input[input_offset];
                 uint32_t position = 0u;
+#if YR_TOPK_FAST
+                if (populated == k) {
+                    const uint32_t last_offset =
+                        (outer_index * k + (k - 1u)) * inner + inner_index;
+                    const float last_value = values[last_offset];
+                    const int64_t last_index = indices[last_offset];
+                    if (!(candidate > last_value
+                          || (candidate == last_value
+                              && candidate_index < (uint32_t)last_index))) {
+                        continue;
+                    }
+                }
+#endif
                 while (position < populated) {
                     const uint32_t output_offset =
                         (outer_index * k + position) * inner + inner_index;
@@ -2904,6 +2943,63 @@ uint32_t yr_prepare_result(
 #define YR_MATMUL_MH 1
 #endif
 
+/*
+ * Split MaxPool across harts by output channel. Each hart pools a contiguous
+ * channel range whose output plane is a multiple of sixteen, so its slice is
+ * cache-line aligned and disjoint. Shares the generic struct_stride path that
+ * carries the per-unit output size so the is_parallel_ew publish covers exactly
+ * the channels this hart wrote.
+ */
+#ifndef YR_MAXPOOL_MH
+#define YR_MAXPOOL_MH 1
+#endif
+
+/*
+ * Split Transpose across harts by output element. Each output element is an
+ * independent scatter read followed by a contiguous write, so a hart owning a
+ * cache-line-aligned output range writes a disjoint slice, the plain parallel
+ * elementwise pattern. Float output only, so the is_parallel_ew publish stride
+ * of one float per element is right.
+ */
+#ifndef YR_TRANSPOSE_MH
+#define YR_TRANSPOSE_MH 1
+#endif
+
+/*
+ * Split Concat across harts by output element. Each output element copies from
+ * exactly one input at a position fixed by its own flat index, so a hart owning
+ * a cache-line-aligned output range writes a disjoint slice, the plain parallel
+ * elementwise pattern. Float output only, so the is_parallel_ew publish stride
+ * of one float per element is right.
+ */
+#ifndef YR_CONCAT_MH
+#define YR_CONCAT_MH 1
+#endif
+
+/*
+ * Split Softmax across harts by outer group. Each outer group is an independent
+ * softmax over the axis (with inner stride) whose output occupies a contiguous
+ * block of axis_size*inner floats, so a hart owning a whole number of those
+ * blocks writes a disjoint, cache-line-aligned slice. Shares the struct_stride
+ * path with that block as the unit. A softmax with a single outer group (outer
+ * == 1) stays on hart 0, correct but not split.
+ */
+#ifndef YR_SOFTMAX_MH
+#define YR_SOFTMAX_MH 1
+#endif
+
+/*
+ * TopK O(1) early reject. The selection keeps a sorted top-k list; a candidate
+ * that cannot beat the current k-th (smallest kept) element can never enter, so
+ * once the list is full reject such a candidate in one compare instead of
+ * scanning all k positions. Bit-identical to the plain insertion (same kept
+ * set, same order, same tie-break), it only skips the doomed full scan, which
+ * is the whole cost when most candidates are rejected. Stays on hart 0.
+ */
+#ifndef YR_TOPK_FAST
+#define YR_TOPK_FAST 1
+#endif
+
 #if YR_SILU_FUSE || YR_SILU_CONV_FUSE
 /*
  * A SiLU is a Sigmoid whose output feeds a Mul that also takes the Sigmoid's
@@ -3001,6 +3097,10 @@ uint32_t yr_run_node_span(
 #if YR_MATMUL_MH
         int is_matmul_mh = 0;
 #endif
+#if YR_SOFTMAX_MH
+        int sm_inner_mh = 0;
+#endif
+        uint32_t struct_stride = 0u;
         /*
          * Nodes fall into three execution classes.
          *
@@ -3074,6 +3174,92 @@ uint32_t yr_run_node_span(
             }
         }
 #endif
+#if YR_MAXPOOL_MH
+        if (node->op == YR_OP_MAXPOOL && node->output_count == 1u
+            && node->outputs[0] < YR_TENSOR_COUNT) {
+            const struct yr_tensor_desc *mp_out =
+                &yr_tensors[node->outputs[0]];
+            if (mp_out->rank == 4u && mp_out->dims[0] == 1u
+                && mp_out->storage == YR_STORAGE_WORKSPACE
+                && (mp_out->offset % 64u) == 0u
+                && (mp_out->nbytes % 64u) == 0u
+                && mp_out->dims[1] != 0u
+                && ((mp_out->dims[2] * mp_out->dims[3]) % 16u) == 0u) {
+                is_parallel_ew = 1;
+                struct_stride = mp_out->dims[2] * mp_out->dims[3];
+            }
+        }
+#endif
+#if YR_TRANSPOSE_MH
+        if (node->op == YR_OP_TRANSPOSE && node->output_count == 1u
+            && node->outputs[0] < YR_TENSOR_COUNT) {
+            const struct yr_tensor_desc *tp_out =
+                &yr_tensors[node->outputs[0]];
+            if (tp_out->storage == YR_STORAGE_WORKSPACE
+                && yr_tensor_dtype(tp_out) == YR_DTYPE_FLOAT
+                && (tp_out->offset % 64u) == 0u
+                && (tp_out->nbytes % 64u) == 0u) {
+                is_parallel_ew = 1;
+            }
+        }
+#endif
+#if YR_CONCAT_MH
+        if (node->op == YR_OP_CONCAT && node->output_count == 1u
+            && node->outputs[0] < YR_TENSOR_COUNT) {
+            const struct yr_tensor_desc *cc_out =
+                &yr_tensors[node->outputs[0]];
+            if (cc_out->storage == YR_STORAGE_WORKSPACE
+                && yr_tensor_dtype(cc_out) == YR_DTYPE_FLOAT
+                && (cc_out->offset % 64u) == 0u
+                && (cc_out->nbytes % 64u) == 0u) {
+                is_parallel_ew = 1;
+            }
+        }
+#endif
+#if YR_SOFTMAX_MH
+        if (node->op == YR_OP_SOFTMAX && node->output_count == 1u
+            && node->outputs[0] < YR_TENSOR_COUNT) {
+            const struct yr_tensor_desc *sm_out =
+                &yr_tensors[node->outputs[0]];
+            const int32_t sm_axis =
+                yr_normalize_axis(node->axis, sm_out->rank);
+            if (sm_axis >= 0
+                && sm_out->storage == YR_STORAGE_WORKSPACE
+                && yr_tensor_dtype(sm_out) == YR_DTYPE_FLOAT
+                && (sm_out->offset % 64u) == 0u
+                && (sm_out->nbytes % 64u) == 0u) {
+                uint32_t sm_inner = 1u;
+                uint32_t sm_outer = 1u;
+                uint32_t sm_dim;
+                uint32_t sm_block;
+                for (sm_dim = (uint32_t)sm_axis + 1u;
+                     sm_dim < sm_out->rank; ++sm_dim) {
+                    sm_inner *= sm_out->dims[sm_dim];
+                }
+                for (sm_dim = 0u; sm_dim < (uint32_t)sm_axis; ++sm_dim) {
+                    sm_outer *= sm_out->dims[sm_dim];
+                }
+                sm_block = sm_out->dims[sm_axis] * sm_inner;
+                if (sm_outer > 1u && sm_block != 0u
+                    && (sm_block % 16u) == 0u) {
+                    /* Many outer groups: split by outer, each a contiguous
+                     * cache-line-aligned block, published by the generic
+                     * is_parallel_ew path. */
+                    is_parallel_ew = 1;
+                    struct_stride = sm_block;
+                } else if (sm_outer == 1u && sm_inner >= 32u
+                           && (sm_inner % 16u) == 0u) {
+                    /* Single outer group with a wide inner: split by inner
+                     * columns in whole cache lines. Each hart's output is
+                     * axis_size disjoint line-aligned strips, published by the
+                     * softmax dispatch below (silu_skip_publish suppresses the
+                     * generic single-range publish). */
+                    is_parallel_ew = 1;
+                    sm_inner_mh = 1;
+                }
+            }
+        }
+#endif
         if (node->op != YR_OP_CONV && !is_parallel_ew && yr_hart_id() != 0u) {
             yr_hart_barrier();
             continue;
@@ -3113,7 +3299,14 @@ uint32_t yr_run_node_span(
                 ew_hi = mm_r_hi * mm_last;
             } else
 #endif
-            yr_hart_elem_range(out0->elements, &ew_lo, &ew_hi);
+            if (struct_stride != 0u) {
+                uint32_t s_lo, s_hi;
+                yr_hart_range(out0->elements / struct_stride, &s_lo, &s_hi);
+                ew_lo = s_lo * struct_stride;
+                ew_hi = s_hi * struct_stride;
+            } else {
+                yr_hart_elem_range(out0->elements, &ew_lo, &ew_hi);
+            }
         }
 
         if (node->op == YR_OP_CONV) {
@@ -3329,8 +3522,17 @@ uint32_t yr_run_node_span(
                 input_data[input_index] =
                     yr_tensor_ptr(device_base, input_descs[input_index]);
             }
-            status = yr_concat(
-                node, input_descs, out0, input_data, (float *)out0_raw);
+            {
+                uint32_t cc_lo = 0u;
+                uint32_t cc_hi = out0->elements;
+                if (is_parallel_ew) {
+                    cc_lo = ew_lo;
+                    cc_hi = ew_hi;
+                }
+                status = yr_concat(
+                    node, input_descs, out0, input_data, (float *)out0_raw,
+                    cc_lo, cc_hi);
+            }
 #if YR_MANIFEST_VERSION >= 2
         } else if (node->op == YR_OP_ADD || node->op == YR_OP_SUB) {
             const struct yr_tensor_desc *in1;
@@ -3383,9 +3585,17 @@ uint32_t yr_run_node_span(
                 status = YR_STATUS_BAD_MANIFEST;
                 goto fail;
             }
-            status = yr_maxpool(
-                node, in0, out0, (float *)in0_raw, (float *)out0_raw,
-                0u, out0->dims[1]);
+            {
+                uint32_t mp_lo = 0u;
+                uint32_t mp_hi = out0->dims[1];
+                if (struct_stride != 0u) {
+                    mp_lo = ew_lo / struct_stride;
+                    mp_hi = ew_hi / struct_stride;
+                }
+                status = yr_maxpool(
+                    node, in0, out0, (float *)in0_raw, (float *)out0_raw,
+                    mp_lo, mp_hi);
+            }
         } else if (node->op == YR_OP_RESIZE) {
             const struct yr_tensor_desc *scales_desc;
             uint8_t *scales_raw;
@@ -3434,12 +3644,69 @@ uint32_t yr_run_node_span(
                     (float *)out0_raw, mm_lo, mm_hi);
             }
         } else if (node->op == YR_OP_SOFTMAX) {
+            uint32_t sm_o_lo = 0u;
+            uint32_t sm_o_hi = 0xffffffffu;
+            uint32_t sm_i_lo = 0u;
+            uint32_t sm_i_hi = 0xffffffffu;
             if (node->input_count != 1u || node->output_count != 1u) {
                 status = YR_STATUS_BAD_MANIFEST;
                 goto fail;
             }
+#if YR_SOFTMAX_MH
+            if (is_parallel_ew && struct_stride != 0u) {
+                sm_o_lo = ew_lo / struct_stride;
+                sm_o_hi = ew_hi / struct_stride;
+            } else if (sm_inner_mh) {
+                const int32_t sm_ax =
+                    yr_normalize_axis(node->axis, out0->rank);
+                uint32_t sm_inner = 1u;
+                uint32_t sm_dim;
+                uint32_t sm_units;
+                uint32_t r_lo;
+                uint32_t r_hi;
+                for (sm_dim = (uint32_t)sm_ax + 1u;
+                     sm_dim < out0->rank; ++sm_dim) {
+                    sm_inner *= out0->dims[sm_dim];
+                }
+                sm_units = sm_inner / 16u;
+                yr_hart_range(sm_units, &r_lo, &r_hi);
+                sm_i_lo = r_lo * 16u;
+                sm_i_hi = r_hi * 16u;
+                silu_skip_publish = 1;
+            }
+#endif
             status = yr_softmax(
-                node, in0, out0, (float *)in0_raw, (float *)out0_raw);
+                node, in0, out0, (float *)in0_raw, (float *)out0_raw,
+                sm_o_lo, sm_o_hi, sm_i_lo, sm_i_hi);
+#if YR_SOFTMAX_MH
+            if (sm_inner_mh && status == YR_STATUS_OK && sm_i_hi > sm_i_lo) {
+                const int32_t sm_ax =
+                    yr_normalize_axis(node->axis, out0->rank);
+                uint32_t sm_inner = 1u;
+                uint32_t sm_outer = 1u;
+                uint32_t sm_dim;
+                uint32_t oo;
+                uint32_t kk;
+                uint32_t axsz = out0->dims[sm_ax];
+                for (sm_dim = (uint32_t)sm_ax + 1u;
+                     sm_dim < out0->rank; ++sm_dim) {
+                    sm_inner *= out0->dims[sm_dim];
+                }
+                for (sm_dim = 0u; sm_dim < (uint32_t)sm_ax; ++sm_dim) {
+                    sm_outer *= out0->dims[sm_dim];
+                }
+                for (oo = 0u; oo < sm_outer; ++oo) {
+                    for (kk = 0u; kk < axsz; ++kk) {
+                        const uint32_t sbase =
+                            (oo * axsz + kk) * sm_inner + sm_i_lo;
+                        yr_publish(
+                            (const void *)(out0_raw
+                                + (uint64_t)sbase * sizeof(float)),
+                            (sm_i_hi - sm_i_lo) * (uint32_t)sizeof(float));
+                    }
+                }
+            }
+#endif
         } else if (node->op == YR_OP_RESHAPE) {
             const struct yr_tensor_desc *shape_desc;
             uint8_t *shape_raw;
@@ -3468,8 +3735,16 @@ uint32_t yr_run_node_span(
                 status = YR_STATUS_BAD_MANIFEST;
                 goto fail;
             }
-            status = yr_transpose(
-                node, in0, out0, in0_raw, out0_raw);
+            {
+                uint32_t tp_lo = 0u;
+                uint32_t tp_hi = out0->elements;
+                if (is_parallel_ew) {
+                    tp_lo = ew_lo;
+                    tp_hi = ew_hi;
+                }
+                status = yr_transpose(
+                    node, in0, out0, in0_raw, out0_raw, tp_lo, tp_hi);
+            }
         } else if (node->op == YR_OP_REDUCEMAX) {
             if (node->input_count != 1u || node->output_count != 1u) {
                 status = YR_STATUS_BAD_MANIFEST;
