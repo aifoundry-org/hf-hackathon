@@ -11,6 +11,6 @@
   "implementation_paths": [
     "ported_models/ernie45_03b"
   ],
-  "benchmark_config": ".github/ci/benchmark_config.json",
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/ernie45_03b.json",
   "recipe": "ported_models/ernie45_03b/docs/RECIPE.md"
 }
