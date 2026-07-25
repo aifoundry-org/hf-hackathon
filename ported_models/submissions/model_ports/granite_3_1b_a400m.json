@@ -8,7 +8,9 @@
     "revision": "ffec3c35bdfd97a06f0b4cd5fcc92cd9b1584445",
     "license": "apache-2.0"
   },
-  "implementation_paths": ["ported_models/granite_3_1b_a400m"],
-  "benchmark_config": ".github/ci/benchmark_config.json",
+  "implementation_paths": [
+    "ported_models/granite_3_1b_a400m"
+  ],
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/granite_3_1b_a400m.json",
   "recipe": "ported_models/granite_3_1b_a400m/docs/RECIPE.md"
 }
