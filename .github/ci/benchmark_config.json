@@ -315,6 +315,9 @@
     },
     "smolvlm_500m": {
       "config": "ported_models/llama_cpp_et/benchmarks/smolvlm_500m.json"
+    },
+    "phi3_mini": {
+      "config": "ported_models/phi3/benchmarks/phi3.json"
     }
   }
 }

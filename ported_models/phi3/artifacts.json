@@ -1,0 +1,80 @@
+{
+  "artifacts": {
+    "llama_cpp_source": {
+      "kind": "framework_source",
+      "framework": "llama.cpp-et",
+      "submodule_path": "ported_models/llama_cpp_et/src/llama.cpp-et",
+      "license": "MIT",
+      "license_file": "LICENSE",
+      "upstream": {
+        "type": "git",
+        "url": "https://github.com/aifoundry-org/llama.cpp.git",
+        "branch": "et",
+        "revision": "cc4049d86b14e4ef72f827f3bb767b577f18fbcd",
+        "note": "Informational only. CI builds from the committed submodule_path; the phi3 port reuses the same shared framework source as the other llama.cpp-et models and does not repin it."
+      },
+      "note": "Framework source comes from the committed shared submodule. The phi3 port adds no framework code; Phi-3 (LLM_ARCH_PHI3, src/models/phi3.cpp) is already implemented in this pinned revision."
+    },
+    "llama_cpp_build": {
+      "kind": "framework_workdir",
+      "framework": "llama.cpp-et",
+      "env": "LLAMA_CPP_ET_WORKDIR",
+      "local_cache": "local-artifacts/frameworks/llama.cpp-et/build-et",
+      "build": {
+        "cmake": "cmake",
+        "configure_args": [
+          "-DGGML_ET=ON",
+          "-DCMAKE_BUILD_TYPE=Release",
+          "-DCMAKE_CXX_STANDARD_LIBRARIES=-lglog"
+        ],
+        "build_args": ["--config", "Release"],
+        "targets": ["llama-server", "llama-perplexity", "llama-bench"]
+      },
+      "note": "Out-of-tree CMake build of the committed shared llama_cpp_source submodule."
+    },
+    "llama_server": {
+      "kind": "framework_binary",
+      "framework": "llama.cpp-et",
+      "env": "LLAMA_CPP_ET_SERVER",
+      "relative_to": "llama_cpp_build",
+      "relative_path": "bin/llama-server"
+    },
+    "llama_perplexity": {
+      "kind": "framework_binary",
+      "framework": "llama.cpp-et",
+      "env": "LLAMA_CPP_ET_PERPLEXITY",
+      "relative_to": "llama_cpp_build",
+      "relative_path": "bin/llama-perplexity"
+    },
+    "wikitext2_raw_test": {
+      "kind": "validation_dataset",
+      "dataset": "wikitext-2-raw-v1",
+      "split": "test",
+      "filename": "wiki.test.raw",
+      "env": "WIKITEXT_RAW_PATH",
+      "local_cache": "local-artifacts/datasets/wikitext-2-raw/wiki.test.raw",
+      "source_url": "https://cosmo.zip/pub/datasets/wikitext-2-raw/wiki.test.raw",
+      "sha256": "173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08",
+      "note": "WikiText-2 raw test corpus. Shared perplexity corpus, identical to the other llama.cpp-et models."
+    },
+    "phi3_mini_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "Phi-3-mini-4k-instruct-Q8_0",
+      "filename": "Phi-3-mini-4k-instruct-Q8_0.gguf",
+      "env": "PHI3_MINI_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "bartowski/Phi-3-mini-4k-instruct-GGUF",
+        "revision": "e1447f6da0be91f91683c5d19f938d4f51122d88",
+        "filename": "Phi-3-mini-4k-instruct-Q8_0.gguf",
+        "url": "https://huggingface.co/bartowski/Phi-3-mini-4k-instruct-GGUF/resolve/e1447f6da0be91f91683c5d19f938d4f51122d88/Phi-3-mini-4k-instruct-Q8_0.gguf"
+      },
+      "sha256": "0ac8ee48aeebf7d1b354691fd1e29e91c32ad88bbad10ad45ac880dcd4372a47",
+      "size_bytes": 4061221376,
+      "local_cache": "local-artifacts/models/phi3_mini/Phi-3-mini-4k-instruct-Q8_0.gguf",
+      "board_path": "/data/models/Phi-3-mini-4k-instruct-Q8_0.gguf",
+      "note": "Weights are not committed. The board CI downloads the GGUF from the pinned Hugging Face revision by url + sha256. Base model microsoft/Phi-3-mini-4k-instruct (MIT)."
+    }
+  }
+}
