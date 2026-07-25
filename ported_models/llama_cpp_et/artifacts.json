@@ -485,6 +485,40 @@
       "sha256": "d1eb8b6b23979205fdf63703ed10f788131a3f812c7b1f72e0119d5d81295150",
       "size_bytes": 108783360,
       "note": "SmolVLM 500M vision projector (SigLIP ~93M + MLP). Q8_0 quantized. Must be loaded alongside smolvlm_500m_q8_gguf."
+    },
+    "mamba_1_4b_q6k_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "mamba-1.4b-hf-Q6_K",
+      "filename": "mamba-1.4b-hf-Q6_K.gguf",
+      "env": "MAMBA_1_4B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "RichardErkhov/state-spaces_-_mamba-1.4b-hf-gguf",
+        "revision": "main",
+        "filename": "mamba-1.4b-hf.Q6_K.gguf",
+        "url": "https://huggingface.co/RichardErkhov/state-spaces_-_mamba-1.4b-hf-gguf/resolve/main/mamba-1.4b-hf.Q6_K.gguf"
+      },
+      "sha256": "a5dde81ce41c34213bf26bcaf2ba26cd1c6fde20fd20b5af6a4a76a5272478bc",
+      "local_cache": "local-artifacts/models/mamba-1.4b-hf-Q6_K.gguf",
+      "board_path": "/data/models/mamba-1.4b-hf-Q6_K.gguf"
+    },
+    "chatglm3_6b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "chatglm3-6b-128k-Q8_0",
+      "filename": "chatglm3-6b-128k-Q8_0.gguf",
+      "env": "CHATGLM3_6B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "hellork/chatglm3-6b-128k-Q8_0-GGUF",
+        "revision": "main",
+        "filename": "chatglm3-6b-128k-q8_0.gguf",
+        "url": "https://huggingface.co/hellork/chatglm3-6b-128k-Q8_0-GGUF/resolve/main/chatglm3-6b-128k-q8_0.gguf"
+      },
+      "sha256": "805e3761a997486eb08f45e0f74efa5c1cc0be8475afa2b170263b490a3ba8c8",
+      "local_cache": "local-artifacts/models/chatglm3-6b-128k-Q8_0.gguf",
+      "board_path": "/data/models/chatglm3-6b-128k-Q8_0.gguf"
     }
   }
 }
