@@ -1,0 +1,17 @@
+{
+  "_comment": "Stage-1 registry entry for the internlm2 identity. A maintainer adds this object to the identities list in data/model-port-identities.json to make the identity eligible. The two sha256 values are precomputed against this port; recompute per docs/RECIPE.md if any file changes. Drop the _comment key before committing.",
+  "identity_id": "internlm2",
+  "execution_family": "internlm2",
+  "benchmark_models": ["internlm2_1_8b"],
+  "aliases": ["internlm2_5-1_8b-chat"],
+  "eligible": true,
+  "canonical_source": {
+    "repo": "internlm/internlm2_5-1_8b-chat-gguf",
+    "revision": "916410ad25d03d5dee11b451fe2b6e0353913b64",
+    "license": "apache-2.0"
+  },
+  "approved_runner": "llama_server",
+  "benchmark_config_sha256": "5b5b125fea2c8b0c4d8a5db8c0f07921ddf8b414782ef0faf85e71e624095faf",
+  "validation_contract": ".github/ci/reference/internlm2_1_8b.json",
+  "validation_contract_sha256": "0b1210eb8cba3564851cda1ecfcde829108add31882818552445a9241489d892"
+}

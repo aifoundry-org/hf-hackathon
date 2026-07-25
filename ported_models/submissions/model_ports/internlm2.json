@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "internlm2_1_8b",
+  "identity_id": "internlm2",
+  "source": {
+    "repo": "internlm/internlm2_5-1_8b-chat-gguf",
+    "revision": "916410ad25d03d5dee11b451fe2b6e0353913b64",
+    "license": "apache-2.0"
+  },
+  "implementation_paths": ["ported_models/internlm2"],
+  "benchmark_config": ".github/ci/benchmark_config.json",
+  "recipe": "ported_models/internlm2/docs/RECIPE.md"
+}

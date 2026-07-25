@@ -315,6 +315,9 @@
     },
     "smolvlm_500m": {
       "config": "ported_models/llama_cpp_et/benchmarks/smolvlm_500m.json"
+    },
+    "internlm2_1_8b": {
+      "config": "ported_models/internlm2/benchmarks/internlm2.json"
     }
   }
 }
