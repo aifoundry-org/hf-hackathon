@@ -1,0 +1,76 @@
+{
+  "schema_version": 2,
+  "model": {
+    "repo": "allenai/OLMo-2-0425-1B-Instruct",
+    "revision": "62f8c199538474c3e33ed5d7e0580abd66686a27",
+    "license": "apache-2.0"
+  },
+  "baseline_artifacts": {
+    "model": {
+      "filename": "OLMo-2-0425-1B-Instruct-Q8_0.gguf",
+      "sha256": "4a180742923d27d2434e53062b21f508257a5ee15abda398a3db13385e33d6e6",
+      "size_bytes": 1581667488,
+      "source_repo": "allenai/OLMo-2-0425-1B-Instruct-GGUF",
+      "source_revision": "62f8c199538474c3e33ed5d7e0580abd66686a27"
+    }
+  },
+  "architecture": {
+    "general_architecture": "olmo2",
+    "model_name": "OLMo-2-0425-1B-Instruct",
+    "parameter_count": 1480000000,
+    "block_count": 16,
+    "embedding_length": 2048,
+    "feed_forward_length": 8192,
+    "attention_heads": 16,
+    "attention_kv_heads": 16,
+    "head_dim": 128,
+    "vocabulary_size": 100352,
+    "rope_theta": 500000,
+    "rms_norm_eps": 1e-06,
+    "notes": "OLMo-2 post-norm placement + QK-RMSNorm; RoPE-NEOX full rotary; SwiGLU FFN; no bias, no learned positional embeddings"
+  },
+  "candidate_policy": {
+    "artifacts_must_match_baseline": true
+  },
+  "runtime": {
+    "submodule_path": "ported_models/llama_cpp_et/src/llama.cpp-et",
+    "required_device": "ET",
+    "required_gpu_layers": 99,
+    "require_full_offload": true
+  },
+  "generation_validation": {
+    "prompt": "Repeat this token sequence without commentary: OK OK OK OK OK OK OK OK OK OK",
+    "max_tokens": 96,
+    "temperature": 0,
+    "ignore_eos": true,
+    "min_completion_tokens": 32
+  },
+  "correctness": {
+    "host_reference": "CPU execution of the candidate GGUF through the main-owned llama.cpp-et harness",
+    "answer_comparison": "lowercase alphanumeric tokens, exact match",
+    "minimum_host_agreement": 1.0,
+    "require_full_offload": true,
+    "require_zero_op_fallbacks": true,
+    "allowed_op_fallbacks": []
+  },
+  "quality": {
+    "perplexity": {
+      "corpus_artifact": "wikitext2_raw_test",
+      "corpus_sha256": "173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08",
+      "context_size": 128,
+      "batch_size": 128,
+      "ubatch_size": 128,
+      "chunks": 4,
+      "max_relative_regression": 0.2,
+      "maximum_et_cpu_relative_difference": 0.01
+    }
+  },
+  "performance": {
+    "metric": "tokens_per_second",
+    "lower_is_better": false,
+    "generation_tokens": 128,
+    "prompt_tokens": 256,
+    "repetitions": 3,
+    "max_sample_cv": 0.05
+  }
+}

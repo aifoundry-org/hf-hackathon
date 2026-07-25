@@ -1,0 +1,17 @@
+{
+  "_comment": "Stage-1 registry entry for the olmo2 identity. A maintainer adds this object to the identities list in data/model-port-identities.json to make the identity eligible. The two sha256 values are precomputed against this port; recompute per docs/RECIPE.md if any file changes. Drop the _comment key before committing.",
+  "identity_id": "olmo2",
+  "execution_family": "olmo2",
+  "benchmark_models": ["olmo2_1b"],
+  "aliases": ["olmo-2-0425-1b-instruct"],
+  "eligible": true,
+  "canonical_source": {
+    "repo": "allenai/OLMo-2-0425-1B-Instruct-GGUF",
+    "revision": "62f8c199538474c3e33ed5d7e0580abd66686a27",
+    "license": "apache-2.0"
+  },
+  "approved_runner": "llama_server",
+  "benchmark_config_sha256": "1bfb2e5249173481711543e6d72449b5ca1d7090fc41ad740bc505eab4701532",
+  "validation_contract": ".github/ci/reference/olmo2_1b.json",
+  "validation_contract_sha256": "68970f1c980465b8485b3c11b5327af4050e905f92bddb8ca94693392994201c"
+}
