@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "starcoder2_3b",
+  "identity_id": "starcoder2",
+  "source": {
+    "repo": "bigcode/starcoder2-3b",
+    "revision": "733247c55e3f73af49ce8e9c7949bf14af205928",
+    "license": "bigcode-openrail-m"
+  },
+  "implementation_paths": [
+    "ported_models/starcoder2_3b"
+  ],
+  "benchmark_config": ".github/ci/benchmark_config.json",
+  "recipe": "ported_models/starcoder2_3b/docs/RECIPE.md"
+}
