@@ -315,6 +315,12 @@
     },
     "smolvlm_500m": {
       "config": "ported_models/llama_cpp_et/benchmarks/smolvlm_500m.json"
+    },
+    "maincoder_1b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/maincoder_1b.json"
+    },
+    "mpt7b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/mpt7b.json"
     }
   }
 }
