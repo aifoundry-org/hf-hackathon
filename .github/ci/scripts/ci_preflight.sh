@@ -42,10 +42,14 @@ python3 -m unittest discover -s .github/ci/scripts -p 'test_merge_leaderboard.py
   || bad "leaderboard merge policy tests failed"
 python3 -m unittest discover -s .github/ci/scripts -p 'test_model_port_track.py' \
   || bad "trusted model-port track tests failed"
+python3 -m unittest discover -s .github/ci/scripts -p 'test_score_runtime_failure.py' \
+  || bad "runtime-failure classification tests failed"
 python3 -m unittest discover -s .github/ci/scripts -p 'test_model_port_history.py' \
   || bad "historical model-port review tests failed"
 python3 -m unittest discover -s .github/ci/scripts -p 'test_board_lock.py' \
   || bad "shared board lock tests failed"
+python3 -m unittest discover -s .github/ci/scripts -p 'test_changed_benchmark_models.py' \
+  || bad "hardware migration selector tests failed"
 python3 -m py_compile ported_models/yolo/tools/host_reference.py \
   || bad "YOLO host-reference compile errors"
 
@@ -58,7 +62,7 @@ step "Workflow YAML parses"
 for yml in .github/workflows/*.yml; do
   python3 -c "import yaml,sys; yaml.safe_load(open(sys.argv[1]))" "$yml" || bad "invalid YAML: $yml"
 done
-python3 - <<'PY' || bad "ET-SoC1 workflows are not pinned exclusively to aifoundry2"
+python3 - <<'PY' || bad "ET-SoC1 workflows are not pinned exclusively to the guarded aifoundry3 epoch"
 from pathlib import Path
 
 import yaml
@@ -71,9 +75,18 @@ targets = {
 }
 for filename, job_name in targets.items():
     workflow = yaml.safe_load((Path(".github/workflows") / filename).read_text())
-    labels = workflow["jobs"][job_name]["runs-on"]
-    assert "aifoundry2" in labels, f"{filename} is not pinned to aifoundry2"
-    assert "aifoundry3" not in labels, f"{filename} still selects aifoundry3"
+    job = workflow["jobs"][job_name]
+    labels = job["runs-on"]
+    assert "aifoundry3" in labels, f"{filename} is not pinned to aifoundry3"
+    assert "aifoundry2" not in labels, f"{filename} still selects aifoundry2"
+    env = job.get("env", {})
+    assert env.get("ET_BOARD_EPOCH") == "et-soc1-aifoundry3-600-400-tdp0-v1"
+    assert env.get("ET_BOARD_ID") == "aifoundry3"
+    assert str(env.get("ET_MINION_FREQUENCY_MHZ")) == "600"
+    assert str(env.get("ET_NOC_FREQUENCY_MHZ")) == "400"
+    assert str(env.get("ET_BOARD_TDP_W")) == "0"
+    if filename == "benchmark-board.yml":
+        assert str(env.get("SOC3_FAIL_ON_MODEL_FAILURE")) == "1"
 PY
 if ! grep -qF 'uses: aifoundry-org/hf-hackathon/.github/workflows/benchmark-board.yml@main' \
   .github/workflows/trusted-yolo-pr.yml; then
@@ -117,6 +130,12 @@ if ! grep -qF 'trusted_track_delegation.py' \
   .github/workflows/benchmark-board.yml; then
   bad "generic leaderboard CI still duplicates trusted shared-runtime gates"
 fi
+if ! grep -qF 'from changed_benchmark_models import board_hardware_changed' \
+  .github/workflows/benchmark-board.yml \
+  || [[ "$(grep -cF '[[ "$hardware_migration" != "1" ]]' \
+    .github/workflows/benchmark-board.yml)" -ne 2 ]]; then
+  bad "hardware migration smoke can be removed by trusted-track delegation"
+fi
 if grep -qE '^[[:space:]]+paths:' .github/workflows/trusted-llama32-pr.yml; then
   bad "trusted Llama final check must run on every PR so it can be required"
 fi
@@ -156,12 +175,32 @@ if ! grep -qF 'et_platform_src_complete' .github/ci/platform/deploy/soc3-benchma
   || ! grep -qF '_launcher_lib_dir' .github/ci/platform/deploy/soc3-benchmark.sh; then
   bad "board deployment must bind a complete platform tree and matching launcher libraries"
 fi
+for token in \
+  'BOARD_FAILURE_SETTLE_S' \
+  'board_smoke "recovery-after-${model}" 1' \
+  'quarantining this board run'; do
+  if ! grep -qF "$token" .github/ci/platform/deploy/soc3-benchmark.sh; then
+    bad "board deployment lacks post-failure runtime containment: $token"
+  fi
+done
 if grep -qF '.removeprefix(' .github/ci/scripts/score_results.py; then
   bad "board scorer must remain compatible with the Python 3.8 board host"
 fi
-if ! grep -qF -- '--expected-claim-paths' .github/workflows/benchmark-board.yml \
-  || ! grep -qF 'git switch --detach origin/main' .github/workflows/benchmark-board.yml; then
-  bad "merge-time model-port credit must bind to PR files and current ledger state"
+if ! grep -qF -- '--expected-claim-paths' .github/workflows/benchmark-board.yml; then
+  bad "merge-time model-port credit must bind to PR files"
+fi
+for token in \
+  'if [[ "$current_main" != "$GITHUB_SHA" ]]' \
+  '--expected-sha "$GITHUB_SHA"' \
+  '--expected-ref "refs/heads/main"' \
+  '--expected-run-url "$EXPECTED_RUN_URL"'; do
+  if ! grep -qF -- "$token" .github/workflows/benchmark-board.yml; then
+    bad "leaderboard publication is not bound to measured provenance: $token"
+  fi
+done
+if grep -qF 'git merge-base --is-ancestor "$GITHUB_SHA" origin/main' \
+  .github/workflows/benchmark-board.yml; then
+  bad "leaderboard publication still permits main to advance after measurement"
 fi
 if ! grep -qF 'run-name: "Trusted YOLO PR #' .github/workflows/trusted-yolo-pr.yml; then
   bad "trusted YOLO run name must retain the PR number and head SHA"
@@ -868,6 +907,16 @@ scores_dir = Path(sys.argv[2])
 contract_path = Path(".github/ci/reference/llama32_1b.json")
 contract = json.loads(contract_path.read_text())
 contract_sha = hashlib.sha256(contract_path.read_bytes()).hexdigest()
+hardware_identity = {
+    "hardware_epoch": "et-soc1-aifoundry2-legacy-v1",
+    "hardware": {
+        "board_id": "aifoundry2",
+        "boot_id": "ci-fixture-boot",
+        "minion_frequency_mhz": 600,
+        "noc_frequency_mhz": 400,
+        "tdp_w": 0,
+    },
+}
 
 
 def best(model, key, *, higher):
@@ -880,6 +929,7 @@ model = contract["model"]
 target_speed = best(model, "tokens_per_second", higher=True)
 target_ppl = best(model, "perplexity", higher=False)
 baseline_path.write_text(json.dumps({
+    **hardware_identity,
     "model": model,
     "passed": True,
     "tokens_per_second": target_speed,
@@ -887,6 +937,7 @@ baseline_path.write_text(json.dumps({
     "validation_contract_sha256": contract_sha,
 }) + "\n")
 (scores_dir / f"score-{model}.json").write_text(json.dumps({
+    **hardware_identity,
     "model": model,
     "passed": True,
     "team": "ci-fixture",
@@ -900,6 +951,7 @@ for regression in contract["runtime"]["regression_models"]:
     speed = best(regression, "tokens_per_second", higher=True)
     ppl = best(regression, "perplexity", higher=False)
     (scores_dir / f"score-{regression}.json").write_text(json.dumps({
+        **hardware_identity,
         "model": regression,
         "passed": True,
         "tokens_per_second": speed * 1.01,

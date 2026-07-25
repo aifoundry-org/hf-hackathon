@@ -29,7 +29,6 @@ ET_LIB_PATH=/opt/et/host:/opt/et/lib
 LAUNCHER=/opt/et/bin/erbium_soc1sim_argbuf_dynmem
 SMOKE_ELF=/opt/et/kernels/histogram.erbium-soc1sim.elf
 BOARD_LOCK=/var/lock/etsoc-shire0.lock
-SOC_RESET_SYSFS=/sys/devices/pci0000:00/0000:00:01.0/0000:01:00.0/soc_reset/reinitiate
 SIM_ONLY_PUBLIC=0
 EOF
 
@@ -69,7 +68,7 @@ nohup env PYTHONPATH="\$PLATFORM" JOBS_API_URL="\$JOBS_API_URL" JOBS_DATA_DIR="\
   WORKER_TOKENS="\$WORKER_TOKENS" OPERATOR_TOKEN="\$OPERATOR_TOKEN" SUBMITTER_TOKEN="\$SUBMITTER_TOKEN" \
   HOST_ID="\$HOST_ID" JOBS_REPO_ROOT="\$JOBS_REPO_ROOT" \
   LAUNCHER="\$LAUNCHER" ET_LIB_PATH="\$ET_LIB_PATH" ET_INSTALL="\$ET_INSTALL" ET_PLATFORM="\$ET_PLATFORM" \
-  SMOKE_ELF="\$SMOKE_ELF" BOARD_LOCK="\$BOARD_LOCK" SOC_RESET_SYSFS="\$SOC_RESET_SYSFS" \
+  SMOKE_ELF="\$SMOKE_ELF" BOARD_LOCK="\$BOARD_LOCK" \
   ET_JOBS_DRY_RUN=0 KERNEL_TIMEOUT=120 \
   python3 -m et_jobs worker --pool board >"\$JOBS_DATA_DIR/run/board.log" 2>&1 &
 echo \$! >"\$JOBS_DATA_DIR/run/board.pid"

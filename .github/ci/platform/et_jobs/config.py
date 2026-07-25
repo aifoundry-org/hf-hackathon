@@ -60,10 +60,6 @@ ET_PLATFORM = os.environ.get("ET_PLATFORM", ET_INSTALL)
 ET_PLATFORM_SRC = os.environ.get("ET_PLATFORM_SRC", "")
 ET_LIB_PATH = os.environ.get("ET_LIB_PATH", "")
 BOARD_LOCK = os.environ.get("BOARD_LOCK", "/var/lock/etsoc-shire0.lock")
-SOC_RESET = os.environ.get(
-    "SOC_RESET_SYSFS",
-    "/sys/devices/pci0000:00/0000:00:01.0/0000:01:00.0/soc_reset/reinitiate",
-)
 DEFAULT_SHIRE = _int("DEFAULT_SHIRE", 0)
 KERNEL_TIMEOUT = _int("KERNEL_TIMEOUT", 120)
 MEM_SIZE = _int("MEM_SIZE", 16777216)
