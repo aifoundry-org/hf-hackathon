@@ -1,0 +1,17 @@
+{
+  "_comment": "Stage-1 registry entry for the phi2 identity. A maintainer adds this object to the identities list in data/model-port-identities.json to make the identity eligible. The two sha256 values are precomputed against this port; recompute per docs/RECIPE.md if any file changes. Drop the _comment key before committing.",
+  "identity_id": "phi2",
+  "execution_family": "phi2",
+  "benchmark_models": ["phi1_5"],
+  "aliases": ["phi-1_5", "phi-2"],
+  "eligible": true,
+  "canonical_source": {
+    "repo": "mradermacher/phi-1_5-GGUF",
+    "revision": "fb3f2464a557228caf113b4d6ca7bebb2dc6c08c",
+    "license": "mit"
+  },
+  "approved_runner": "llama_server",
+  "benchmark_config_sha256": "bfbd4653107505f1044beb27499d6784362fc45bc0b9433e11caef5cf3986cac",
+  "validation_contract": ".github/ci/reference/phi1_5.json",
+  "validation_contract_sha256": "e99b24fbb59ebe8751fe5800dbbecece1645bbeae938906c4896856c1052af2c"
+}
