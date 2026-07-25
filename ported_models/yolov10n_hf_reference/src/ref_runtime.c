@@ -25,6 +25,17 @@
 #define YR_CONV_1X1_FAST 1
 #endif
 
+/*
+ * Packed vector version of the 1x1 path, ET target only. Runs the same
+ * per-pixel matrix-vector product eight flat positions at a time on the vector
+ * unit instead of one at a time in scalar, across all sixteen harts. The fused
+ * multiply-add rounds differently from the scalar mul then add, so a build with
+ * this validates by tolerance rather than the workspace hash.
+ */
+#ifndef YR_CONV_1X1_VPU
+#define YR_CONV_1X1_VPU 1
+#endif
+
 static uint8_t *yr_tensor_raw(
     uint8_t *base, const struct yr_tensor_desc *tensor)
 {
@@ -865,6 +876,111 @@ static uint32_t yr_conv3x3_s2(
 }
 
 
+#if YR_CONV_1X1_VPU && defined(__riscv)
+/*
+ * Packed eight-wide 1x1 stride-1 conv, out = bias + sum over ic of
+ * w[oc][ic] * in[ic][hw]. Same per-pixel matrix-vector product as the scalar
+ * fast path but the accumulate runs eight flat positions at a time on the
+ * vector unit, two output channels sharing each activation load. Every hart
+ * owns an output-channel range. hw is a multiple of eight for every 1x1 node
+ * in this graph; a scalar tail covers any remainder.
+ */
+static void yr_conv_1x1_vpu(
+    const float *input, const float *weight, const float *bias, float *output,
+    uint32_t batches, uint32_t input_channels, uint32_t output_channels,
+    uint32_t hw, uint32_t oc_lo, uint32_t oc_hi)
+{
+    uint32_t n, oc, ic, p;
+    for (n = 0u; n < batches; ++n) {
+        const float *batch_input = input + (uint64_t)n * input_channels * hw;
+        float *batch_output = output + (uint64_t)n * output_channels * hw;
+        oc = oc_lo;
+        for (; oc + 1u < oc_hi; oc += 2u) {
+            const float *wa = weight + (uint64_t)oc * input_channels;
+            const float *wb = wa + input_channels;
+            float *out_a = batch_output + (uint64_t)oc * hw;
+            float *out_b = out_a + hw;
+            union { float f; uint32_t u; } ba = { bias ? bias[oc] : 0.0f };
+            union { float f; uint32_t u; } bb = { bias ? bias[oc + 1u] : 0.0f };
+            for (p = 0u; p + 8u <= hw; p += 8u) {
+                const float *in_plane = batch_input + p;
+                float va, vb;
+                __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(va)
+                    : "r"((uint64_t)ba.u));
+                __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(vb)
+                    : "r"((uint64_t)bb.u));
+                for (ic = 0u; ic < input_channels; ++ic) {
+                    union { float f; uint32_t u; } cwa = { wa[ic] };
+                    union { float f; uint32_t u; } cwb = { wb[ic] };
+                    float iv, wav, wbv;
+                    __asm__ volatile("flq2 %0, 0(%1)\n" : "=f"(iv)
+                        : "r"(in_plane));
+                    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(wav)
+                        : "r"((uint64_t)cwa.u));
+                    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(wbv)
+                        : "r"((uint64_t)cwb.u));
+                    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(va)
+                        : "f"(iv), "f"(wav));
+                    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(vb)
+                        : "f"(iv), "f"(wbv));
+                    in_plane += hw;
+                }
+                __asm__ volatile("fsq2 %1, 0(%0)\n" :: "r"(out_a + p), "f"(va)
+                    : "memory");
+                __asm__ volatile("fsq2 %1, 0(%0)\n" :: "r"(out_b + p), "f"(vb)
+                    : "memory");
+            }
+            for (; p < hw; ++p) {
+                float a = ba.f, b = bb.f;
+                const float *in_plane = batch_input + p;
+                for (ic = 0u; ic < input_channels; ++ic) {
+                    const float iv = *in_plane;
+                    a += wa[ic] * iv;
+                    b += wb[ic] * iv;
+                    in_plane += hw;
+                }
+                out_a[p] = a;
+                out_b[p] = b;
+            }
+        }
+        for (; oc < oc_hi; ++oc) {
+            const float *wr = weight + (uint64_t)oc * input_channels;
+            float *out_row = batch_output + (uint64_t)oc * hw;
+            union { float f; uint32_t u; } bo = { bias ? bias[oc] : 0.0f };
+            for (p = 0u; p + 8u <= hw; p += 8u) {
+                const float *in_plane = batch_input + p;
+                float va;
+                __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(va)
+                    : "r"((uint64_t)bo.u));
+                for (ic = 0u; ic < input_channels; ++ic) {
+                    union { float f; uint32_t u; } cw = { wr[ic] };
+                    float iv, wv;
+                    __asm__ volatile("flq2 %0, 0(%1)\n" : "=f"(iv)
+                        : "r"(in_plane));
+                    __asm__ volatile("fbcx.ps %0, %1\n" : "=f"(wv)
+                        : "r"((uint64_t)cw.u));
+                    __asm__ volatile("fmadd.ps %0, %1, %2, %0\n" : "+f"(va)
+                        : "f"(iv), "f"(wv));
+                    in_plane += hw;
+                }
+                __asm__ volatile("fsq2 %1, 0(%0)\n" :: "r"(out_row + p), "f"(va)
+                    : "memory");
+            }
+            for (; p < hw; ++p) {
+                float a = bo.f;
+                const float *in_plane = batch_input + p;
+                for (ic = 0u; ic < input_channels; ++ic) {
+                    a += wr[ic] * *in_plane;
+                    in_plane += hw;
+                }
+                out_row[p] = a;
+            }
+        }
+    }
+}
+#endif
+
+
 static uint32_t yr_conv(
     const struct yr_node_desc *node,
     const struct yr_tensor_desc *input_desc,
@@ -962,6 +1078,19 @@ static uint32_t yr_conv(
      * over input channels in ascending order starting from the bias, exactly
      * the order the general loop below uses, so the result is bit-identical.
      */
+#if YR_CONV_1X1_VPU && defined(__riscv)
+    if (node->kernel_h == 1 && node->kernel_w == 1
+        && node->stride_h == 1 && node->stride_w == 1
+        && node->dilation_h == 1 && node->dilation_w == 1
+        && node->group == 1
+        && (node->pad_top | node->pad_left | node->pad_bottom
+            | node->pad_right) == 0) {
+        yr_hart_range(output_channels, &oc_lo, &oc_hi);
+        yr_conv_1x1_vpu(input, weight, bias, output, batches, input_channels,
+                        output_channels, channel_stride, oc_lo, oc_hi);
+        return YR_STATUS_OK;
+    }
+#endif
     if (YR_CONV_1X1_FAST
         && node->kernel_h == 1 && node->kernel_w == 1
         && node->stride_h == 1 && node->stride_w == 1
