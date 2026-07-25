@@ -8,7 +8,9 @@
     "revision": "645b8482494e31b6b752272bf7f7f273ef0f3caf",
     "license": "mit"
   },
-  "implementation_paths": ["ported_models/glm4_9b"],
-  "benchmark_config": ".github/ci/benchmark_config.json",
+  "implementation_paths": [
+    "ported_models/glm4_9b"
+  ],
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/glm4_9b.json",
   "recipe": "ported_models/glm4_9b/docs/RECIPE.md"
 }

@@ -8,7 +8,9 @@
     "revision": "791833e92ebddb0bc2c1007f6d2b6764f886a2ae",
     "license": "nvidia-community-model-license"
   },
-  "implementation_paths": ["ported_models/nemotron_mini_4b"],
-  "benchmark_config": ".github/ci/benchmark_config.json",
+  "implementation_paths": [
+    "ported_models/nemotron_mini_4b"
+  ],
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/nemotron_mini_4b.json",
   "recipe": "ported_models/nemotron_mini_4b/docs/RECIPE.md"
 }
