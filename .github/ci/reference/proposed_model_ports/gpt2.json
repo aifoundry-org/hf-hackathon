@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "model": {
+    "repo": "openai-community/gpt2",
+    "revision": "607a30d783dfa663caf39e06633721c8d4cfcd7e",
+    "license": "mit"
+  },
+  "baseline_artifacts": {
+    "model": {
+      "sha256": "4d1df054e273ac10b3a31a2f90660426212d033156bb0b530e7517662fbe0c32",
+      "quantization": "Q8_0",
+      "hf_repo": "igorbkz/gpt2-Q8_0-GGUF"
+    },
+    "note": "Downloaded from a third-party community GGUF repo, not the original authors -- sha256 verified locally against the exact file used. The quantizer repo's own revision was not pinned at download time (no explicit commit reference captured); flagging honestly rather than guessing one."
+  },
+  "architecture": {
+    "general_architecture": "gpt2"
+  },
+  "runtime": {
+    "submodule_path": "ported_models/llama_cpp_et/src/llama.cpp-et",
+    "required_device": "ET",
+    "required_gpu_layers": 99,
+    "require_full_offload": true
+  },
+  "quality": {
+    "perplexity": {
+      "corpus_artifact": "wikitext2_raw_test",
+      "corpus_sha256": "173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08",
+      "context_size": 128,
+      "batch_size": 128,
+      "ubatch_size": 128,
+      "chunks": 4,
+      "measurement_status": "pending_host_or_board_run",
+      "note": "No PPL number is populated here -- only local sysemu structural verification was performed this session (full ET layer offload, param count matching upstream, clean compute graph; see the recipe). A real first_run_perplexity and regression threshold should come from an actual host/board run, not be assumed."
+    }
+  },
+  "correctness": {
+    "host_reference": "CPU execution of the candidate artifact through the main-owned runtime harness",
+    "measurement_status": "pending_host_or_board_run"
+  },
+  "recipe": "ported_models/gpt2/docs/RECIPE.md"
+}

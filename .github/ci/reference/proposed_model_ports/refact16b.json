@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "model": {
+    "repo": "smallcloudai/Refact-1_6B-fim",
+    "revision": "a2b605b6d76ce09732ef6f54265b3c0a8393c08e",
+    "license": "bigscience-openrail-m"
+  },
+  "baseline_artifacts": {
+    "model": {
+      "sha256": "2298c7e2ad48d17e9db5c46e783b55dfe9e8ed99a00364b9c1f3bd14c0f6519f",
+      "quantization": "Q8_0",
+      "hf_repo": "oblivious/Refact-1.6B-fim-GGUF"
+    },
+    "note": "Downloaded from a third-party community GGUF repo, not the original authors -- sha256 verified locally against the exact file used. The quantizer repo's own revision was not pinned at download time (no explicit commit reference captured); flagging honestly rather than guessing one."
+  },
+  "architecture": {
+    "general_architecture": "refact"
+  },
+  "runtime": {
+    "submodule_path": "ported_models/llama_cpp_et/src/llama.cpp-et",
+    "required_device": "ET",
+    "required_gpu_layers": 99,
+    "require_full_offload": true
+  },
+  "quality": {
+    "perplexity": {
+      "corpus_artifact": "wikitext2_raw_test",
+      "corpus_sha256": "173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08",
+      "context_size": 128,
+      "batch_size": 128,
+      "ubatch_size": 128,
+      "chunks": 4,
+      "measurement_status": "pending_host_or_board_run",
+      "note": "No PPL number is populated here -- only local sysemu structural verification was performed this session (full ET layer offload, param count matching upstream, clean compute graph; see the recipe). A real first_run_perplexity and regression threshold should come from an actual host/board run, not be assumed."
+    }
+  },
+  "correctness": {
+    "host_reference": "CPU execution of the candidate artifact through the main-owned runtime harness",
+    "measurement_status": "pending_host_or_board_run"
+  },
+  "recipe": "ported_models/refact16b/docs/RECIPE.md"
+}
