@@ -36,8 +36,9 @@ SHA256:
 - Prompt: Qwen chat template with `<|im_end|>`:
   `<|im_start|>user\n{media_markers}\n{question}<|im_end|>\n<|im_start|>assistant\n`
 - Extra: `--image-min-tokens 1024` (needed for reliable COCO answers offline).
+- Performance: `ignore_eos=true` so the board emits all 3 contracted fixed tokens (Qwen chat models otherwise stop early after the one-word answer).
 - Port **18105**.
-- PPL gate: WikiText-2, loose `max_ppl=100` until host smoke fills first-run baselines.
+- PPL gate: WikiText-2, loose `max_ppl=100` (`first_run_perplexity=83.33`, ×1.2) until host smoke refines baselines.
 
 ## Dependency / sequencing
 

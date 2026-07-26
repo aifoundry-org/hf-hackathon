@@ -43,7 +43,7 @@
 
 | Risk | Mitigation |
 |------|------------|
-| Host smoke not yet run locally | Identity fingerprints from GGUF headers; PPL `first_run_*` TBD until host oracle green |
-| PPL first-run baseline not yet host-measured | Loose `max_ppl=100` until host smoke fills `first_run_*` |
+| Host smoke not yet run locally | Identity fingerprints from GGUF headers; PPL `first_run_*` uses loose 100 ceiling (83.33×1.2) until host oracle green |
+| PPL first-run baseline not yet host-measured | Loose `max_ppl=100` with internally consistent contract until host smoke refines `first_run_*` |
 | ET vision kernel coverage / fallbacks | Same `require_zero_vision_fallbacks` gate as SmolVLM / Qwen3-VL-2B |
 | Sequencing vs #73 | Host smoke required; prefer ET after #73 ET-green (shared qwen3vl path) |
