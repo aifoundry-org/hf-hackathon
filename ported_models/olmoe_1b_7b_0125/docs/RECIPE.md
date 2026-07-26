@@ -45,6 +45,14 @@ inference via the CPU-backend build (see verification-tier note in the
   normal range, and notably strong for a model this size, consistent with
   Ai2's own published benchmarks for OLMoE.
 
+## Committed deterministic oracle (added per maintainer review)
+
+`ported_models/olmoe_1b_7b_0125/oracle/perplexity_oracle.json` commits
+the exact reproduction command, pinned corpus/artifact hashes, the
+final PPL from this session's CPU reference run, and an explicit ±20%
+comparison threshold for independently verifying a future full-offload
+ET-SoC1 run against this reference.
+
 ## Instructions for Reproduction
 
 ```bash
