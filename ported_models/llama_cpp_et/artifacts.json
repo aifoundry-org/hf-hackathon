@@ -485,6 +485,42 @@
       "sha256": "d1eb8b6b23979205fdf63703ed10f788131a3f812c7b1f72e0119d5d81295150",
       "size_bytes": 108783360,
       "note": "SmolVLM 500M vision projector (SigLIP ~93M + MLP). Q8_0 quantized. Must be loaded alongside smolvlm_500m_q8_gguf."
+    },
+    "qwen3vl_2b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "Qwen3-VL-2B-Instruct-Q8_0",
+      "filename": "Qwen3-VL-2B-Instruct-Q8_0.gguf",
+      "env": "QWEN3VL_2B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "ggml-org/Qwen3-VL-2B-Instruct-GGUF",
+        "revision": "ea6a11058182570be6436b9a2e4ee7f7b49f908d",
+        "filename": "Qwen3-VL-2B-Instruct-Q8_0.gguf",
+        "url": "https://huggingface.co/ggml-org/Qwen3-VL-2B-Instruct-GGUF/resolve/ea6a11058182570be6436b9a2e4ee7f7b49f908d/Qwen3-VL-2B-Instruct-Q8_0.gguf"
+      },
+      "local_cache": "local-artifacts/models/qwen3vl_2b/Qwen3-VL-2B-Instruct-Q8_0.gguf",
+      "sha256": "b7802e29f71a9e5b5e3f83f613df898a2204342dcea71a231ea501d481813c39",
+      "size_bytes": 1834427296,
+      "note": "Qwen3-VL-2B-Instruct LLM Q8_0 (qwen3vl arch: Qwen3 text decoder ~2B). Same architecture family as ZwZ-4B / Qwen3-8B (already ported). Requires mmproj for vision."
+    },
+    "qwen3vl_2b_mmproj_q8": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "Qwen3-VL-2B-Instruct-mmproj-Q8_0",
+      "filename": "mmproj-Qwen3-VL-2B-Instruct-Q8_0.gguf",
+      "env": "QWEN3VL_2B_MMPROJ_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "ggml-org/Qwen3-VL-2B-Instruct-GGUF",
+        "revision": "ea6a11058182570be6436b9a2e4ee7f7b49f908d",
+        "filename": "mmproj-Qwen3-VL-2B-Instruct-Q8_0.gguf",
+        "url": "https://huggingface.co/ggml-org/Qwen3-VL-2B-Instruct-GGUF/resolve/ea6a11058182570be6436b9a2e4ee7f7b49f908d/mmproj-Qwen3-VL-2B-Instruct-Q8_0.gguf"
+      },
+      "local_cache": "local-artifacts/models/qwen3vl_2b/mmproj-Qwen3-VL-2B-Instruct-Q8_0.gguf",
+      "sha256": "69066c8f279ec85ff48ab4059f6ebba0d2932ca57667f2bbdac7d9805bca9e7b",
+      "size_bytes": 445053056,
+      "note": "Qwen3-VL-2B vision projector Q8_0 (native Qwen3-VL vision encoder + merger). Must be loaded alongside qwen3vl_2b_q8_gguf."
     }
   }
 }

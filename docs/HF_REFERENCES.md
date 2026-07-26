@@ -24,6 +24,7 @@ Hugging Face base model.
 | `smolvlm_256m` | `ggml-org/SmolVLM-256M-Instruct-GGUF` | `b9e4379657e1450d04d02eec8e345667265b0a00` | `apache-2.0` | `SmolVLM-256M-Instruct-Q8_0.gguf`, `mmproj-SmolVLM-256M-Instruct-Q8_0.gguf` |
 | `smolvlm_500m` | `ggml-org/SmolVLM-500M-Instruct-GGUF` | `72e986006ef53e37cdd3f6d4241c90b0f01df376` | `apache-2.0` | `SmolVLM-500M-Instruct-Q8_0.gguf`, `mmproj-SmolVLM-500M-Instruct-Q8_0.gguf` |
 | `smolvlm2_500m_video` | `HuggingFaceTB/SmolVLM2-500M-Video-Instruct` | `7b375e1b73b11138ff12fe22c8f2822d8fe03467` | `apache-2.0` | `model.safetensors`, converted model and `mmproj` GGUF |
+| `qwen3vl_2b` | `ggml-org/Qwen3-VL-2B-Instruct-GGUF` | `ea6a11058182570be6436b9a2e4ee7f7b49f908d` | `apache-2.0` | `Qwen3-VL-2B-Instruct-Q8_0.gguf`, `mmproj-Qwen3-VL-2B-Instruct-Q8_0.gguf` |
 
 ## Submission rule
 

@@ -1,0 +1,165 @@
+{
+  "schema_version": 2,
+  "model": {
+    "repo": "Qwen/Qwen3-VL-2B-Instruct",
+    "revision": "89644892e4d85e24eaac8bacfd4f463576704203",
+    "license": "apache-2.0",
+    "files": {
+      "model.safetensors": {
+        "sha256": "7de1838c87a5349b016c26a1c3f7d2bc400a3d485f95ef39a7059ffd734977a0",
+        "size_bytes": 4255140312
+      },
+      "config.json": {
+        "sha256": "bec4b3d446efa05807365c9e1cec03ac590836879d02f3a6da879971154bdd3b"
+      },
+      "preprocessor_config.json": {
+        "sha256": "27225450ac9c6529872ee1924fcb0962ff5634834f817040f444118116f4e516"
+      },
+      "tokenizer.json": {
+        "sha256": "a5d85b6dcc535e6b93115a9ef287e6132fdbf30270da6218194ba742261173c7"
+      },
+      "chat_template.json": {
+        "sha256": "6f8a6a55027e3da5160105556cda5dd69f6423f1c32645f6730d32de7773d0c4"
+      }
+    }
+  },
+  "baseline_artifacts": {
+    "model": {
+      "filename": "Qwen3-VL-2B-Instruct-Q8_0.gguf",
+      "sha256": "b7802e29f71a9e5b5e3f83f613df898a2204342dcea71a231ea501d481813c39",
+      "size_bytes": 1834427296
+    },
+    "projector": {
+      "filename": "mmproj-Qwen3-VL-2B-Instruct-Q8_0.gguf",
+      "sha256": "69066c8f279ec85ff48ab4059f6ebba0d2932ca57667f2bbdac7d9805bca9e7b",
+      "size_bytes": 445053056
+    },
+    "source_repo": "ggml-org/Qwen3-VL-2B-Instruct-GGUF",
+    "source_revision": "ea6a11058182570be6436b9a2e4ee7f7b49f908d"
+  },
+  "architecture": {
+    "language": {
+      "general_architecture": "qwen3vl",
+      "metadata_key_prefix": "qwen3vl",
+      "parameter_count": { "value": 1.72, "unit": "B" },
+      "require_model_name": false,
+      "vocabulary": { "source": "n_vocab", "size": 151936 },
+      "tensor_count": 310,
+      "block_count": 28,
+      "embedding_length": 2048,
+      "feed_forward_length": 6144,
+      "attention_heads": 16,
+      "attention_kv_heads": 8
+    },
+    "vision": {
+      "require_model_name": false,
+      "projector": "qwen3vl_merger",
+      "tensor_count": 316,
+      "embedding_length": 1024,
+      "attention_heads": 16,
+      "feed_forward_length": 4096,
+      "block_count": 24,
+      "projection_dimension": 2048,
+      "image_size": 768,
+      "patch_size": 16
+    }
+  },
+  "candidate_policy": {
+    "artifacts_must_match_baseline": true
+  },
+  "runtime": {
+    "submodule_path": "ported_models/llama_cpp_et/src/llama.cpp-et"
+  },
+  "input_contract": {
+    "frames_per_second": 1.0,
+    "processor_image_size": 768,
+    "prompt_template": "<|im_start|>user\n{media_markers}\n{question}<|im_end|>\n<|im_start|>assistant\n",
+    "fixtures": {
+      "coco_cat": {
+        "artifact": "smolvlm2_coco_cat_jpg",
+        "source": "http://images.cocodataset.org/val2017/000000524280.jpg",
+        "sha256": "3b83ffd2d2ce4c28a05b1dcd486edf8a06542584a05c9a66cf208df9ed6e2c7d"
+      },
+      "coco_giraffes": {
+        "artifact": "smolvlm2_coco_giraffes_jpg",
+        "source": "http://images.cocodataset.org/val2017/000000296969.jpg",
+        "sha256": "1032b203f4b7faf2ea0268dddc1d9568e7ad8cbc39eb077b62ecf7b171bf90ff"
+      }
+    },
+    "cases": [
+      {
+        "name": "coco_cat",
+        "fixtures": ["coco_cat"],
+        "question": "What animal is shown? Answer one word.",
+        "accepted_answers": ["cat", "tabby"]
+      },
+      {
+        "name": "coco_giraffes",
+        "fixtures": ["coco_giraffes"],
+        "question": "What animal is shown? Answer one word.",
+        "accepted_answers": ["giraffe", "giraffes"]
+      },
+      {
+        "name": "cat_then_giraffes",
+        "fixtures": ["coco_cat", "coco_giraffes"],
+        "question": "Name the animal in the second image in one word.",
+        "accepted_answers": ["giraffe", "giraffes"]
+      },
+      {
+        "name": "giraffes_then_cat",
+        "fixtures": ["coco_giraffes", "coco_cat"],
+        "question": "Name the animal in the second image in one word.",
+        "accepted_answers": ["cat", "tabby"]
+      }
+    ],
+    "order_pair": ["cat_then_giraffes", "giraffes_then_cat"]
+  },
+  "correctness": {
+    "host_reference": "CPU execution of the candidate artifact through the main-owned runtime harness",
+    "answer_comparison": "lowercase alphanumeric tokens, exact match",
+    "minimum_task_accuracy": 1.0,
+    "minimum_host_agreement": 1.0,
+    "ci_cases": ["coco_cat"],
+    "require_order_pair_difference": true,
+    "require_full_offload": true,
+    "require_zero_vision_fallbacks": true,
+    "allowed_vision_fallback_ops": []
+  },
+  "quality": {
+    "perplexity": {
+      "corpus_artifact": "wikitext2_raw_test",
+      "corpus_sha256": "173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08",
+      "context_size": 128,
+      "batch_size": 128,
+      "ubatch_size": 128,
+      "chunks": 4,
+      "first_run_perplexity": 14.01,
+      "first_run_error": 0.0,
+      "first_run_tokens": 512,
+      "max_relative_regression": 0.2,
+      "maximum_perplexity": 16.812,
+      "maximum_et_cpu_relative_difference": 0.01
+    }
+  },
+  "performance": {
+    "metric": "pmc_cycles",
+    "primary_counter": "device_cmd_exec_dur",
+    "profile_schema_version": 3,
+    "profile_class": "ResponseReceived",
+    "response_type": "Kernel",
+    "performance_case": "coco_cat",
+    "warmup_repetitions": 0,
+    "measured_repetitions": 1,
+    "reuse_measured_request_for_correctness": true,
+    "generation_tokens": 3,
+    "ignore_eos": true,
+    "aggregation": "median of per-request summed firmware cycles",
+    "minimum_kernel_launches_per_request": 500,
+    "minimum_relative_improvement": 0.01,
+    "maximum_paired_baseline_drift": 0.005,
+    "minimum_end_to_end_improvement": 0.0025,
+    "maximum_paired_end_to_end_drift": 0.01,
+    "lower_is_better": true,
+    "secondary_metric": "real_time_factor"
+  }
+}

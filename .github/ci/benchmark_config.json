@@ -315,6 +315,9 @@
     },
     "smolvlm_500m": {
       "config": "ported_models/llama_cpp_et/benchmarks/smolvlm_500m.json"
+    },
+    "qwen3vl_2b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/qwen3vl_2b.json"
     }
   }
 }
