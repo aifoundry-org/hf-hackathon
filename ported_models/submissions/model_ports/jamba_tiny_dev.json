@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "jamba_tiny_dev",
+  "identity_id": "jamba",
+  "source": {
+    "repo": "ai21labs/Jamba-tiny-dev",
+    "revision": "ed303361004ac875426a61675edecf8e9d976882",
+    "license": "apache-2.0"
+  },
+  "implementation_paths": ["ported_models/jamba_tiny_dev"],
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/jamba_tiny_dev.json",
+  "recipe": "ported_models/jamba_tiny_dev/docs/RECIPE.md"
+}

@@ -485,6 +485,23 @@
       "sha256": "d1eb8b6b23979205fdf63703ed10f788131a3f812c7b1f72e0119d5d81295150",
       "size_bytes": 108783360,
       "note": "SmolVLM 500M vision projector (SigLIP ~93M + MLP). Q8_0 quantized. Must be loaded alongside smolvlm_500m_q8_gguf."
+    },
+    "jamba_tiny_dev_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "jamba-tiny-dev-Q8_0",
+      "filename": "jamba-tiny-dev-Q8_0.gguf",
+      "env": "JAMBA_TINY_DEV_MODEL_PATH",
+      "source": {
+        "type": "github_release",
+        "repo": "DarthCeltic/hf-hackathon",
+        "tag": "jamba-tiny-dev-gguf-v1",
+        "filename": "jamba-tiny-dev-Q8_0.gguf",
+        "url": "https://github.com/DarthCeltic/hf-hackathon/releases/download/jamba-tiny-dev-gguf-v1/jamba-tiny-dev-Q8_0.gguf"
+      },
+      "sha256": "cd92edec23a4e8eda0be4c34a3730a6c3a0605edd2786c70714de9bb76b3e914",
+      "local_cache": "local-artifacts/models/jamba-tiny-dev-Q8_0.gguf",
+      "board_path": "/data/models/jamba-tiny-dev-Q8_0.gguf"
     }
   }
 }

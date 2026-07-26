@@ -315,6 +315,9 @@
     },
     "smolvlm_500m": {
       "config": "ported_models/llama_cpp_et/benchmarks/smolvlm_500m.json"
+    },
+    "jamba_tiny_dev": {
+      "config": "ported_models/llama_cpp_et/benchmarks/jamba_tiny_dev.json"
     }
   }
 }
