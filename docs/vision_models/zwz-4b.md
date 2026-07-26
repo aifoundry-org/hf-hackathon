@@ -2,7 +2,7 @@
 
 **Path:** GGUF (llama.cpp-et) — VLM (text + image → text)
 **Model ID:** `zwz_4b` · **Port:** 18105
-**Status:** Vision harness wired — PR open (#30); depends on identity fix (#112). Prefer ET after #73 is green.
+**Status:** Vision harness wired — PR open (#30); #112 identity schema merged on main. Host smoke + ET blocked on #73 sequencing.
 
 ## Model Overview
 
@@ -43,7 +43,7 @@
 
 | Risk | Mitigation |
 |------|------------|
-| Identity gate hard-coded `llama.*` keys | Companion PR #112 generalizes to `{arch}.*` + nested schema |
+| Host smoke not yet run locally | Identity fingerprints from GGUF headers; PPL `first_run_*` TBD until host oracle green |
 | PPL first-run baseline not yet host-measured | Loose `max_ppl=100` until host smoke fills `first_run_*` |
 | ET vision kernel coverage / fallbacks | Same `require_zero_vision_fallbacks` gate as SmolVLM / Qwen3-VL-2B |
-| Sequencing vs #73 | Do not request ET until #112 merged + host smoke green; prefer after #73 ET-green |
+| Sequencing vs #73 | Host smoke required; prefer ET after #73 ET-green (shared qwen3vl path) |

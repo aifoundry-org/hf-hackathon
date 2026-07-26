@@ -21,7 +21,7 @@ SHA256:
 ## Architecture
 
 - `qwen3vl` — Qwen3 text decoder (**4.41 B** params from GGUF tensor element sum, `n_vocab` 151936) + Qwen3-VL vision encoder + `qwen3vl_merger`.
-- Identity contract (must match #112): `metadata_key_prefix=qwen3vl`, `require_model_name=false`, nested `parameter_count` / `vocabulary` (no `parameter_count_millions`).
+- Identity contract (#112 on main): `metadata_key_prefix=qwen3vl`, `require_model_name=false`, nested `parameter_count` / `vocabulary` (no `parameter_count_millions`).
 - Language: 36 blocks, emb 2560, ff 9728, 32/8 heads, **399** tensors.
 - Vision: 24 layers, emb 1024, ff 4096, 16 heads, image 768 / patch 16, projection_dim **2560**, **316** tensors.
 - Same family as **Qwen3-VL-2B** (#73); Qwen3 decoder path shared with **Qwen3-8B** (#11).
@@ -41,7 +41,7 @@ SHA256:
 
 ## Dependency / sequencing
 
-1. Merge [#112](https://github.com/aifoundry-org/hf-hackathon/pull/112) (identity `{arch}.*` + nested schema).
+1. [#112](https://github.com/aifoundry-org/hf-hackathon/pull/112) merged on main (`{arch}.*` + nested schema).
 2. Host CPU smoke green (identity + COCO correctness).
 3. Prefer waiting for [#73](https://github.com/aifoundry-org/hf-hackathon/pull/73) ET-green before requesting ZwZ ET (shared `qwen3vl` vision path).
 

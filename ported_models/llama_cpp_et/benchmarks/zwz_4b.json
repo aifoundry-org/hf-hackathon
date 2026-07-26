@@ -16,7 +16,7 @@
     "higher_is_better": false,
     "baseline_variant": "ZwZ-4B"
   },
-  "note": "ZwZ-4B fine-grained perception VLM (qwen3vl arch, Q4_K_M LLM + Q8_0 mmproj). Exercises real vision via the main-owned smolvlm2_video harness: loads mmproj, runs pinned COCO fixtures, ET visual-answer/oracle gate. Requires identity-arch-prefix fix (#112) on main. Prefer ET after #73 is green.",
+  "note": "ZwZ-4B fine-grained perception VLM (qwen3vl arch, Q4_K_M LLM + Q8_0 mmproj). Exercises real vision via the main-owned smolvlm2_video harness: loads mmproj, runs pinned COCO fixtures, ET visual-answer/oracle gate. Identity contract uses merged #112 qwen3vl schema. Prefer ET after #73 is green.",
   "llama_server": {
     "source_artifact": "llama_cpp_source",
     "model_artifact": "zwz_4b_q4_gguf",
