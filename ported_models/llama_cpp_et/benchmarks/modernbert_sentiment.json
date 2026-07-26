@@ -1,0 +1,34 @@
+{
+  "runner": "llama_server",
+  "board": true,
+  "framework": {
+    "name": "llama.cpp-et",
+    "runner": "llama_server",
+    "source_artifact": "llama_cpp_source"
+  },
+  "artifacts_file": "../artifacts.json",
+  "canonical_variant": "modernbert_sentiment_f32",
+  "score": {
+    "metric": "tokens_per_second",
+    "label": "Decode tokens/s",
+    "higher_is_better": true
+  },
+  "llama_server": {
+    "source_artifact": "llama_cpp_source",
+    "model_artifact": "modernbert_sentiment_f32_gguf",
+    "server_artifact": "llama_server",
+    "workdir_artifact": "llama_cpp_build",
+    "host": "127.0.0.1",
+    "port": 18152,
+    "device": "ET",
+    "gpu_layers": 99,
+    "ctx_size": 512,
+    "batch_size": 128,
+    "ubatch_size": 128,
+    "parallel": 1,
+    "cache_ram_mib": 0,
+    "ready_timeout_s": 300,
+    "request_timeout_s": 420,
+    "api": "rerank"
+  }
+}

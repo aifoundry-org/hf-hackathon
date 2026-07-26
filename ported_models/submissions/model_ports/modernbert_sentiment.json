@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "modernbert_sentiment",
+  "identity_id": "modern-bert",
+  "source": {
+    "repo": "clapAI/modernBERT-base-multilingual-sentiment",
+    "revision": "baa7f26fee4eca5aec35538caa5fdda7b86d83c6",
+    "license": "apache-2.0"
+  },
+  "implementation_paths": ["ported_models/modernbert_sentiment"],
+  "benchmark_config": ".github/ci/benchmark_config.json",
+  "recipe": "ported_models/modernbert_sentiment/docs/RECIPE.md"
+}

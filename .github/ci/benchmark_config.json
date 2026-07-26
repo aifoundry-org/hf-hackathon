@@ -315,6 +315,9 @@
     },
     "smolvlm_500m": {
       "config": "ported_models/llama_cpp_et/benchmarks/smolvlm_500m.json"
+    },
+    "modernbert_sentiment": {
+      "config": "ported_models/llama_cpp_et/benchmarks/modernbert_sentiment.json"
     }
   }
 }
