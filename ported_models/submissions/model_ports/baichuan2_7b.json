@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "baichuan2_7b",
+  "identity_id": "baichuan2",
+  "source": {
+    "repo": "shaowenchen/baichuan2-7b-chat-gguf",
+    "revision": "581784696096afa7302c21020000430022609dc3",
+    "license": "other"
+  },
+  "implementation_paths": ["ported_models/baichuan2_7b"],
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/baichuan2_7b.json",
+  "recipe": "ported_models/baichuan2_7b/docs/RECIPE.md"
+}

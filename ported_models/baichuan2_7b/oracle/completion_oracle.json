@@ -1,0 +1,16 @@
+{
+  "oracle_type": "board_completion_reference",
+  "model_artifact": {
+    "repo": "shaowenchen/baichuan2-7b-chat-gguf",
+    "revision": "581784696096afa7302c21020000430022609dc3",
+    "filename": "baichuan2-7b-chat.Q8_0.gguf",
+    "sha256": "7388d78f8b68209106aeb8b591e6404d07a66153cb8c134678bb833e2baf5c46"
+  },
+  "gate_prompt": "Repeat this token sequence without commentary: OK OK OK OK OK OK OK OK OK OK",
+  "verification_method": "llama-server --device ET -ngl 99, /completion endpoint, full layer offload",
+  "reference": "Verbatim sysemu verification record (prompt tokenization, layer-offload count, compute-graph node count, observed completion) is in this models RECIPE.md under Steps Taken / Locally verified via sysemu.",
+  "comparison_threshold": {
+    "metric": "completion_match",
+    "note": "Reproduction should send gate_prompt to the pinned artifact via llama-server --device ET and confirm full offload plus a coherent completion, consistent with the RECIPE.md record."
+  }
+}
