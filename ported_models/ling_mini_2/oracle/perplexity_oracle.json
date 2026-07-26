@@ -1,0 +1,25 @@
+{
+  "oracle_type": "perplexity_threshold",
+  "model_artifact": {
+    "repo": "inclusionAI/Ling-mini-2.0-GGUF",
+    "revision": "eaf4868610e601298e6f00381b2f7e6946a0e432",
+    "filename": "Ling-mini-2.0-Q8_0.gguf",
+    "sha256": "a87cc4911217c4ec24734959f547666d5c8d970bff3da55a14fdb818963b5f88"
+  },
+  "corpus": {
+    "artifact": "wikitext2_raw_test",
+    "sha256": "173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08"
+  },
+  "command": "llama-perplexity --model Ling-mini-2.0-Q8_0.gguf -f wiki.test.raw -c 128 -b 128 -ub 128 --chunks 4",
+  "reference_run": {
+    "final_ppl": 12.5899,
+    "final_ppl_stderr": 2.99657,
+    "measured_on": "CPU (ggml-cpu backend, GGML_ET=OFF build)",
+    "measured_date": "2026-07-25"
+  },
+  "comparison_threshold": {
+    "metric": "final_ppl",
+    "max_relative_deviation": 0.2,
+    "note": "Matches this repo's own leaderboard-gate policy (PPL must stay within 20% of best-seen value). A full-offload ET-SoC1 re-run against this exact command/corpus/artifact should land at final_ppl within [10.07, 15.11] to be considered consistent with this reference run. Maintainer manual ET-SoC1 review already reported this model passing; this oracle formalizes that verification for reproducibility."
+  }
+}
