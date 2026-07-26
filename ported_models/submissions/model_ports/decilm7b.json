@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "decilm7b",
+  "identity_id": "deci",
+  "source": {
+    "repo": "Deci/DeciLM-7B-instruct",
+    "revision": "4adc7aa9efe61b47b0a98b2cc94527d9c45c3b4f",
+    "license": "apache-2.0"
+  },
+  "implementation_paths": [
+    "ported_models/decilm7b"
+  ],
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/decilm7b.json",
+  "recipe": "ported_models/decilm7b/docs/RECIPE.md"
+}

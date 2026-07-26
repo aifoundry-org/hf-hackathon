@@ -485,6 +485,42 @@
       "sha256": "d1eb8b6b23979205fdf63703ed10f788131a3f812c7b1f72e0119d5d81295150",
       "size_bytes": 108783360,
       "note": "SmolVLM 500M vision projector (SigLIP ~93M + MLP). Q8_0 quantized. Must be loaded alongside smolvlm_500m_q8_gguf."
+    },
+    "minicpm5_1b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "MiniCPM5-1B-Q8_0",
+      "filename": "MiniCPM5-1B-Q8_0.gguf",
+      "env": "MINICPM5_1B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "openbmb/MiniCPM5-1B-GGUF",
+        "revision": "main",
+        "filename": "MiniCPM5-1B-Q8_0.gguf",
+        "url": "https://huggingface.co/openbmb/MiniCPM5-1B-GGUF/resolve/main/MiniCPM5-1B-Q8_0.gguf"
+      },
+      "sha256": "0dc7638539067268774c275a14a6ec9c7e01f7eeb2cff606c8590361fa527e4c",
+      "size": 1153529216,
+      "local_cache": "local-artifacts/models/MiniCPM5-1B-Q8_0.gguf",
+      "board_path": "/data/models/MiniCPM5-1B-Q8_0.gguf"
+    },
+    "decilm7b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "DeciLM-7B-instruct-Q8_0",
+      "filename": "decilm-7b-uniform-gqa-q8_0.gguf",
+      "env": "DECILM7B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "Deci/DeciLM-7B-instruct-GGUF",
+        "revision": "main",
+        "filename": "decilm-7b-uniform-gqa-q8_0.gguf",
+        "url": "https://huggingface.co/Deci/DeciLM-7B-instruct-GGUF/resolve/main/decilm-7b-uniform-gqa-q8_0.gguf"
+      },
+      "sha256": "1b60beae4c9d5d7131f846f7545cb386e20d8f2c613844a0142ee701537dbfe3",
+      "size": 7554187712,
+      "local_cache": "local-artifacts/models/decilm-7b-uniform-gqa-q8_0.gguf",
+      "board_path": "/data/models/decilm-7b-uniform-gqa-q8_0.gguf"
     }
   }
 }

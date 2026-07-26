@@ -315,6 +315,12 @@
     },
     "smolvlm_500m": {
       "config": "ported_models/llama_cpp_et/benchmarks/smolvlm_500m.json"
+    },
+    "minicpm5_1b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/minicpm5_1b.json"
+    },
+    "decilm7b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/decilm7b.json"
     }
   }
 }
