@@ -89,18 +89,29 @@ backend by the existing decoder-only models on the board.
    compute graph. Full multi-token `/completion` decode output was not
    captured locally, consistent with every other port this session.
 
-## Not registered in `artifacts.json` / `benchmark_config.json` -- hosting blocked
+## Hosting (update, POST-DEADLINE -- not a hackathon submission)
 
-Unlike every pre-made-GGUF port this session, this converted artifact has
-no upstream URL to point at -- it needs to be hosted somewhere, and (per
-the same precedent as `distilbert_sst2`/`roberta_sst2` from an earlier PR)
-the established pattern for a self-converted artifact in this fork is a
-GitHub Release asset (no Hugging Face upload token available). **Creating
-that release was blocked by this session's local tooling permissions** and
-could not be completed before this PR. This recipe and the local
-verification above stand as proof the port is real and working; the
-`artifacts.json`/`benchmark_config.json` registration is deferred to a
-follow-up once the release can be published.
+The original converted artifact referenced above was lost before it could
+be hosted. **After the official hackathon deadline**, purely for
+record-completeness (not seeking hackathon credit), this was
+re-converted from the same upstream revision using the same wrapper fix
+documented above, and hosted on Hugging Face:
+`darthceltic85/pythia-410m-gguf`, file `pythia-410m-Q8_0.gguf`,
+`sha256=6c5a302ff53c17ae4a00a8480aec204b82c6d84edb86a172bddae82c9e52629b`
+(433,397,440 bytes). Now registered in `artifacts.json`
+(`pythia410m_q8_gguf`) and `.github/ci/benchmark_config.json`
+(`pythia410m`, port 18153). Re-verified: `arch = gptneox`, `n_rot = 16`
+(confirming the rope_parameters fix still applies correctly), real
+perplexity run against WikiText-2 raw (4 chunks, ctx=128, batch=128):
+**PPL = 16.6002 +/- 2.99104**.
+
+## Committed deterministic oracle (added per maintainer review, POST-DEADLINE)
+
+`ported_models/pythia410m/oracle/perplexity_oracle.json` commits the
+exact reproduction command, pinned corpus/artifact hashes, the final PPL
+from the CPU reference run above, and an explicit ±20% comparison
+threshold for independently verifying a future full-offload ET-SoC1 run
+against this reference.
 
 ## Instructions for Reproduction
 

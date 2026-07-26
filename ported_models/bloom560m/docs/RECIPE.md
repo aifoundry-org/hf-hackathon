@@ -55,18 +55,29 @@ decoder-only models on the board.
    compute graph. Full multi-token `/completion` decode output was not
    captured locally, consistent with every other port this session.
 
-## Not registered in `artifacts.json` / `benchmark_config.json` -- hosting blocked
+## Hosting (update, POST-DEADLINE -- not a hackathon submission)
 
-Same situation as `pythia410m` in this PR: this converted artifact has no
-upstream URL to point at. The established pattern for a self-converted
-artifact in this fork (per the earlier `distilbert_sst2`/`roberta_sst2`
-PR) is a GitHub Release asset, since there's no Hugging Face upload
-token available. **Creating that release was blocked by this session's
-local tooling permissions** and could not be completed before this PR.
-This recipe and the local verification above stand as proof the port is
-real and working; the `artifacts.json`/`benchmark_config.json`
-registration is deferred to a follow-up once the release can be
-published.
+The original converted artifact referenced above was lost before it could
+be hosted. **After the official hackathon deadline**, purely for
+record-completeness (not seeking hackathon credit), this was
+re-converted from the same upstream revision with the stock, unmodified
+converter (no fix needed, as documented above), and hosted on Hugging
+Face: `darthceltic85/bloom-560m-gguf`, file `bloom-560m-Q8_0.gguf`,
+`sha256=c2f1d6893150b5cf9755ebd20fcc90f385705e954a8117b7b2c1c5cd51f6b616`
+(607,738,688 bytes). Now registered in `artifacts.json`
+(`bloom560m_q8_gguf`) and `.github/ci/benchmark_config.json`
+(`bloom560m`, port 18154). Re-verified: `arch = bloom`,
+`f_max_alibi_bias = 8.0` (confirming ALiBi positional encoding as
+documented above), real perplexity run against WikiText-2 raw (4
+chunks, ctx=128, batch=128): **PPL = 27.8342 +/- 5.56596**.
+
+## Committed deterministic oracle (added per maintainer review, POST-DEADLINE)
+
+`ported_models/bloom560m/oracle/perplexity_oracle.json` commits the
+exact reproduction command, pinned corpus/artifact hashes, the final PPL
+from the CPU reference run above, and an explicit ±20% comparison
+threshold for independently verifying a future full-offload ET-SoC1 run
+against this reference.
 
 ## Instructions for Reproduction
 

@@ -11,6 +11,6 @@
   "implementation_paths": [
     "ported_models/pythia410m"
   ],
-  "benchmark_config": ".github/ci/benchmark_config.json",
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/pythia410m.json",
   "recipe": "ported_models/pythia410m/docs/RECIPE.md"
 }

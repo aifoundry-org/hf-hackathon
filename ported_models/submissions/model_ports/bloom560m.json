@@ -11,6 +11,6 @@
   "implementation_paths": [
     "ported_models/bloom560m"
   ],
-  "benchmark_config": ".github/ci/benchmark_config.json",
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/bloom560m.json",
   "recipe": "ported_models/bloom560m/docs/RECIPE.md"
 }
