@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "ernie45_21b_a3b_base",
+  "identity_id": "ernie4_5_moe",
+  "source": {
+    "repo": "baidu/ERNIE-4.5-21B-A3B-Base-PT",
+    "revision": "c6804383159ca6ad60896b3a8a98c5c01e9b42d5",
+    "license": "apache-2.0"
+  },
+  "implementation_paths": ["ported_models/ernie45_21b_a3b_base"],
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/ernie45_21b_a3b_base.json",
+  "recipe": "ported_models/ernie45_21b_a3b_base/docs/RECIPE.md"
+}

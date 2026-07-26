@@ -1,0 +1,26 @@
+{
+  "oracle_type": "perplexity_threshold",
+  "model_artifact": {
+    "repo": "darthceltic85/ernie45-21b-a3b-base-gguf",
+    "revision": "682c6466c62f357d3c18bb668d46e63064ff1fd0",
+    "filename": "ernie45-21b-a3b-base-Q8_0.gguf",
+    "sha256": "2d18e66097f598c8fb5f3d15fd2fba9e6f916652985426bf0e7e1b478a625d48"
+  },
+  "corpus": {
+    "artifact": "wikitext2_raw_test",
+    "sha256": "173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08"
+  },
+  "command": "llama-perplexity --model ernie45-21b-a3b-base-Q8_0.gguf -f wiki.test.raw -c 128 -b 128 -ub 128 --chunks 4",
+  "reference_run": {
+    "per_chunk_ppl": [4.1805, 7.0040, 7.1000, 6.8926],
+    "final_ppl": 6.8926,
+    "final_ppl_stderr": 1.25185,
+    "measured_on": "CPU (ggml-cpu backend, GGML_ET=OFF build)",
+    "measured_date": "2026-07-26"
+  },
+  "comparison_threshold": {
+    "metric": "final_ppl",
+    "max_relative_deviation": 0.20,
+    "note": "Matches this repo's own leaderboard-gate policy (PPL must stay within 20% of best-seen value). A full-offload ET-SoC1 re-run against this exact command/corpus/artifact should land at final_ppl within [5.51, 8.27] to be considered consistent with this reference run. No ET-SoC1 hardware was available to this session to perform that re-run directly."
+  }
+}
