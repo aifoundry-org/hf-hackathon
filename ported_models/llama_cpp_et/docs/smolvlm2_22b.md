@@ -56,7 +56,7 @@ tensor count):
 | language `general.architecture` | `llama` |
 | language `general.name` | `SmolVLM2 2.2B Instruct` |
 | language params | loader prints `1.81 B` → contract `parameter_count: {value: 1.81, unit: "B"}` |
-| language KV heads | GQA=1: `attention_kv_heads: 32` (equal to `attention_heads`); GGUF omits `llama.attention.head_count_kv` → `require_attention_kv_heads_in_metadata: false` |
+| language KV heads | GQA=1: `attention_kv_heads: 32` (equal to `attention_heads`); Q4 GGUF omits `llama.attention.head_count_kv` (see maintainer blocker below) |
 | language tensor count | 219 |
 | language block / emb / ff / heads / vocab | 24 / 2048 / 8192 / 32 / 49280 |
 | vision projector | `idefics3` |
@@ -69,10 +69,11 @@ tensor count):
    (`80.0` / `96.0`) until a host measure on the pinned Q4_K_M artifact.
 2. **Host COCO cat smoke**: confirm one-word cat/tabby answer with pinned GGUFs
    + mmproj on a trusted CPU llama-server build.
-3. **Maintainer runner delta**: this PR adds backward-compatible support for
-   `require_attention_kv_heads_in_metadata: false` in the protected
-   `smolvlm2_video` identity gate (needed because Q4 GGUF omits
-   `llama.attention.head_count_kv` when GQA=1).
+3. **Maintainer blocker (identity gate)**: main's protected `smolvlm2_video`
+   runner always requires `llama.attention.head_count_kv` in loader logs, but
+   the pinned Q4 GGUF omits that key when GQA=1. Participant PRs must not edit
+   the runner; a maintainer merge is needed to add an opt-out contract flag (or
+   equivalent) before the board identity check can pass.
 
 ## ET settings
 

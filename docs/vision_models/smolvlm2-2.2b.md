@@ -36,4 +36,4 @@
 
 See `.github/ci/reference/smolvlm2_22b.json` and
 `ported_models/llama_cpp_et/docs/smolvlm2_22b.md` for fingerprint provenance
-and remaining TBD items (PPL measure, identity unit/`head_count_kv` gaps).
+and remaining TBD items (PPL measure, maintainer `head_count_kv` gate for GQA=1).

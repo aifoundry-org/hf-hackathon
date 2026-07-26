@@ -49,7 +49,6 @@
       "general_architecture": "llama",
       "model_name": "SmolVLM2 2.2B Instruct",
       "parameter_count": { "value": 1.81, "unit": "B" },
-      "require_attention_kv_heads_in_metadata": false,
       "tensor_count": 219,
       "block_count": 24,
       "embedding_length": 2048,
