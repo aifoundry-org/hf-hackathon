@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "glm4_9b",
+  "identity_id": "glm4",
+  "source": {
+    "repo": "zai-org/GLM-4-9B-0414",
+    "revision": "645b8482494e31b6b752272bf7f7f273ef0f3caf",
+    "license": "mit"
+  },
+  "implementation_paths": [
+    "ported_models/glm4_9b"
+  ],
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/glm4_9b.json",
+  "recipe": "ported_models/glm4_9b/docs/RECIPE.md"
+}

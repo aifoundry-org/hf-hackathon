@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "nemotron_mini_4b",
+  "identity_id": "nemotron",
+  "source": {
+    "repo": "nvidia/Nemotron-Mini-4B-Instruct",
+    "revision": "791833e92ebddb0bc2c1007f6d2b6764f886a2ae",
+    "license": "nvidia-community-model-license"
+  },
+  "implementation_paths": [
+    "ported_models/nemotron_mini_4b"
+  ],
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/nemotron_mini_4b.json",
+  "recipe": "ported_models/nemotron_mini_4b/docs/RECIPE.md"
+}

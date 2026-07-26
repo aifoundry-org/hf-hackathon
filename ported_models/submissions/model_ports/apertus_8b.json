@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "apertus_8b",
+  "identity_id": "apertus",
+  "source": {
+    "repo": "swiss-ai/Apertus-8B-Instruct-2509",
+    "revision": "b946d40447b2b597999b9c86d44bee0b452c919f",
+    "license": "apache-2.0"
+  },
+  "implementation_paths": [
+    "ported_models/apertus_8b"
+  ],
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/apertus_8b.json",
+  "recipe": "ported_models/apertus_8b/docs/RECIPE.md"
+}
