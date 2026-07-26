@@ -315,6 +315,9 @@
     },
     "smolvlm_500m": {
       "config": "ported_models/llama_cpp_et/benchmarks/smolvlm_500m.json"
+    },
+    "nemotron_h_4b_base": {
+      "config": "ported_models/llama_cpp_et/benchmarks/nemotron_h_4b_base.json"
     }
   }
 }
