@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "track": "llama_3_2_1b_fastest",
+  "model": "llama32_1b",
+  "runtime_revision": "ff71035cf45cc0ef6f9efc43c2896f533b7fcc73",
+  "submission_id": "karabambus-tree-barrier-experimental"
+}
