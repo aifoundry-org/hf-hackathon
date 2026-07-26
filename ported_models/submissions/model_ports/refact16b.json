@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "refact16b",
+  "identity_id": "refact",
+  "source": {
+    "repo": "smallcloudai/Refact-1_6B-fim",
+    "revision": "a2b605b6d76ce09732ef6f54265b3c0a8393c08e",
+    "license": "bigscience-openrail-m"
+  },
+  "implementation_paths": [
+    "ported_models/refact16b"
+  ],
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/refact16b.json",
+  "recipe": "ported_models/refact16b/docs/RECIPE.md"
+}
