@@ -1,0 +1,25 @@
+{
+  "oracle_type": "perplexity_threshold",
+  "model_artifact": {
+    "repo": "bartowski/THUDM_GLM-4-9B-0414-GGUF",
+    "revision": "main",
+    "filename": "THUDM_GLM-4-9B-0414-Q8_0.gguf",
+    "sha256": "7b4ea2795934ca05dc409251dddd289160a194a4d920b575d1de4516808bb50d"
+  },
+  "corpus": {
+    "artifact": "wikitext2_raw_test",
+    "sha256": "173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08"
+  },
+  "command": "llama-perplexity --model GLM-4-9B-0414-Q8_0.gguf -f wiki.test.raw -c 128 -b 128 -ub 128 --chunks 4",
+  "reference_run": {
+    "final_ppl": 12.2894,
+    "final_ppl_stderr": 2.42663,
+    "measured_on": "CPU (ggml-cpu backend, GGML_ET=OFF build)",
+    "measured_date": "2026-07-25"
+  },
+  "comparison_threshold": {
+    "metric": "final_ppl",
+    "max_relative_deviation": 0.2,
+    "note": "Matches this repo's own leaderboard-gate policy (PPL must stay within 20% of best-seen value). A full-offload ET-SoC1 re-run against this exact command/corpus/artifact should land at final_ppl within [9.83, 14.75] to be considered consistent with this reference run. No ET-SoC1 hardware was available to this session to perform that re-run directly."
+  }
+}
