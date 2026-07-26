@@ -2,6 +2,6 @@
   "schema_version": 1,
   "track": "llama_3_2_1b_fastest",
   "model": "llama32_1b",
-  "runtime_revision": "cafc4cd3a737c4aa6318cd242c9ec0a00b0159c7",
-  "submission_id": "noor-malaika-setrows-prefetch-20260725"
+  "runtime_revision": "06e01be28cde486a55f773bb46850c0caf0d9740",
+  "submission_id": "noor-malaika-lookup-decode-20260726"
 }
