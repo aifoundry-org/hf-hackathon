@@ -3,5 +3,5 @@
   "track": "llama_3_2_1b_fastest",
   "model": "llama32_1b",
   "submission_id": "codedoes-fused-ffn-v1",
-  "runtime_revision": "f67c2b2a30a24bf9354857cde0f233620a20eb23"
+  "runtime_revision": "d5c4b5e48bf272e79b54b06101e456565962766f"
 }
