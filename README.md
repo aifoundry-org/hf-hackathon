@@ -76,6 +76,7 @@ Start here:
 - [`docs/opinionated_porting_options/martin.md`](docs/opinionated_porting_options/martin.md): ET-SoC1 board mental model, correctness footguns, and
   performance playbook.
 - `ported_models/yolo/`
+- `ported_models/yolov10n_hf_reference/` (separate pinned-ONNX scalar FP32 correctness path)
 - `ported_models/llama_cpp_et/`
 - `ported_models/ggonnx/`
 

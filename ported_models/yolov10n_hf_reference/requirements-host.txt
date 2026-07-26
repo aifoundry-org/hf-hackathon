@@ -1,0 +1,6 @@
+# Pinned versions used to inspect the source graph and generate ORT goldens.
+# Python 3.8 is tested on the repository's current board host. Use a Python
+# version supported by all three pinned wheels (normally 3.8 through 3.11).
+numpy==1.24.4
+onnx==1.16.2
+onnxruntime==1.16.3
