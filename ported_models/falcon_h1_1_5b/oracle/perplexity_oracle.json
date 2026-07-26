@@ -1,0 +1,25 @@
+{
+  "oracle_type": "perplexity_threshold",
+  "model_artifact": {
+    "repo": "tiiuae/Falcon-H1-1.5B-Instruct-GGUF",
+    "revision": "main",
+    "filename": "Falcon-H1-1.5B-Instruct-Q8_0.gguf",
+    "sha256": "0044322ad5aaea5ccc2264f83f430f4ab2d20acc6db71a12d79b3f5acb0f69d5"
+  },
+  "corpus": {
+    "artifact": "wikitext2_raw_test",
+    "sha256": "173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08"
+  },
+  "command": "llama-perplexity --model Falcon-H1-1.5B-Instruct-Q8_0.gguf -f wiki.test.raw -c 128 -b 128 -ub 128 --chunks 4",
+  "reference_run": {
+    "final_ppl": 11.6708,
+    "final_ppl_stderr": 2.60807,
+    "measured_on": "CPU (ggml-cpu backend, GGML_ET=OFF build)",
+    "measured_date": "2026-07-25"
+  },
+  "comparison_threshold": {
+    "metric": "final_ppl",
+    "max_relative_deviation": 0.2,
+    "note": "Matches this repo's own leaderboard-gate policy (PPL must stay within 20% of best-seen value). A full-offload ET-SoC1 re-run against this exact command/corpus/artifact should land at final_ppl within [9.34, 14.00] to be considered consistent with this reference run. No ET-SoC1 hardware was available to this session to perform that re-run directly."
+  }
+}

@@ -485,6 +485,23 @@
       "sha256": "d1eb8b6b23979205fdf63703ed10f788131a3f812c7b1f72e0119d5d81295150",
       "size_bytes": 108783360,
       "note": "SmolVLM 500M vision projector (SigLIP ~93M + MLP). Q8_0 quantized. Must be loaded alongside smolvlm_500m_q8_gguf."
+    },
+    "falcon_h1_1_5b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "Falcon-H1-1.5B-Instruct-Q8_0",
+      "filename": "Falcon-H1-1.5B-Instruct-Q8_0.gguf",
+      "env": "FALCON_H1_1_5B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "tiiuae/Falcon-H1-1.5B-Instruct-GGUF",
+        "revision": "main",
+        "filename": "Falcon-H1-1.5B-Instruct-Q8_0.gguf",
+        "url": "https://huggingface.co/tiiuae/Falcon-H1-1.5B-Instruct-GGUF/resolve/main/Falcon-H1-1.5B-Instruct-Q8_0.gguf"
+      },
+      "sha256": "0044322ad5aaea5ccc2264f83f430f4ab2d20acc6db71a12d79b3f5acb0f69d5",
+      "local_cache": "local-artifacts/models/Falcon-H1-1.5B-Instruct-Q8_0.gguf",
+      "board_path": "/data/models/Falcon-H1-1.5B-Instruct-Q8_0.gguf"
     }
   }
 }

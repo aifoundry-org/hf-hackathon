@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "falcon_h1_1_5b",
+  "identity_id": "falcon-h1",
+  "source": {
+    "repo": "tiiuae/Falcon-H1-1.5B-Instruct",
+    "revision": "80ebc50d7799a440b96c93bb6686a3924a09b0cb",
+    "license": "falcon-llm-license"
+  },
+  "implementation_paths": [
+    "ported_models/falcon_h1_1_5b"
+  ],
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/falcon_h1_1_5b.json",
+  "recipe": "ported_models/falcon_h1_1_5b/docs/RECIPE.md"
+}
