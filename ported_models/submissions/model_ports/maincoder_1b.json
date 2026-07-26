@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "maincoder_1b",
+  "identity_id": "maincoder",
+  "source": {
+    "repo": "Maincode/Maincoder-1B",
+    "revision": "088ec98640bdeb105f46a9ef6a1370ed5d0d2ea5",
+    "license": "apache-2.0"
+  },
+  "implementation_paths": [
+    "ported_models/maincoder_1b"
+  ],
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/maincoder_1b.json",
+  "recipe": "ported_models/maincoder_1b/docs/RECIPE.md"
+}

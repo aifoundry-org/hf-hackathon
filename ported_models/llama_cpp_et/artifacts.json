@@ -485,6 +485,42 @@
       "sha256": "d1eb8b6b23979205fdf63703ed10f788131a3f812c7b1f72e0119d5d81295150",
       "size_bytes": 108783360,
       "note": "SmolVLM 500M vision projector (SigLIP ~93M + MLP). Q8_0 quantized. Must be loaded alongside smolvlm_500m_q8_gguf."
+    },
+    "maincoder_1b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "Maincoder-1B-Q8_0",
+      "filename": "Maincoder-1B-Q8_0.gguf",
+      "env": "MAINCODER_1B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "Maincode/Maincoder-1B-GGUF",
+        "revision": "main",
+        "filename": "Maincoder-1B-Q8_0.gguf",
+        "url": "https://huggingface.co/Maincode/Maincoder-1B-GGUF/resolve/main/Maincoder-1B-Q8_0.gguf"
+      },
+      "sha256": "43cd43d942de46327ff82a77e63717ef9a34d97787a3c5dcd309a9da3978a668",
+      "size": 1096604672,
+      "local_cache": "local-artifacts/models/Maincoder-1B-Q8_0.gguf",
+      "board_path": "/data/models/Maincoder-1B-Q8_0.gguf"
+    },
+    "mpt7b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "mpt-7b-Q8_0",
+      "filename": "mosaicml-mpt-7b-Q8_0.gguf",
+      "env": "MPT7B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "maddes8cht/mosaicml-mpt-7b-gguf",
+        "revision": "main",
+        "filename": "mosaicml-mpt-7b-Q8_0.gguf",
+        "url": "https://huggingface.co/maddes8cht/mosaicml-mpt-7b-gguf/resolve/main/mosaicml-mpt-7b-Q8_0.gguf"
+      },
+      "sha256": "075b2cb838694a8a03b026c88d1a485190ad771d7fa141a97bec9c858369d79b",
+      "size": 7286912224,
+      "local_cache": "local-artifacts/models/mosaicml-mpt-7b-Q8_0.gguf",
+      "board_path": "/data/models/mosaicml-mpt-7b-Q8_0.gguf"
     }
   }
 }
