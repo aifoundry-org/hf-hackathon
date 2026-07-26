@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "track": "llama_3_2_1b_fastest",
+  "model": "llama32_1b",
+  "submission_id": "chiruguru99-llama32-add-rms-fuse-v1",
+  "runtime_revision": "ec53d562050cde3aeafa2f7330216dbfd52e967f"
+}
