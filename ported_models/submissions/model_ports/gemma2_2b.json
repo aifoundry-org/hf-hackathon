@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "gemma2_2b",
+  "identity_id": "gemma2",
+  "source": {
+    "repo": "google/gemma-2-2b-it",
+    "revision": "299a8560bedf22ed1c72a8a11e7dce4a7f9f51f8",
+    "license": "gemma"
+  },
+  "implementation_paths": [
+    "ported_models/gemma2_2b"
+  ],
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/gemma2_2b.json",
+  "recipe": "ported_models/gemma2_2b/docs/RECIPE.md"
+}

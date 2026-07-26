@@ -485,6 +485,42 @@
       "sha256": "d1eb8b6b23979205fdf63703ed10f788131a3f812c7b1f72e0119d5d81295150",
       "size_bytes": 108783360,
       "note": "SmolVLM 500M vision projector (SigLIP ~93M + MLP). Q8_0 quantized. Must be loaded alongside smolvlm_500m_q8_gguf."
+    },
+    "gpt2_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "gpt2-Q8_0",
+      "filename": "gpt2.Q8_0.gguf",
+      "env": "GPT2_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "igorbkz/gpt2-Q8_0-GGUF",
+        "revision": "main",
+        "filename": "gpt2.Q8_0.gguf",
+        "url": "https://huggingface.co/igorbkz/gpt2-Q8_0-GGUF/resolve/main/gpt2.Q8_0.gguf"
+      },
+      "sha256": "4d1df054e273ac10b3a31a2f90660426212d033156bb0b530e7517662fbe0c32",
+      "size": 176095840,
+      "local_cache": "local-artifacts/models/gpt2.Q8_0.gguf",
+      "board_path": "/data/models/gpt2.Q8_0.gguf"
+    },
+    "gemma2_2b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "gemma-2-2b-it-Q8_0",
+      "filename": "gemma-2-2b-it-Q8_0.gguf",
+      "env": "GEMMA2_2B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "bartowski/gemma-2-2b-it-GGUF",
+        "revision": "main",
+        "filename": "gemma-2-2b-it-Q8_0.gguf",
+        "url": "https://huggingface.co/bartowski/gemma-2-2b-it-GGUF/resolve/main/gemma-2-2b-it-Q8_0.gguf"
+      },
+      "sha256": "2d448a9aab894b8e8e18168cf3f490cb9f65632222f29f93514ac9ecc754debe",
+      "size": 2784495456,
+      "local_cache": "local-artifacts/models/gemma-2-2b-it-Q8_0.gguf",
+      "board_path": "/data/models/gemma-2-2b-it-Q8_0.gguf"
     }
   }
 }

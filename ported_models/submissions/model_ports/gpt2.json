@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "gpt2",
+  "identity_id": "gpt2",
+  "source": {
+    "repo": "openai-community/gpt2",
+    "revision": "607a30d783dfa663caf39e06633721c8d4cfcd7e",
+    "license": "mit"
+  },
+  "implementation_paths": [
+    "ported_models/gpt2"
+  ],
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/gpt2.json",
+  "recipe": "ported_models/gpt2/docs/RECIPE.md"
+}
