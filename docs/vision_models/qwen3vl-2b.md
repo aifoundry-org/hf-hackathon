@@ -52,5 +52,6 @@
 | Risk | Mitigation |
 |------|------------|
 | Identity gate hard-coded `llama.*` keys | Companion PR #112 generalizes to `{arch}.*` |
-| ET vision kernel coverage / fallbacks | Same `require_zero_vision_fallbacks` gate as SmolVLM-500M; board will surface gaps |
+| ET vision kernel coverage / fallbacks | Qwen3-VL vision graph uses `CONCAT` / `ROPE` / `UPSCALE` (m-RoPE + merger), unlike idefics3’s `IM2COL`/`NORM`/`UNARY` path that SmolVLM ET already covers. Board run 30007183737 hit CPU fallbacks and invalid `pmc_cycles`; needs matching ET kernels in `llama.cpp-et` (same class of gap fixed for SmolVLM in `cc4049d`). |
+| Early EOS on performance decode | Contract sets `performance.ignore_eos: true` so the measured request emits all 3 fixed tokens while keeping the normalized one-word answer (`cat`). |
 | Port clash with `smolvlm2_500m_video` (18107) | Qwen uses **18108** |

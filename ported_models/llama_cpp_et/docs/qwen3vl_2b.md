@@ -35,6 +35,7 @@ SHA256:
 - Metric: `pmc_cycles` (firmware cycles, lower better).
 - Prompt: Qwen chat template (`<|im_start|>user` / `<|im_end|>`).
 - Extra: `--image-min-tokens 1024` (needed for reliable COCO answers offline).
+- Performance: contract requests **3 fixed decode tokens** with `ignore_eos: true` (Qwen stops after the one-word answer otherwise; board run 30007183737 reported 2/3 tokens and `pmc_cycles: 0`).
 - Port **18108** (avoids clash with `smolvlm2_500m_video` on 18107).
 - PPL gate: WikiText-2, max 16.812 (20% over first-run 14.01).
 

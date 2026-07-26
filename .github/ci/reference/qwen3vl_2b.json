@@ -152,6 +152,7 @@
     "measured_repetitions": 1,
     "reuse_measured_request_for_correctness": true,
     "generation_tokens": 3,
+    "ignore_eos": true,
     "aggregation": "median of per-request summed firmware cycles",
     "minimum_kernel_launches_per_request": 500,
     "minimum_relative_improvement": 0.01,

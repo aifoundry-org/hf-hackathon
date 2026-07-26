@@ -16,7 +16,7 @@
     "higher_is_better": false,
     "baseline_variant": "Qwen3-VL-2B-Instruct"
   },
-  "note": "Qwen3-VL-2B-Instruct VLM (qwen3vl arch). Exercises real vision via the main-owned smolvlm2_video harness: loads mmproj, runs pinned COCO fixtures, ET visual-answer/oracle gate. Requires identity-arch-prefix fix (#112) on main.",
+  "note": "Qwen3-VL-2B-Instruct VLM (qwen3vl arch). Exercises real vision via the main-owned smolvlm2_video harness: loads mmproj, runs pinned COCO fixtures, ET visual-answer/oracle gate. Performance decode uses ignore_eos so the board emits the contracted 3 fixed tokens (Qwen otherwise stops at 2/3 after the one-word answer).",
   "llama_server": {
     "source_artifact": "llama_cpp_source",
     "model_artifact": "qwen3vl_2b_q8_gguf",
@@ -41,6 +41,7 @@
     "require_full_offload": true,
     "require_zero_vision_fallbacks": true,
     "allowed_vision_fallback_ops": [],
+    "ignore_eos": true,
     "extra_args": ["--image-min-tokens", "1024"],
     "perplexity": {
       "enabled": true,

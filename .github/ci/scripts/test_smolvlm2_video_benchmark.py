@@ -59,6 +59,25 @@ class SmolVLM2VideoBenchmarkTests(unittest.TestCase):
     def test_normalize_answer(self) -> None:
         self.assertEqual(benchmark.normalize_answer(" Giraffe.\n"), "giraffe")
 
+    def test_make_request_honors_ignore_eos(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            image = Path(raw) / "cat.jpg"
+            image.write_bytes(b"fixture")
+            request = benchmark.make_request(
+                {"question": "What animal is shown? Answer one word."},
+                [image],
+                {
+                    "prompt_template": "<|im_start|>user\n{media_markers}\n{question}<|im_end|>\n<|im_start|>assistant\n",
+                    "max_tokens": 12,
+                    "temperature": 0,
+                    "top_k": 1,
+                },
+                max_tokens=3,
+                ignore_eos=True,
+            )
+        self.assertTrue(request["ignore_eos"])
+        self.assertEqual(request["n_predict"], 3)
+
     def test_extracts_and_restricts_fallback_ops(self) -> None:
         log = "\n".join(
             [
