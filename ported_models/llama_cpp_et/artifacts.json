@@ -485,6 +485,24 @@
       "sha256": "d1eb8b6b23979205fdf63703ed10f788131a3f812c7b1f72e0119d5d81295150",
       "size_bytes": 108783360,
       "note": "SmolVLM 500M vision projector (SigLIP ~93M + MLP). Q8_0 quantized. Must be loaded alongside smolvlm_500m_q8_gguf."
+    },
+    "deepseek_moe_16b_base_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "DeepSeek-MoE-16B-Base-Q8_0",
+      "filename": "deepseek-moe-16b-base-Q8_0.gguf",
+      "env": "DEEPSEEK_MOE_16B_BASE_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "darthceltic85/deepseek-moe-16b-base-gguf",
+        "revision": "3fcaaa31e06356109ae65d1fd655c98d01afbe0a",
+        "filename": "deepseek-moe-16b-base-Q8_0.gguf",
+        "url": "https://huggingface.co/darthceltic85/deepseek-moe-16b-base-gguf/resolve/3fcaaa31e06356109ae65d1fd655c98d01afbe0a/deepseek-moe-16b-base-Q8_0.gguf"
+      },
+      "sha256": "63eb27478a35ec36a3fd7c50e704ef6752ca235a59491d7673909da6fd8f0971",
+      "local_cache": "local-artifacts/models/deepseek-moe-16b-base-Q8_0.gguf",
+      "board_path": "/data/models/deepseek-moe-16b-base-Q8_0.gguf",
+      "note": "Self-converted (no pre-made Q8_0 GGUF existed); hosted on Hugging Face since the 17.4 GB file far exceeds GitHub's 2 GB release-asset limit. Converter's tokenizer chkhsh table was missing this checkpoint's hash entirely; fixed via a standalone wrapper (see RECIPE.md) that also corrects a same-session naming mistake caught by actually loading the GGUF at runtime, not just trusting a clean Python conversion."
     }
   }
 }

@@ -315,6 +315,9 @@
     },
     "smolvlm_500m": {
       "config": "ported_models/llama_cpp_et/benchmarks/smolvlm_500m.json"
+    },
+    "deepseek_moe_16b_base": {
+      "config": "ported_models/llama_cpp_et/benchmarks/deepseek_moe_16b_base.json"
     }
   }
 }

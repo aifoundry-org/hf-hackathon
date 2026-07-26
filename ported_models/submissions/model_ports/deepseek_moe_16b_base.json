@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "deepseek_moe_16b_base",
+  "identity_id": "deepseek",
+  "source": {
+    "repo": "deepseek-ai/deepseek-moe-16b-base",
+    "revision": "521d2bc4fb69a3f3ae565310fcc3b65f97af2580",
+    "license": "deepseek (custom model license, see https://github.com/deepseek-ai/DeepSeek-MoE/blob/main/LICENSE-MODEL)"
+  },
+  "implementation_paths": ["ported_models/deepseek_moe_16b_base"],
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/deepseek_moe_16b_base.json",
+  "recipe": "ported_models/deepseek_moe_16b_base/docs/RECIPE.md"
+}
