@@ -46,6 +46,14 @@ real inference:
   batch=128): **PPL = 14.2763 +/- 2.92502** — solidly within this
   campaign's normal range, confirming genuine, coherent-quality output.
 
+## Committed deterministic oracle (added per maintainer review)
+
+`ported_models/smallthinker_4ba0_6b/oracle/perplexity_oracle.json`
+commits the exact reproduction command, pinned corpus/artifact hashes,
+the final PPL from this session's CPU reference run, and an explicit
+±20% comparison threshold for independently verifying a future
+full-offload ET-SoC1 run against this reference.
+
 ## Instructions for Reproduction
 
 ```bash

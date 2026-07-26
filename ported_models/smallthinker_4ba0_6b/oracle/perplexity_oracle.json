@@ -1,0 +1,25 @@
+{
+  "oracle_type": "perplexity_threshold",
+  "model_artifact": {
+    "repo": "darthceltic85/smallthinker-4ba0.6b-gguf",
+    "revision": "54918cdfe842275cb6330c190be5922f252e4fa7",
+    "filename": "smallthinker-4ba0.6b-Q8_0.gguf",
+    "sha256": "6a352d7554a736c738cbef069aa1bb2fbf95c929567d48e9c4eb3b24f5942f16"
+  },
+  "corpus": {
+    "artifact": "wikitext2_raw_test",
+    "sha256": "173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08"
+  },
+  "command": "llama-perplexity --model smallthinker-4ba0.6b-Q8_0.gguf -f wiki.test.raw -c 128 -b 128 -ub 128 --chunks 4",
+  "reference_run": {
+    "final_ppl": 14.2763,
+    "final_ppl_stderr": 2.92502,
+    "measured_on": "CPU (ggml-cpu backend, GGML_ET=OFF build)",
+    "measured_date": "2026-07-25"
+  },
+  "comparison_threshold": {
+    "metric": "final_ppl",
+    "max_relative_deviation": 0.20,
+    "note": "Matches this repo's own leaderboard-gate policy (PPL must stay within 20% of best-seen value). A full-offload ET-SoC1 re-run against this exact command/corpus/artifact should land at final_ppl within [11.42, 17.13] to be considered consistent with this reference run. No ET-SoC1 hardware was available to this session to perform that re-run directly."
+  }
+}
