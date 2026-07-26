@@ -485,6 +485,42 @@
       "sha256": "d1eb8b6b23979205fdf63703ed10f788131a3f812c7b1f72e0119d5d81295150",
       "size_bytes": 108783360,
       "note": "SmolVLM 500M vision projector (SigLIP ~93M + MLP). Q8_0 quantized. Must be loaded alongside smolvlm_500m_q8_gguf."
+    },
+    "phi15_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "phi-1_5-Q8_0",
+      "filename": "phi-1_5-Q8_0.gguf",
+      "env": "PHI15_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "TKDKid1000/phi-1_5-GGUF",
+        "revision": "main",
+        "filename": "phi-1_5-Q8_0.gguf",
+        "url": "https://huggingface.co/TKDKid1000/phi-1_5-GGUF/resolve/main/phi-1_5-Q8_0.gguf"
+      },
+      "sha256": "e8c26615319e1141348b8534641da54d58e02b7baa01ee611b9c69cc07bf43fd",
+      "size": 1510464928,
+      "local_cache": "local-artifacts/models/phi-1_5-Q8_0.gguf",
+      "board_path": "/data/models/phi-1_5-Q8_0.gguf"
+    },
+    "stablelm2_16b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "stablelm-2-1_6b-Q8_0",
+      "filename": "stablelm-2-1_6b.q8_0.gguf",
+      "env": "STABLELM2_16B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "afrideva/stablelm-2-1_6b-GGUF",
+        "revision": "main",
+        "filename": "stablelm-2-1_6b.q8_0.gguf",
+        "url": "https://huggingface.co/afrideva/stablelm-2-1_6b-GGUF/resolve/main/stablelm-2-1_6b.q8_0.gguf"
+      },
+      "sha256": "fcdeda8182b99b007cb2c69b216e31efd21b78a4588188b076fa92821f3fee20",
+      "size": 1751879200,
+      "local_cache": "local-artifacts/models/stablelm-2-1_6b.q8_0.gguf",
+      "board_path": "/data/models/stablelm-2-1_6b.q8_0.gguf"
     }
   }
 }

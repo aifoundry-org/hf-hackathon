@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "phi15",
+  "identity_id": "phi2",
+  "source": {
+    "repo": "microsoft/phi-1_5",
+    "revision": "77aa61eeac94fbf33d492b9f2744c98b42d5b5eb",
+    "license": "microsoft-research-license"
+  },
+  "implementation_paths": [
+    "ported_models/phi15"
+  ],
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/phi15.json",
+  "recipe": "ported_models/phi15/docs/RECIPE.md"
+}

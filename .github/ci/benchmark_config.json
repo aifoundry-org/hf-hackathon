@@ -315,6 +315,12 @@
     },
     "smolvlm_500m": {
       "config": "ported_models/llama_cpp_et/benchmarks/smolvlm_500m.json"
+    },
+    "phi15": {
+      "config": "ported_models/llama_cpp_et/benchmarks/phi15.json"
+    },
+    "stablelm2_16b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/stablelm2_16b.json"
     }
   }
 }
