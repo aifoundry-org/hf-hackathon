@@ -485,6 +485,42 @@
       "sha256": "d1eb8b6b23979205fdf63703ed10f788131a3f812c7b1f72e0119d5d81295150",
       "size_bytes": 108783360,
       "note": "SmolVLM 500M vision projector (SigLIP ~93M + MLP). Q8_0 quantized. Must be loaded alongside smolvlm_500m_q8_gguf."
+    },
+    "phi3_mini_q4_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "Phi-3-mini-4k-instruct-q4",
+      "filename": "Phi-3-mini-4k-instruct-q4.gguf",
+      "env": "PHI3_MINI_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "microsoft/Phi-3-mini-4k-instruct-gguf",
+        "revision": "main",
+        "filename": "Phi-3-mini-4k-instruct-q4.gguf",
+        "url": "https://huggingface.co/microsoft/Phi-3-mini-4k-instruct-gguf/resolve/main/Phi-3-mini-4k-instruct-q4.gguf"
+      },
+      "sha256": "8a83c7fb9049a9b2e92266fa7ad04933bb53aa1e85136b7b30f1b8000ff2edef",
+      "size": 2393231072,
+      "local_cache": "local-artifacts/models/Phi-3-mini-4k-instruct-q4.gguf",
+      "board_path": "/data/models/Phi-3-mini-4k-instruct-q4.gguf"
+    },
+    "minicpm3_4b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "MiniCPM3-4B-Q8_0",
+      "filename": "MiniCPM3-4B-Q8_0.gguf",
+      "env": "MINICPM3_4B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "QuantFactory/MiniCPM3-4B-GGUF",
+        "revision": "main",
+        "filename": "MiniCPM3-4B.Q8_0.gguf",
+        "url": "https://huggingface.co/QuantFactory/MiniCPM3-4B-GGUF/resolve/main/MiniCPM3-4B.Q8_0.gguf"
+      },
+      "sha256": "a540961f131d6ab9616b6cb1c266be86735afe84907a445ad68e1e3e9422d122",
+      "size": 4331349440,
+      "local_cache": "local-artifacts/models/MiniCPM3-4B-Q8_0.gguf",
+      "board_path": "/data/models/MiniCPM3-4B-Q8_0.gguf"
     }
   }
 }
