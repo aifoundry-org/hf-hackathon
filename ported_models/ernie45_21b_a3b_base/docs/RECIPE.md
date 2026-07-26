@@ -52,6 +52,14 @@ real inference:
   this campaign's normal range, confirming genuine coherent output from
   a correctly-converted 21B-parameter MoE model.
 
+## Committed deterministic oracle (added per maintainer review)
+
+`ported_models/ernie45_21b_a3b_base/oracle/perplexity_oracle.json`
+commits the exact reproduction command, pinned corpus/artifact hashes,
+per-chunk and final PPL from this session's CPU reference run, and an
+explicit ±20% comparison threshold for independently verifying a future
+full-offload ET-SoC1 run against this reference.
+
 ## Instructions for Reproduction
 
 ```bash
