@@ -755,11 +755,6 @@ def run_mode(
                     if performance_request
                     else int(server_cfg.get("max_tokens", 12))
                 )
-                ignore_eos = False
-                if performance_request:
-                    ignore_eos = bool(
-                        performance.get("ignore_eos", server_cfg.get("ignore_eos", False))
-                    )
                 payload = make_request(
                     spec["case"],
                     spec["media"],
@@ -770,7 +765,6 @@ def run_mode(
                         "top_k": server_cfg.get("top_k", 1),
                     },
                     max_tokens=max_tokens,
-                    ignore_eos=ignore_eos,
                 )
                 started_ns = time.monotonic_ns()
                 status, response = post_completion(url, payload, int(server_cfg.get("request_timeout_s", 300)))
