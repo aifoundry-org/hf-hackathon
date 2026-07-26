@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "falcon7b",
+  "identity_id": "falcon",
+  "source": {
+    "repo": "tiiuae/falcon-7b",
+    "revision": "ec89142b67d748a1865ea4451372db8313ada0d8",
+    "license": "apache-2.0"
+  },
+  "implementation_paths": [
+    "ported_models/falcon7b"
+  ],
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/falcon7b.json",
+  "recipe": "ported_models/falcon7b/docs/RECIPE.md"
+}

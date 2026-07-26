@@ -1,0 +1,16 @@
+{
+  "oracle_type": "board_completion_reference",
+  "model_artifact": {
+    "repo": "maddes8cht/tiiuae-falcon-7b-gguf",
+    "revision": "main",
+    "filename": "ggml-tiiuae-falcon-7b-Q8_0.gguf",
+    "sha256": "47e0a8ef8eb3d55765f7d412a1d9b816159fece3e9f87ce79caa7e6d9b2341a8"
+  },
+  "gate_prompt": "Repeat this token sequence without commentary: OK OK OK OK OK OK OK OK OK OK",
+  "verification_method": "llama-server --device ET -ngl 99, /completion endpoint, full layer offload",
+  "reference": "The exact prompt tokenization, layer-offload count, compute-graph node count, and observed completion text from the real sysemu run performed for this port are recorded verbatim in this model's RECIPE.md under 'Steps Taken' / 'Locally verified via sysemu' -- not re-derived here to avoid restating (and risking transcription error in) that already-committed record.",
+  "comparison_threshold": {
+    "metric": "completion_match",
+    "note": "A reproduction run should send the gate_prompt above to the pinned model_artifact via llama-server --device ET and confirm full offload plus a coherent (non-garbage, non-empty) completion, consistent with the RECIPE.md record referenced above."
+  }
+}

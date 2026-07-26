@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "afm45b",
+  "identity_id": "arcee",
+  "source": {
+    "repo": "arcee-ai/AFM-4.5B",
+    "revision": "e84d19711eca5817c1608cb344d931bf05c966dd",
+    "license": "apache-2.0"
+  },
+  "implementation_paths": [
+    "ported_models/afm45b"
+  ],
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/afm45b.json",
+  "recipe": "ported_models/afm45b/docs/RECIPE.md"
+}
