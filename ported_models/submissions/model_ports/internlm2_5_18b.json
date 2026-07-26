@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "internlm2_5_18b",
+  "identity_id": "internlm2",
+  "source": {
+    "repo": "internlm/internlm2_5-1_8b-chat",
+    "revision": "57dcbc5455bf050d27a80f0ebd7808387caa714d",
+    "license": "apache-2.0"
+  },
+  "implementation_paths": [
+    "ported_models/internlm2_5_18b"
+  ],
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/internlm2_5_18b.json",
+  "recipe": "ported_models/internlm2_5_18b/docs/RECIPE.md"
+}

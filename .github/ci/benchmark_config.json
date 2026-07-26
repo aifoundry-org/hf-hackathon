@@ -315,6 +315,12 @@
     },
     "smolvlm_500m": {
       "config": "ported_models/llama_cpp_et/benchmarks/smolvlm_500m.json"
+    },
+    "internlm2_5_18b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/internlm2_5_18b.json"
+    },
+    "starcoder2_3b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/starcoder2_3b.json"
     }
   }
 }
