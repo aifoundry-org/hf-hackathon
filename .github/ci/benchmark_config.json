@@ -315,6 +315,15 @@
     },
     "smolvlm_500m": {
       "config": "ported_models/llama_cpp_et/benchmarks/smolvlm_500m.json"
+    },
+    "ernie45_03b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/ernie45_03b.json"
+    },
+    "codeshell_7b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/codeshell_7b.json"
+    },
+    "cohere2_7b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/cohere2_7b.json"
     }
   }
 }

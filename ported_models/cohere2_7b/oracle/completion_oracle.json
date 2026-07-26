@@ -1,0 +1,16 @@
+{
+  "oracle_type": "board_completion_reference",
+  "model_artifact": {
+    "repo": "bartowski/c4ai-command-r7b-12-2024-GGUF",
+    "revision": "main",
+    "filename": "c4ai-command-r7b-12-2024-Q8_0.gguf",
+    "sha256": "cd7281ec7974bb5810d8f6c922801d6fff3e8bd761073942757dcef990ca9b4d"
+  },
+  "gate_prompt": "Repeat this token sequence without commentary: OK OK OK OK OK OK OK OK OK OK",
+  "verification_method": "llama-server --device ET -ngl 99, /completion endpoint, full layer offload",
+  "reference": "The exact prompt tokenization, layer-offload count, compute-graph node count, and observed completion text from the real sysemu run performed for this port are recorded verbatim in this model's RECIPE.md under 'Steps Taken' / 'Locally verified via sysemu' -- not re-derived here to avoid restating (and risking transcription error in) that already-committed record.",
+  "comparison_threshold": {
+    "metric": "completion_match",
+    "note": "A reproduction run should send the gate_prompt above to the pinned model_artifact via llama-server --device ET and confirm full offload plus a coherent (non-garbage, non-empty) completion, consistent with the RECIPE.md record referenced above."
+  }
+}
