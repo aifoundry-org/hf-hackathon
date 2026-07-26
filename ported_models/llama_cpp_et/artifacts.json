@@ -485,6 +485,12 @@
       "sha256": "d1eb8b6b23979205fdf63703ed10f788131a3f812c7b1f72e0119d5d81295150",
       "size_bytes": 108783360,
       "note": "SmolVLM 500M vision projector (SigLIP ~93M + MLP). Q8_0 quantized. Must be loaded alongside smolvlm_500m_q8_gguf."
+    },
+    "llama32_fused_ffn_kernel": {
+      "kind": "framework_source",
+      "framework": "llama.cpp-et",
+      "submodule_path": "ported_models/llama_cpp_et/kernels",
+      "note": "Standalone fused FFN uberkernel for Llama 3.2 1B. Built separately and loaded at runtime via GGML_ET_KERNELS_PATH."
     }
   }
 }
