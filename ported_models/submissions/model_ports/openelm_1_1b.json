@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "openelm_1_1b",
+  "identity_id": "openelm",
+  "source": {
+    "repo": "apple/OpenELM-1_1B",
+    "revision": "ee559a10b14895dde9f8cfde3fdc77b3ff0dbc0f",
+    "license": "apple-sample-code-license"
+  },
+  "implementation_paths": [
+    "ported_models/openelm_1_1b"
+  ],
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/openelm_1_1b.json",
+  "recipe": "ported_models/openelm_1_1b/docs/RECIPE.md"
+}
