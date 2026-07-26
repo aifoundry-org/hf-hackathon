@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "nomic_embed_v1",
+  "identity_id": "nomic-bert",
+  "source": {
+    "repo": "nomic-ai/nomic-embed-text-v1",
+    "revision": "3ac47f125a41961d13b397d0332866be2f9152e1",
+    "license": "apache-2.0"
+  },
+  "implementation_paths": ["ported_models/nomic_embed_v1"],
+  "benchmark_config": ".github/ci/benchmark_config.json",
+  "recipe": "ported_models/nomic_embed_v1/docs/RECIPE.md"
+}

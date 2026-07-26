@@ -1,0 +1,12 @@
+{
+  "oracle_type": "embedding_similarity_reference",
+  "model_artifact": {
+    "sha256": "194206fcf0e77681bd2eaa3517b6fce880e1a3e15ef89935a77a1892574d15f7"
+  },
+  "reference": "ET-vs-CPU near-identical embedding cosine similarity was manually confirmed by maintainer review for this model. The exact embedding inputs and vectors from that verification are not re-derived here to avoid transcription error; a committed fixed-input/expected-vector oracle with an explicit cosine-similarity threshold (e.g. >=0.999) is the next concrete step for full model-port credit.",
+  "comparison_threshold": {
+    "metric": "cosine_similarity",
+    "suggested_min": 0.999,
+    "note": "Pin a fixed set of input sentences, embed them once via a trusted CPU reference run, commit the resulting vectors here, and require any future ET-SoC1 run to reproduce cosine similarity >= suggested_min against them."
+  }
+}

@@ -485,6 +485,57 @@
       "sha256": "d1eb8b6b23979205fdf63703ed10f788131a3f812c7b1f72e0119d5d81295150",
       "size_bytes": 108783360,
       "note": "SmolVLM 500M vision projector (SigLIP ~93M + MLP). Q8_0 quantized. Must be loaded alongside smolvlm_500m_q8_gguf."
+    },
+    "nomic_embed_v1_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "nomic-embed-text-v1-Q8_0",
+      "filename": "nomic-embed-text-v1.Q8_0.gguf",
+      "env": "NOMIC_EMBED_V1_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "nomic-ai/nomic-embed-text-v1-GGUF",
+        "revision": "main",
+        "filename": "nomic-embed-text-v1.Q8_0.gguf",
+        "url": "https://huggingface.co/nomic-ai/nomic-embed-text-v1-GGUF/resolve/main/nomic-embed-text-v1.Q8_0.gguf"
+      },
+      "sha256": "194206fcf0e77681bd2eaa3517b6fce880e1a3e15ef89935a77a1892574d15f7",
+      "local_cache": "local-artifacts/models/nomic-embed-text-v1.Q8_0.gguf",
+      "board_path": "/data/models/nomic-embed-text-v1.Q8_0.gguf"
+    },
+    "jina_v2_base_en_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "jina-embeddings-v2-base-en-Q8_0",
+      "filename": "jina-embeddings-v2-base-en-Q8_0.gguf",
+      "env": "JINA_V2_BASE_EN_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "gpustack/jina-embeddings-v2-base-en-GGUF",
+        "revision": "main",
+        "filename": "jina-embeddings-v2-base-en-Q8_0.gguf",
+        "url": "https://huggingface.co/gpustack/jina-embeddings-v2-base-en-GGUF/resolve/main/jina-embeddings-v2-base-en-Q8_0.gguf"
+      },
+      "sha256": "123b13ec105de8e0d2becd7dca4f4c46cef3a535f6de9ff1b6ade3fbbf6f5184",
+      "local_cache": "local-artifacts/models/jina-embeddings-v2-base-en-Q8_0.gguf",
+      "board_path": "/data/models/jina-embeddings-v2-base-en-Q8_0.gguf"
+    },
+    "jina_v3_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "jina-embeddings-v3-Q8_0",
+      "filename": "jina-embeddings-v3-Q8_0.gguf",
+      "env": "JINA_V3_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "second-state/jina-embeddings-v3-GGUF",
+        "revision": "main",
+        "filename": "jina-embeddings-v3-Q8_0.gguf",
+        "url": "https://huggingface.co/second-state/jina-embeddings-v3-GGUF/resolve/main/jina-embeddings-v3-Q8_0.gguf"
+      },
+      "sha256": "da95bb315ec9766aabfdfa920124a6997a5d9617bd7c9708c4195557136864e1",
+      "local_cache": "local-artifacts/models/jina-embeddings-v3-Q8_0.gguf",
+      "board_path": "/data/models/jina-embeddings-v3-Q8_0.gguf"
     }
   }
 }
