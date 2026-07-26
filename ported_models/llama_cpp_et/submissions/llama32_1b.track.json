@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "track": "llama_3_2_1b_fastest",
+  "model": "llama32_1b",
+  "runtime_revision": "ef15baf34b340f6f221808c41432b32f0510537f",
+  "submission_id": "karabambus-uberkernel-fusion-ksplit"
+}
