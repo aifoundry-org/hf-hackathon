@@ -19,6 +19,7 @@
 !ported_models/yolo_e2e/assets/**/*.bin
 !ported_models/dncnn/assets/
 !ported_models/dncnn/assets/**/*.bin
+!ported_models/yolov10n_hf_reference/assets/**/*.bin
 !ported_models/dncnn/assets/**/*.npy
 !ported_models/dncnn/refs/
 !ported_models/dncnn/refs/**/*.npy

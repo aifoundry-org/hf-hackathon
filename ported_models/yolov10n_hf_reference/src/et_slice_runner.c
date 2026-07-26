@@ -7,7 +7,10 @@
 
 #include "ref_pmc.h"
 #include "ref_runtime.h"
+/* See the matching note in ref_runtime.c for why this include is guarded. */
+#ifndef YR_SLICE_MANIFEST_PREINCLUDED
 #include "slice_manifest.h"
+#endif
 
 #ifndef YR_MANIFEST_VERSION
 #define YR_MANIFEST_VERSION 1u

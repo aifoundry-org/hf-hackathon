@@ -315,6 +315,53 @@
     },
     "smolvlm_500m": {
       "config": "ported_models/llama_cpp_et/benchmarks/smolvlm_500m.json"
+    },
+    "yolov10n_hf_reference": {
+      "canonical_variant": "yolov10n_hf_full",
+      "source": "ported_models/yolov10n_hf_reference/src/leaderboard_full.c",
+      "bench_dir": "yolov10n-bench",
+      "manifest": "yolov10n_variants.txt",
+      "score": {
+        "metric": "kernel_wait_s",
+        "label": "Full-graph kernel wait",
+        "higher_is_better": false,
+        "baseline_variant": "yolov10n_hf_full"
+      },
+      "build": {
+        "opt": "-O2",
+        "defines": [
+          "-std=gnu11",
+          "-funroll-loops",
+          "-fno-tree-loop-distribute-patterns",
+          "-fno-strict-aliasing",
+          "-fno-fast-math",
+          "-ffp-contract=off",
+          "-fno-tree-vectorize",
+          "-DYR_PMC",
+          "-Wl,--defsym=STACK_SIZE=4096"
+        ]
+      },
+      "artifacts": {
+        "port_runtime": {
+          "kind": "framework_source",
+          "submodule_path": "ported_models/yolov10n_hf_reference/src"
+        }
+      },
+      "mem_size": "0x03030000",
+      "region_size": "0x00400000",
+      "dump_size": "0x022A0000",
+      "file_loads": [
+        {
+          "address": "0x022A0000",
+          "paths": ["yolov10n_hf_reference/inputs.bin"],
+          "required": true
+        },
+        {
+          "address": "0x02750000",
+          "paths": ["yolov10n_hf_reference/weights.bin"],
+          "required": true
+        }
+      ]
     }
   }
 }

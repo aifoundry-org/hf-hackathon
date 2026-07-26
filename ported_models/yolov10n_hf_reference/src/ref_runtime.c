@@ -9,7 +9,15 @@
 #include <stdint.h>
 
 #include "ref_runtime.h"
+/*
+ * The script builds put the generated manifest on the include path with -I, one
+ * directory per slice. The single-translation-unit CI build cannot rely on the
+ * working directory, so it includes the pinned full-graph manifest by relative
+ * path first and defines this macro; the header it picks is the same file.
+ */
+#ifndef YR_SLICE_MANIFEST_PREINCLUDED
 #include "slice_manifest.h"
+#endif
 
 #ifndef YR_MANIFEST_VERSION
 #define YR_MANIFEST_VERSION 1u
@@ -4357,20 +4365,28 @@ void yr_finalize_result(uint8_t *device_base, struct yr_result_header *result)
 
 /*
  * Default tensor-mode setup, does nothing. Overridden by the same ET-only
- * source that overrides yr_conv_tensor() below.
+ * source that overrides yr_conv_tensor() below. A single-translation-unit build
+ * that compiles that source alongside this one defines
+ * YR_CONV_TENSOR_STRONG_PRESENT, because a strong definition cannot share a
+ * translation unit with the weak one it replaces; the separate-compilation
+ * builds leave the macro unset and keep resolving the override at link time.
  */
+#ifndef YR_CONV_TENSOR_STRONG_PRESENT
 __attribute__((weak))
 void yr_conv_tensor_init(void)
 {
 }
+#endif
 
 
 /*
  * Default fast path, always declines. An ET-only source that defines this
  * symbol without the weak attribute overrides it at link time; the host
  * build and any ET build that does not list that source keep this stub, so
- * behavior stays exactly the portable scalar path.
+ * behavior stays exactly the portable scalar path. Guarded for the
+ * single-translation-unit build for the same reason as yr_conv_tensor_init().
  */
+#ifndef YR_CONV_TENSOR_STRONG_PRESENT
 __attribute__((weak))
 uint32_t yr_conv_tensor(
     const struct yr_node_desc *node,
@@ -4398,3 +4414,4 @@ uint32_t yr_conv_tensor(
     *hart_oc_hi = 0u;
     return 0u;
 }
+#endif

@@ -34,7 +34,10 @@
 #include "erbium/isa/utils.h"
 
 #include "ref_runtime.h"
+/* See the matching note in ref_runtime.c for why this include is guarded. */
+#ifndef YR_SLICE_MANIFEST_PREINCLUDED
 #include "slice_manifest.h"
+#endif
 
 #define YR_TENSOR_TILE 16u
 
