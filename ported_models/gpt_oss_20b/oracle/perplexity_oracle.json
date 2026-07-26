@@ -1,0 +1,32 @@
+{
+  "oracle_type": "perplexity_threshold",
+  "model_artifact": {
+    "repo": "ggml-org/gpt-oss-20b-GGUF",
+    "filename": "gpt-oss-20b-MXFP4.gguf",
+    "sha256": "27cd6c432c7672cb812a92f611cf3ba7bbc35928262bb1e1253ff4ee6ae35901",
+    "size_bytes": 12109566624
+  },
+  "corpus": {
+    "artifact": "wikitext2_raw_test",
+    "sha256": "173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08"
+  },
+  "command": "llama-perplexity --model gpt-oss-20b-MXFP4.gguf -f wiki.test.raw -c 128 -b 128 -ub 128 --chunks 4",
+  "reference_run": {
+    "final_ppl": 70.2523,
+    "final_ppl_stderr": 14.46029,
+    "measured_on": "CPU (ggml-cpu backend, GGML_ET=OFF build)",
+    "measured_date": "2026-07-26"
+  },
+  "conflicting_run": {
+    "reported_by": "maintainer manual ET-SoC1 review",
+    "final_ppl_approx": 400.574,
+    "measured_on": "ET-SoC1 board, full offload",
+    "measured_date": "2026-07-26",
+    "note": "Same pinned artifact by sha256. Not yet reconciled with reference_run above -- see RECIPE.md maintainer review section."
+  },
+  "comparison_threshold": {
+    "metric": "final_ppl",
+    "max_relative_deviation": 0.20,
+    "note": "Matches this repo's own leaderboard-gate policy (PPL must stay within 20% of best-seen value). The reference_run vs conflicting_run values above are OUTSIDE this band (70.25 vs ~400.57, ~470% deviation) -- this oracle intentionally documents an unresolved discrepancy rather than asserting a single trusted number. A future re-run against this exact command/corpus/artifact should reconcile which number (if either) is correct before model-port credit is granted."
+  }
+}

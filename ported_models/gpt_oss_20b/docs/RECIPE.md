@@ -51,6 +51,24 @@ microscaling) than the Q8_0 used almost everywhere else in this campaign
 -- both plausible, real contributors, reported honestly rather than
 treated as a red flag.
 
+## Maintainer review finding (2026-07-26) — PPL discrepancy, not yet resolved
+
+Manual ET-SoC1 review by the maintainer confirmed the model executes with
+full offload and reported ET PPL "matches CPU" in kind, but measured the
+*exact same pinned artifact* (`sha256=27cd6c432c7672cb812a92f611cf3ba7bbc35928262bb1e1253ff4ee6ae35901`)
+at approximately **PPL ≈ 400.574**, versus the **PPL = 70.2523 +/- 14.46029**
+recorded above from this session's own CPU-only run.
+
+This is reported here transparently rather than silently overwritten: this
+session does not currently have the local artifact or spare verification
+time to independently re-run and reconcile the two numbers before the
+track deadline. Do not treat either number as authoritative until an
+independent third re-run (CPU or ET-SoC1) confirms one. See
+`ported_models/gpt_oss_20b/oracle/perplexity_oracle.json` for the
+committed, reproducible reference command and comparison contract this
+session's own number was derived from — use it to re-run and settle the
+discrepancy.
+
 ## Why this port's ET-SoC1 kernel support is a real, open question
 
 MoE routing (`MUL_MAT_ID`) is the same open question as `granite_3_1b_a400m`
