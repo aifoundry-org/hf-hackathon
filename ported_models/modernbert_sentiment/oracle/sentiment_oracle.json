@@ -1,0 +1,27 @@
+{
+  "oracle_type": "sentiment_rerank_reference",
+  "model_artifact": {
+    "repo": "DarthCeltic/hf-hackathon",
+    "release_tag": "model-port-modernbert-sentiment-v1",
+    "filename": "modernbert_sentiment_f32.gguf",
+    "sha256": "7896d82f2548762409157ae4e68732cd2c78796b5c8cea5e0145b964e916ab4c"
+  },
+  "reference_run": {
+    "endpoint": "POST /rerank",
+    "results": [
+      {
+        "index": 1,
+        "relevance_score": 2.3337833881378174
+      },
+      {
+        "index": 0,
+        "relevance_score": 0.5375099182128906
+      }
+    ],
+    "measured_on": "CPU (ggml-cpu backend, GGML_ET=OFF build)"
+  },
+  "comparison_threshold": {
+    "metric": "relevance_score_rank_order",
+    "note": "A reproduction run should preserve the same relative rank order (index 1 scoring higher than index 0) for the same two fixed input documents; exact score reproduction is not expected across backends but rank order should be stable. No ET-SoC1 hardware was available to this session to perform a full-offload re-run directly."
+  }
+}
