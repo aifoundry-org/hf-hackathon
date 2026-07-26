@@ -485,6 +485,24 @@
       "sha256": "d1eb8b6b23979205fdf63703ed10f788131a3f812c7b1f72e0119d5d81295150",
       "size_bytes": 108783360,
       "note": "SmolVLM 500M vision projector (SigLIP ~93M + MLP). Q8_0 quantized. Must be loaded alongside smolvlm_500m_q8_gguf."
+    },
+    "xverse7b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "XVERSE-7B-Chat-Q8_0",
+      "filename": "xverse-7b-chat-q8_0.gguf",
+      "env": "XVERSE7B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "xverse/XVERSE-7B-Chat-GGUF",
+        "revision": "main",
+        "filename": "xverse-7b-chat-q8_0.gguf",
+        "url": "https://huggingface.co/xverse/XVERSE-7B-Chat-GGUF/resolve/main/xverse-7b-chat-q8_0.gguf"
+      },
+      "sha256": "1f2cdfeedcf3e2fe37ba3436d2a879b3f5f5a71b9ebc2ba2e888f8a3e046388d",
+      "size": 7758437632,
+      "local_cache": "local-artifacts/models/xverse-7b-chat-q8_0.gguf",
+      "board_path": "/data/models/xverse-7b-chat-q8_0.gguf"
     }
   }
 }
