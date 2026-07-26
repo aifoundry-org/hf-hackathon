@@ -315,6 +315,9 @@
     },
     "smolvlm_500m": {
       "config": "ported_models/llama_cpp_et/benchmarks/smolvlm_500m.json"
+    },
+    "olmoe_1b_7b_0125": {
+      "config": "ported_models/llama_cpp_et/benchmarks/olmoe_1b_7b_0125.json"
     }
   }
 }

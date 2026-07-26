@@ -485,6 +485,24 @@
       "sha256": "d1eb8b6b23979205fdf63703ed10f788131a3f812c7b1f72e0119d5d81295150",
       "size_bytes": 108783360,
       "note": "SmolVLM 500M vision projector (SigLIP ~93M + MLP). Q8_0 quantized. Must be loaded alongside smolvlm_500m_q8_gguf."
+    },
+    "olmoe_1b_7b_0125_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "OLMoE-1B-7B-0125-Q8_0",
+      "filename": "OLMoE-1B-7B-0125-Q8_0.gguf",
+      "env": "OLMOE_1B_7B_0125_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "allenai/OLMoE-1B-7B-0125-GGUF",
+        "revision": "b8453f3c06477f3efc002ff89f2c3c149ffbeec1",
+        "filename": "OLMoE-1B-7B-0125-Q8_0.gguf",
+        "url": "https://huggingface.co/allenai/OLMoE-1B-7B-0125-GGUF/resolve/b8453f3c06477f3efc002ff89f2c3c149ffbeec1/OLMoE-1B-7B-0125-Q8_0.gguf"
+      },
+      "sha256": "5a82c080fb821ed5afac78768377260f984e19decf3fc49befafe61d7a9d44ad",
+      "size_bytes": 7359942720,
+      "local_cache": "local-artifacts/models/OLMoE-1B-7B-0125-Q8_0.gguf",
+      "board_path": "/data/models/OLMoE-1B-7B-0125-Q8_0.gguf"
     }
   }
 }

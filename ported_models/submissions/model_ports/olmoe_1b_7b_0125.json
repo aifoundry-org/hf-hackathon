@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "olmoe_1b_7b_0125",
+  "identity_id": "olmoe",
+  "source": {
+    "repo": "allenai/OLMoE-1B-7B-0125",
+    "revision": "9b0c1aa87e34a20052389dce1f0cf01da783f654",
+    "license": "apache-2.0"
+  },
+  "implementation_paths": ["ported_models/olmoe_1b_7b_0125"],
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/olmoe_1b_7b_0125.json",
+  "recipe": "ported_models/olmoe_1b_7b_0125/docs/RECIPE.md"
+}
