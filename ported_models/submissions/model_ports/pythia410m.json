@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "pythia410m",
+  "identity_id": "gptneox",
+  "source": {
+    "repo": "EleutherAI/pythia-410m",
+    "revision": "9879c9b5f8bea9051dcb0e68dff21493d67e9d4f",
+    "license": "apache-2.0"
+  },
+  "implementation_paths": [
+    "ported_models/pythia410m"
+  ],
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/pythia410m.json",
+  "recipe": "ported_models/pythia410m/docs/RECIPE.md"
+}

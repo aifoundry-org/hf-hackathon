@@ -485,6 +485,44 @@
       "sha256": "d1eb8b6b23979205fdf63703ed10f788131a3f812c7b1f72e0119d5d81295150",
       "size_bytes": 108783360,
       "note": "SmolVLM 500M vision projector (SigLIP ~93M + MLP). Q8_0 quantized. Must be loaded alongside smolvlm_500m_q8_gguf."
+    },
+    "pythia410m_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "pythia-410m-Q8_0",
+      "filename": "pythia-410m-Q8_0.gguf",
+      "env": "PYTHIA410M_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "darthceltic85/pythia-410m-gguf",
+        "revision": "f2dcdd1baef135194043a7ac3c3455bc825afecb",
+        "filename": "pythia-410m-Q8_0.gguf",
+        "url": "https://huggingface.co/darthceltic85/pythia-410m-gguf/resolve/f2dcdd1baef135194043a7ac3c3455bc825afecb/pythia-410m-Q8_0.gguf"
+      },
+      "sha256": "6c5a302ff53c17ae4a00a8480aec204b82c6d84edb86a172bddae82c9e52629b",
+      "size_bytes": 433397440,
+      "local_cache": "local-artifacts/models/pythia-410m-Q8_0.gguf",
+      "board_path": "/data/models/pythia-410m-Q8_0.gguf",
+      "note": "POST-DEADLINE (not for hackathon credit): re-converted and re-hosted after the original artifact was lost. Self-converted via a standalone wrapper fixing GPTNeoXModel's rope_parameters/rotary_pct incompatibility with newer transformers releases (see RECIPE.md). Hosted on Hugging Face since it exceeds nothing size-wise but no GitHub Release token was available at time of original port."
+    },
+    "bloom560m_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "bloom-560m-Q8_0",
+      "filename": "bloom-560m-Q8_0.gguf",
+      "env": "BLOOM560M_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "darthceltic85/bloom-560m-gguf",
+        "revision": "d71677bab1ad99ff2b7b398627696901726f6e4d",
+        "filename": "bloom-560m-Q8_0.gguf",
+        "url": "https://huggingface.co/darthceltic85/bloom-560m-gguf/resolve/d71677bab1ad99ff2b7b398627696901726f6e4d/bloom-560m-Q8_0.gguf"
+      },
+      "sha256": "c2f1d6893150b5cf9755ebd20fcc90f385705e954a8117b7b2c1c5cd51f6b616",
+      "size_bytes": 607738688,
+      "local_cache": "local-artifacts/models/bloom-560m-Q8_0.gguf",
+      "board_path": "/data/models/bloom-560m-Q8_0.gguf",
+      "note": "POST-DEADLINE (not for hackathon credit): re-converted and re-hosted after the original artifact was lost. Converted cleanly with the stock, unmodified converter -- no fix needed."
     }
   }
 }

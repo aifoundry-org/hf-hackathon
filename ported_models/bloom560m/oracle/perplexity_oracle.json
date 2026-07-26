@@ -1,0 +1,25 @@
+{
+  "oracle_type": "perplexity_threshold",
+  "model_artifact": {
+    "repo": "darthceltic85/bloom-560m-gguf",
+    "revision": "d71677bab1ad99ff2b7b398627696901726f6e4d",
+    "filename": "bloom-560m-Q8_0.gguf",
+    "sha256": "c2f1d6893150b5cf9755ebd20fcc90f385705e954a8117b7b2c1c5cd51f6b616"
+  },
+  "corpus": {
+    "artifact": "wikitext2_raw_test",
+    "sha256": "173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08"
+  },
+  "command": "llama-perplexity --model bloom-560m-Q8_0.gguf -f wiki.test.raw -c 128 -b 128 -ub 128 --chunks 4",
+  "reference_run": {
+    "final_ppl": 27.8342,
+    "final_ppl_stderr": 5.56596,
+    "measured_on": "CPU (ggml-cpu backend, GGML_ET=OFF build)",
+    "measured_date": "2026-07-26"
+  },
+  "comparison_threshold": {
+    "metric": "final_ppl",
+    "max_relative_deviation": 0.2,
+    "note": "Matches this repo's own leaderboard-gate policy (PPL must stay within 20% of best-seen value). A full-offload ET-SoC1 re-run against this exact command/corpus/artifact should land at final_ppl within [22.27, 33.40] to be considered consistent with this reference run. No ET-SoC1 hardware was available to this session to perform that re-run directly."
+  }
+}
