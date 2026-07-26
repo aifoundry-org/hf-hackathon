@@ -53,5 +53,5 @@
 |------|------------|
 | Identity gate hard-coded `llama.*` keys | Companion PR #112 generalizes to `{arch}.*` |
 | ET vision kernel coverage / fallbacks | Qwen3-VL vision graph uses `CONCAT` / `ROPE` / `UPSCALE` (m-RoPE + merger), unlike idefics3’s `IM2COL`/`NORM`/`UNARY` path that SmolVLM ET already covers. Board run 30007183737 hit CPU fallbacks and invalid `pmc_cycles`; needs matching ET kernels in `llama.cpp-et` (same class of gap fixed for SmolVLM in `cc4049d`). |
-| Early EOS on performance decode | Contract sets `performance.ignore_eos: true` so the measured request emits all 3 fixed tokens while keeping the normalized one-word answer (`cat`). |
+| Early EOS on performance decode | Contract declares `performance.ignore_eos: true` (and `llama_server.ignore_eos`) for 3 fixed tokens, but **main's `smolvlm2_video` runner does not yet read those keys** — only `make_request(..., ignore_eos=)` exists. Board run 30007183737 stopped at 2/3 tokens. **Maintainer request (@AFOliveira):** wire `performance.ignore_eos` / `llama_server.ignore_eos` in the protected runner (participant PRs cannot edit it). |
 | Port clash with `smolvlm2_500m_video` (18107) | Qwen uses **18108** |
