@@ -55,25 +55,24 @@ tensor count):
 |-------|-------|
 | language `general.architecture` | `llama` |
 | language `general.name` | `SmolVLM2 2.2B Instruct` |
-| language params | loader prints `1.81 B` → contract `parameter_count_millions: 1810.0` |
+| language params | loader prints `1.81 B` → contract `parameter_count: {value: 1.81, unit: "B"}` |
+| language KV heads | GQA=1: `attention_kv_heads: 32` (equal to `attention_heads`); GGUF omits `llama.attention.head_count_kv` → `require_attention_kv_heads_in_metadata: false` |
 | language tensor count | 219 |
-| language block / emb / ff / heads / kv / vocab | 24 / 2048 / 8192 / 32 / 32 / 49280 |
+| language block / emb / ff / heads / vocab | 24 / 2048 / 8192 / 32 / 49280 |
 | vision projector | `idefics3` |
 | vision n_tensors / n_embd / n_head / n_ff / n_layer | 438 / 1152 / 16 / 4304 / 27 |
 | vision projection_dim / image_size / patch_size | 2048 / 384 / 14 |
 
-### Known identity-gate gaps (honest TBD)
+### Remaining TBD before board run
 
-1. **`parameter_count_millions` unit**: `smolvlm2_video` identity regex expects
-   `model params = X.XX M`, but this GGUF's loader prints `model params = 1.81 B`.
-   Contract stores the million-equivalent (`1810.0`) and does **not** invent
-   HF's 2246.8M total. A main-owned runner tweak is needed for B-scale llama
-   models (this PR does not edit protected runners).
-2. **`llama.attention.head_count_kv`**: `print_info` reports `n_head_kv = 32`,
-   but published KV dumps omit that metadata key when GQA=1. Confirm with local
-   GGUF dump; identity regex may fail until then.
-3. **WikiText PPL**: `maximum_perplexity` / `max_ppl` are consistent placeholders
+1. **WikiText PPL**: `maximum_perplexity` / `max_ppl` are consistent placeholders
    (`80.0` / `96.0`) until a host measure on the pinned Q4_K_M artifact.
+2. **Host COCO cat smoke**: confirm one-word cat/tabby answer with pinned GGUFs
+   + mmproj on a trusted CPU llama-server build.
+3. **Maintainer runner delta**: this PR adds backward-compatible support for
+   `require_attention_kv_heads_in_metadata: false` in the protected
+   `smolvlm2_video` identity gate (needed because Q4 GGUF omits
+   `llama.attention.head_count_kv` when GQA=1).
 
 ## ET settings
 

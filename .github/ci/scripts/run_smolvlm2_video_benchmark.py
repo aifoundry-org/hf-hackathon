@@ -220,6 +220,20 @@ def _resolve_model_name_requirement(
     return explicit, []
 
 
+def _resolve_attention_kv_heads_in_metadata_requirement(
+    language: dict[str, Any],
+) -> tuple[bool, list[str]]:
+    explicit = language.get("require_attention_kv_heads_in_metadata")
+    if explicit is None:
+        return True, []
+    if not isinstance(explicit, bool):
+        return True, [
+            "identity contract language.require_attention_kv_heads_in_metadata "
+            "must be boolean"
+        ]
+    return explicit, []
+
+
 def model_identity_contract_failures(contract: dict[str, Any]) -> list[str]:
     try:
         failures: list[str] = []
@@ -280,6 +294,11 @@ def model_identity_contract_failures(contract: dict[str, Any]) -> list[str]:
         )
         failures.extend(vision_name_failures)
 
+        _, kv_metadata_failures = _resolve_attention_kv_heads_in_metadata_requirement(
+            language
+        )
+        failures.extend(kv_metadata_failures)
+
         return failures
     except (KeyError, TypeError, ValueError) as exc:
         return [f"identity contract is invalid: {exc}"]
@@ -301,6 +320,12 @@ def model_identity_failures(log: str, contract: dict[str, Any]) -> list[str]:
         param_value, param_unit, parameter_failures = _resolve_parameter_count(language)
         if param_value is None or param_unit is None:
             return parameter_failures
+
+        require_kv_in_metadata, kv_metadata_failures = (
+            _resolve_attention_kv_heads_in_metadata_requirement(language)
+        )
+        if kv_metadata_failures:
+            return kv_metadata_failures
 
         checks = {
             "language architecture": rf"general\.architecture\s+str\s+=\s+{re.escape(arch)}",
@@ -326,10 +351,6 @@ def model_identity_failures(log: str, contract: dict[str, Any]) -> list[str]:
             "language attention heads": (
                 rf"{re.escape(lang_key)}\.attention\.head_count\s+u32\s+=\s+"
                 rf"{int(language['attention_heads'])}"
-            ),
-            "language KV heads": (
-                rf"{re.escape(lang_key)}\.attention\.head_count_kv\s+u32\s+=\s+"
-                rf"{int(language['attention_kv_heads'])}"
             ),
             "vision tensor count": (
                 rf"clip_model_loader: n_tensors:\s+{int(vision['tensor_count'])}"
@@ -360,6 +381,11 @@ def model_identity_failures(log: str, contract: dict[str, Any]) -> list[str]:
                 rf"load_hparams: patch_size:\s+{int(vision['patch_size'])}"
             ),
         }
+        if require_kv_in_metadata:
+            checks["language KV heads"] = (
+                rf"{re.escape(lang_key)}\.attention\.head_count_kv\s+u32\s+=\s+"
+                rf"{int(language['attention_kv_heads'])}"
+            )
 
         vocabulary_pattern, vocabulary_failures = _resolve_vocabulary_pattern(
             language,

@@ -168,6 +168,59 @@ load_hparams: patch_size: 16
             ),
         )
 
+    def test_model_identity_allows_missing_kv_metadata_when_opted_out(self) -> None:
+        contract = {
+            "architecture": {
+                "language": {
+                    "general_architecture": "llama",
+                    "model_name": "SmolVLM2 2.2B Instruct",
+                    "parameter_count": {"value": 1.81, "unit": "B"},
+                    "require_attention_kv_heads_in_metadata": False,
+                    "tensor_count": 219,
+                    "block_count": 24,
+                    "embedding_length": 2048,
+                    "feed_forward_length": 8192,
+                    "attention_heads": 32,
+                    "attention_kv_heads": 32,
+                    "vocabulary_size": 49280,
+                },
+                "vision": {
+                    "model_name": "SmolVLM2 2.2B Instruct",
+                    "projector": "idefics3",
+                    "tensor_count": 438,
+                    "embedding_length": 1152,
+                    "attention_heads": 16,
+                    "feed_forward_length": 4304,
+                    "block_count": 27,
+                    "projection_dimension": 2048,
+                    "image_size": 384,
+                    "patch_size": 14,
+                },
+            }
+        }
+        log = """
+general.architecture str = llama
+general.name str = SmolVLM2 2.2B Instruct
+model params = 1.81 B
+loaded meta data with 75 key-value pairs and 219 tensors
+llama.block_count u32 = 24
+llama.embedding_length u32 = 2048
+llama.feed_forward_length u32 = 8192
+llama.attention.head_count u32 = 32
+llama.vocab_size u32 = 49280
+clip_model_loader: model name: SmolVLM2 2.2B Instruct
+clip_model_loader: n_tensors: 438
+load_hparams: projector: idefics3
+load_hparams: n_embd: 1152
+load_hparams: n_head: 16
+load_hparams: n_ff: 4304
+load_hparams: n_layer: 27
+load_hparams: projection_dim: 2048
+load_hparams: image_size: 384
+load_hparams: patch_size: 14
+"""
+        self.assertEqual(benchmark.model_identity_failures(log, contract), [])
+
     def test_model_identity_qwen3vl_real_loader_format(self) -> None:
         contract = {
             "architecture": {

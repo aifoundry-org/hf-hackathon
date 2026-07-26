@@ -48,7 +48,8 @@
     "language": {
       "general_architecture": "llama",
       "model_name": "SmolVLM2 2.2B Instruct",
-      "parameter_count_millions": 1810.0,
+      "parameter_count": { "value": 1.81, "unit": "B" },
+      "require_attention_kv_heads_in_metadata": false,
       "tensor_count": 219,
       "block_count": 24,
       "embedding_length": 2048,
@@ -58,6 +59,7 @@
       "vocabulary_size": 49280
     },
     "vision": {
+      "model_name": "SmolVLM2 2.2B Instruct",
       "projector": "idefics3",
       "tensor_count": 438,
       "embedding_length": 1152,
