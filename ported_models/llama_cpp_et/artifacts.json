@@ -485,6 +485,24 @@
       "sha256": "d1eb8b6b23979205fdf63703ed10f788131a3f812c7b1f72e0119d5d81295150",
       "size_bytes": 108783360,
       "note": "SmolVLM 500M vision projector (SigLIP ~93M + MLP). Q8_0 quantized. Must be loaded alongside smolvlm_500m_q8_gguf."
+    },
+    "nemotron_h_4b_base_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "Nemotron-H-4B-Base-8K-Q8_0",
+      "filename": "nemotron-h-4b-base-Q8_0.gguf",
+      "env": "NEMOTRON_H_4B_BASE_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "darthceltic85/nemotron-h-4b-base-gguf",
+        "revision": "478798007c9bdb2e80f99f12f527f4d6e4d85493",
+        "filename": "nemotron-h-4b-base-Q8_0.gguf",
+        "url": "https://huggingface.co/darthceltic85/nemotron-h-4b-base-gguf/resolve/478798007c9bdb2e80f99f12f527f4d6e4d85493/nemotron-h-4b-base-Q8_0.gguf"
+      },
+      "sha256": "23cf524eaf7cc0c84ffe3dc168a5bacaad10bde2bb9fbaacba431a96b50c9d31",
+      "local_cache": "local-artifacts/models/nemotron-h-4b-base-Q8_0.gguf",
+      "board_path": "/data/models/nemotron-h-4b-base-Q8_0.gguf",
+      "note": "Self-converted (no pre-made Q8_0 GGUF existed); hosted on Hugging Face since the 4.8 GB file exceeds GitHub's 2 GB release-asset limit. Converter's stock MoE-detection logic was patched via a standalone wrapper (see RECIPE.md) -- tensor evidence proved this checkpoint is dense despite stale MoE config fields."
     }
   }
 }

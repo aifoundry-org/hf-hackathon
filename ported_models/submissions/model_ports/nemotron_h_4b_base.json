@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "nemotron_h_4b_base",
+  "identity_id": "nemotron_h",
+  "source": {
+    "repo": "nvidia/Nemotron-H-4B-Base-8K",
+    "revision": "faba3b731ad7ea5781b9518ae75fb610a94affcf",
+    "license": "nvidia-internal-scientific-research-and-development-model-license"
+  },
+  "implementation_paths": ["ported_models/nemotron_h_4b_base"],
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/nemotron_h_4b_base.json",
+  "recipe": "ported_models/nemotron_h_4b_base/docs/RECIPE.md"
+}
