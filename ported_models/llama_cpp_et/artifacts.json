@@ -485,6 +485,24 @@
       "sha256": "d1eb8b6b23979205fdf63703ed10f788131a3f812c7b1f72e0119d5d81295150",
       "size_bytes": 108783360,
       "note": "SmolVLM 500M vision projector (SigLIP ~93M + MLP). Q8_0 quantized. Must be loaded alongside smolvlm_500m_q8_gguf."
+    },
+    "tiny_starcoder_py_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "tiny_starcoder_py-Q8_0",
+      "filename": "tiny_starcoder_py.Q8_0.gguf",
+      "env": "TINY_STARCODER_PY_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "RichardErkhov/bigcode_-_tiny_starcoder_py-gguf",
+        "revision": "main",
+        "filename": "tiny_starcoder_py.Q8_0.gguf",
+        "url": "https://huggingface.co/RichardErkhov/bigcode_-_tiny_starcoder_py-gguf/resolve/main/tiny_starcoder_py.Q8_0.gguf"
+      },
+      "sha256": "ffa756aaa62050ffeea4f5b8897c54aa1a4d9c9ee0783e6ccc07f10eff8b077a",
+      "size": 195125568,
+      "local_cache": "local-artifacts/models/tiny_starcoder_py.Q8_0.gguf",
+      "board_path": "/data/models/tiny_starcoder_py.Q8_0.gguf"
     }
   }
 }
