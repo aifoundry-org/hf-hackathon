@@ -1,0 +1,25 @@
+{
+  "oracle_type": "perplexity_threshold",
+  "model_artifact": {
+    "repo": "DarthCeltic/hf-hackathon",
+    "release_tag": "jamba-tiny-dev-gguf-v1",
+    "filename": "jamba-tiny-dev-Q8_0.gguf",
+    "sha256": "cd92edec23a4e8eda0be4c34a3730a6c3a0605edd2786c70714de9bb76b3e914"
+  },
+  "corpus": {
+    "artifact": "wikitext2_raw_test",
+    "sha256": "173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08"
+  },
+  "command": "llama-perplexity --model jamba-tiny-dev-Q8_0.gguf -f wiki.test.raw -c 128 -b 128 -ub 128 --chunks 4",
+  "reference_run": {
+    "final_ppl": 18.4574,
+    "final_ppl_stderr": 3.82483,
+    "measured_on": "CPU (ggml-cpu backend, GGML_ET=OFF build)",
+    "measured_date": "2026-07-25"
+  },
+  "comparison_threshold": {
+    "metric": "final_ppl",
+    "max_relative_deviation": 0.20,
+    "note": "Matches this repo's own leaderboard-gate policy (PPL must stay within 20% of best-seen value). A full-offload ET-SoC1 re-run against this exact command/corpus/artifact should land at final_ppl within [14.77, 22.15] to be considered consistent with this reference run. This is a genuinely tiny dev/test checkpoint, so absolute PPL is expected to be higher than production-sized models. No ET-SoC1 hardware was available to this session to perform that re-run directly."
+  }
+}

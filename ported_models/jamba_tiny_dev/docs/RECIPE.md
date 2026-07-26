@@ -92,6 +92,14 @@ published at:
 (`sha256=cd92edec23a4e8eda0be4c34a3730a6c3a0605edd2786c70714de9bb76b3e914`),
 registered in `artifacts.json` as `jamba_tiny_dev_q8_gguf`.
 
+## Committed deterministic oracle (added per maintainer review)
+
+`ported_models/jamba_tiny_dev/oracle/perplexity_oracle.json` commits the
+exact reproduction command, pinned corpus/artifact hashes, the final PPL
+from this session's CPU reference run, and an explicit ±20% comparison
+threshold for independently verifying a future full-offload ET-SoC1 run
+against this reference.
+
 ## Instructions for Reproduction
 
 ```bash
