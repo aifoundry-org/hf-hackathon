@@ -1,0 +1,25 @@
+{
+  "oracle_type": "perplexity_threshold",
+  "model_artifact": {
+    "repo": "bartowski/granite-3.0-1b-a400m-instruct-GGUF",
+    "revision": "main",
+    "filename": "granite-3.0-1b-a400m-instruct-Q8_0.gguf",
+    "sha256": "8c37dd0c10b73e9304b98a242be4adcd3050c09e9042c4862d49e2cfccf35411"
+  },
+  "corpus": {
+    "artifact": "wikitext2_raw_test",
+    "sha256": "173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08"
+  },
+  "command": "llama-perplexity --model granite-3.0-1b-a400m-instruct-Q8_0.gguf -f wiki.test.raw -c 128 -b 128 -ub 128 --chunks 4",
+  "reference_run": {
+    "final_ppl": 5.7635,
+    "final_ppl_stderr": 0.84793,
+    "measured_on": "CPU (ggml-cpu backend, GGML_ET=OFF build)",
+    "measured_date": "2026-07-25"
+  },
+  "comparison_threshold": {
+    "metric": "final_ppl",
+    "max_relative_deviation": 0.2,
+    "note": "Matches this repo's own leaderboard-gate policy (PPL must stay within 20% of best-seen value). A full-offload ET-SoC1 re-run against this exact command/corpus/artifact should land at final_ppl within [4.61, 6.92] to be considered consistent with this reference run. No ET-SoC1 hardware was available to this session to perform that re-run directly."
+  }
+}
