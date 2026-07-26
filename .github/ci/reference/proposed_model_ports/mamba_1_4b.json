@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "model": {
+    "repo": "state-spaces/mamba-1.4b-hf",
+    "revision": "6e46eae61c27280517feef46f536d16b91076f08",
+    "license": "unspecified"
+  },
+  "baseline_artifacts": {
+    "model": {
+      "sha256": "a5dde81ce41c34213bf26bcaf2ba26cd1c6fde20fd20b5af6a4a76a5272478bc",
+      "quantization": "Q6_K",
+      "hf_repo": "RichardErkhov/state-spaces_-_mamba-1.4b-hf-gguf"
+    },
+    "note": "Downloaded from a third-party community GGUF repo, not the original authors -- sha256 verified locally against the exact file used."
+  },
+  "architecture": {
+    "general_architecture": "mamba"
+  },
+  "runtime": {
+    "submodule_path": "ported_models/llama_cpp_et/src/llama.cpp-et",
+    "required_device": "ET",
+    "required_gpu_layers": 99,
+    "require_full_offload": true
+  },
+  "quality": {
+    "perplexity": {
+      "corpus_artifact": "wikitext2_raw_test",
+      "corpus_sha256": "173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08",
+      "context_size": 128,
+      "batch_size": 128,
+      "ubatch_size": 128,
+      "chunks": 4,
+      "measurement_status": "measured_host_cpu_only",
+      "host_cpu_perplexity": 11.7985,
+      "host_cpu_perplexity_error": 1.97189,
+      "note": "Real host-CPU perplexity measured this session (plain GGML_ET=OFF build, board-pinned corpus, board's own ctx/batch/chunks params). ET-SoC1 board perplexity is NOT measured -- that needs the maintainer's trusted workflow."
+    }
+  },
+  "correctness": {
+    "host_reference": "CPU execution of the candidate artifact through the main-owned runtime harness",
+    "measurement_status": "measured_host_cpu_only"
+  },
+  "recipe": "ported_models/mamba_1_4b/docs/RECIPE.md"
+}

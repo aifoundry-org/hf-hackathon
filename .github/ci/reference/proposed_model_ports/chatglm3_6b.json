@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "model": {
+    "repo": "zai-org/chatglm3-6b",
+    "revision": "e9e0406d062cdb887444fe5bd546833920abd4ac",
+    "license": "apache-2.0"
+  },
+  "baseline_artifacts": {
+    "model": {
+      "sha256": "805e3761a997486eb08f45e0f74efa5c1cc0be8475afa2b170263b490a3ba8c8",
+      "quantization": "Q8_0",
+      "hf_repo": "hellork/chatglm3-6b-128k-Q8_0-GGUF"
+    },
+    "note": "Downloaded from a third-party community GGUF repo, not the original authors -- sha256 verified locally against the exact file used."
+  },
+  "architecture": {
+    "general_architecture": "chatglm"
+  },
+  "runtime": {
+    "submodule_path": "ported_models/llama_cpp_et/src/llama.cpp-et",
+    "required_device": "ET",
+    "required_gpu_layers": 99,
+    "require_full_offload": true
+  },
+  "quality": {
+    "perplexity": {
+      "corpus_artifact": "wikitext2_raw_test",
+      "corpus_sha256": "173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08",
+      "context_size": 128,
+      "batch_size": 128,
+      "ubatch_size": 128,
+      "chunks": 4,
+      "measurement_status": "measured_host_cpu_only",
+      "host_cpu_perplexity": 15.91,
+      "host_cpu_perplexity_error": 3.3745,
+      "note": "Real host-CPU perplexity measured this session (plain GGML_ET=OFF build, board-pinned corpus, board's own ctx/batch/chunks params). ET-SoC1 board perplexity is NOT measured -- that needs the maintainer's trusted workflow."
+    }
+  },
+  "correctness": {
+    "host_reference": "CPU execution of the candidate artifact through the main-owned runtime harness",
+    "measurement_status": "measured_host_cpu_only"
+  },
+  "recipe": "ported_models/chatglm3_6b/docs/RECIPE.md"
+}

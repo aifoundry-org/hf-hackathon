@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "model": {
+    "repo": "google/gemma-2-2b-it",
+    "revision": "299a8560bedf22ed1c72a8a11e7dce4a7f9f51f8",
+    "license": "gemma"
+  },
+  "baseline_artifacts": {
+    "model": {
+      "sha256": "2d448a9aab894b8e8e18168cf3f490cb9f65632222f29f93514ac9ecc754debe",
+      "quantization": "Q8_0",
+      "hf_repo": "bartowski/gemma-2-2b-it-GGUF"
+    },
+    "note": "Downloaded from a third-party community GGUF repo, not the original authors -- sha256 verified locally against the exact file used. The quantizer repo's own revision was not pinned at download time (no explicit commit reference captured); flagging honestly rather than guessing one."
+  },
+  "architecture": {
+    "general_architecture": "gemma2"
+  },
+  "runtime": {
+    "submodule_path": "ported_models/llama_cpp_et/src/llama.cpp-et",
+    "required_device": "ET",
+    "required_gpu_layers": 99,
+    "require_full_offload": true
+  },
+  "quality": {
+    "perplexity": {
+      "corpus_artifact": "wikitext2_raw_test",
+      "corpus_sha256": "173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08",
+      "context_size": 128,
+      "batch_size": 128,
+      "ubatch_size": 128,
+      "chunks": 4,
+      "measurement_status": "pending_host_or_board_run",
+      "note": "No PPL number is populated here -- only local sysemu structural verification was performed this session (full ET layer offload, param count matching upstream, clean compute graph; see the recipe). A real first_run_perplexity and regression threshold should come from an actual host/board run, not be assumed."
+    }
+  },
+  "correctness": {
+    "host_reference": "CPU execution of the candidate artifact through the main-owned runtime harness",
+    "measurement_status": "pending_host_or_board_run"
+  },
+  "recipe": "ported_models/gemma2_2b/docs/RECIPE.md"
+}

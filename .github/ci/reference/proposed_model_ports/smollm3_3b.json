@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "model": {
+    "repo": "HuggingFaceTB/SmolLM3-3B",
+    "revision": "a07cc9a04f16550a088caea529712d1d335b0ac1",
+    "license": "apache-2.0"
+  },
+  "baseline_artifacts": {
+    "model": {
+      "sha256": "8aa8cc74656137174a1988d993b00828e65a86fd68773412b632a75aa1373248",
+      "quantization": "Q8_0",
+      "hf_repo": "ggml-org/SmolLM3-3B-GGUF"
+    },
+    "note": "Downloaded from a third-party community GGUF repo, not the original authors -- sha256 verified locally against the exact file used."
+  },
+  "architecture": {
+    "general_architecture": "smollm3"
+  },
+  "runtime": {
+    "submodule_path": "ported_models/llama_cpp_et/src/llama.cpp-et",
+    "required_device": "ET",
+    "required_gpu_layers": 99,
+    "require_full_offload": true
+  },
+  "quality": {
+    "perplexity": {
+      "corpus_artifact": "wikitext2_raw_test",
+      "corpus_sha256": "173c87a53759e0201f33e0ccf978e510c2042d7f2cb78229d9a50d79b9e7dd08",
+      "context_size": 128,
+      "batch_size": 128,
+      "ubatch_size": 128,
+      "chunks": 4,
+      "measurement_status": "measured_host_cpu_only",
+      "host_cpu_perplexity": 12.3653,
+      "host_cpu_perplexity_error": 2.40724,
+      "note": "Real host-CPU perplexity measured this session (plain GGML_ET=OFF build, board-pinned corpus, board's own ctx/batch/chunks params). ET-SoC1 board perplexity is NOT measured -- that needs the maintainer's trusted workflow."
+    }
+  },
+  "correctness": {
+    "host_reference": "CPU execution of the candidate artifact through the main-owned runtime harness",
+    "measurement_status": "measured_host_cpu_only"
+  },
+  "recipe": "ported_models/smollm3_3b/docs/RECIPE.md"
+}
