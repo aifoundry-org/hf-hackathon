@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "trinity_nano_base",
+  "identity_id": "afmoe",
+  "source": {
+    "repo": "arcee-ai/Trinity-Nano-Base",
+    "revision": "923a95dbba013c78c4fd6dbc6bce31eea553da7c",
+    "license": "openmdw-1.1"
+  },
+  "implementation_paths": ["ported_models/trinity_nano_base"],
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/trinity_nano_base.json",
+  "recipe": "ported_models/trinity_nano_base/docs/RECIPE.md"
+}

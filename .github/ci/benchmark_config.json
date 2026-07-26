@@ -315,6 +315,9 @@
     },
     "smolvlm_500m": {
       "config": "ported_models/llama_cpp_et/benchmarks/smolvlm_500m.json"
+    },
+    "trinity_nano_base": {
+      "config": "ported_models/llama_cpp_et/benchmarks/trinity_nano_base.json"
     }
   }
 }

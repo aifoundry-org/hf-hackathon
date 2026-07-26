@@ -485,6 +485,24 @@
       "sha256": "d1eb8b6b23979205fdf63703ed10f788131a3f812c7b1f72e0119d5d81295150",
       "size_bytes": 108783360,
       "note": "SmolVLM 500M vision projector (SigLIP ~93M + MLP). Q8_0 quantized. Must be loaded alongside smolvlm_500m_q8_gguf."
+    },
+    "trinity_nano_base_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "Trinity-Nano-Base-Q8_0",
+      "filename": "trinity-nano-base-Q8_0.gguf",
+      "env": "TRINITY_NANO_BASE_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "darthceltic85/trinity-nano-base-gguf",
+        "revision": "1745c6f9d84546f60bae6e397e918ecfedc62cd3",
+        "filename": "trinity-nano-base-Q8_0.gguf",
+        "url": "https://huggingface.co/darthceltic85/trinity-nano-base-gguf/resolve/1745c6f9d84546f60bae6e397e918ecfedc62cd3/trinity-nano-base-Q8_0.gguf"
+      },
+      "sha256": "a52296d493fbdb810008a638eda4ce7f59717ddd4282ba2750518c7cefd36872",
+      "local_cache": "local-artifacts/models/trinity-nano-base-Q8_0.gguf",
+      "board_path": "/data/models/trinity-nano-base-Q8_0.gguf",
+      "note": "Self-converted (no pre-made Q8_0 GGUF existed); hosted on Hugging Face since the 6.52 GB file exceeds GitHub's 2 GB release-asset limit. Converted cleanly with the stock, unmodified converter -- AfmoeForCausalLM was already correctly supported, no fix needed."
     }
   }
 }
