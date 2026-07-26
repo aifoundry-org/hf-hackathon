@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "track": "most_models_ported",
+  "benchmark_model": "smallthinker_4ba0_6b",
+  "identity_id": "smallthinker",
+  "source": {
+    "repo": "PowerInfer/SmallThinker-4BA0.6B-Instruct",
+    "revision": "a24932bb880c85c04c794283202a9194b1b42709",
+    "license": "apache-2.0"
+  },
+  "implementation_paths": ["ported_models/smallthinker_4ba0_6b"],
+  "benchmark_config": "ported_models/llama_cpp_et/benchmarks/smallthinker_4ba0_6b.json",
+  "recipe": "ported_models/smallthinker_4ba0_6b/docs/RECIPE.md"
+}

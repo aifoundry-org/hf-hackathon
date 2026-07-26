@@ -485,6 +485,24 @@
       "sha256": "d1eb8b6b23979205fdf63703ed10f788131a3f812c7b1f72e0119d5d81295150",
       "size_bytes": 108783360,
       "note": "SmolVLM 500M vision projector (SigLIP ~93M + MLP). Q8_0 quantized. Must be loaded alongside smolvlm_500m_q8_gguf."
+    },
+    "smallthinker_4ba0_6b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "SmallThinker-4BA0.6B-Q8_0",
+      "filename": "smallthinker-4ba0.6b-Q8_0.gguf",
+      "env": "SMALLTHINKER_4BA0_6B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "darthceltic85/smallthinker-4ba0.6b-gguf",
+        "revision": "54918cdfe842275cb6330c190be5922f252e4fa7",
+        "filename": "smallthinker-4ba0.6b-Q8_0.gguf",
+        "url": "https://huggingface.co/darthceltic85/smallthinker-4ba0.6b-gguf/resolve/54918cdfe842275cb6330c190be5922f252e4fa7/smallthinker-4ba0.6b-Q8_0.gguf"
+      },
+      "sha256": "6a352d7554a736c738cbef069aa1bb2fbf95c929567d48e9c4eb3b24f5942f16",
+      "local_cache": "local-artifacts/models/smallthinker-4ba0.6b-Q8_0.gguf",
+      "board_path": "/data/models/smallthinker-4ba0.6b-Q8_0.gguf",
+      "note": "Self-converted (no pre-made Q8_0 GGUF existed); hosted on Hugging Face since the 4.55 GB file exceeds GitHub's 2 GB release-asset limit."
     }
   }
 }

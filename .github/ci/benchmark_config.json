@@ -315,6 +315,9 @@
     },
     "smolvlm_500m": {
       "config": "ported_models/llama_cpp_et/benchmarks/smolvlm_500m.json"
+    },
+    "smallthinker_4ba0_6b": {
+      "config": "ported_models/llama_cpp_et/benchmarks/smallthinker_4ba0_6b.json"
     }
   }
 }
