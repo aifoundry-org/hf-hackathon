@@ -91,6 +91,16 @@ real inference:
   within this campaign's normal range, confirming genuine coherent
   output from a correctly-tokenized model.
 
+## Committed deterministic oracle (added per maintainer review)
+
+`ported_models/deepseek_moe_16b_base/oracle/perplexity_oracle.json`
+commits the exact reproduction command, pinned corpus/artifact hashes,
+the final PPL from this session's CPU reference run, and an explicit
+±20% comparison threshold (matching this repo's own leaderboard-gate
+policy) for independently verifying a future full-offload ET-SoC1 run
+against this reference. No ET-SoC1 hardware was available to this
+session to perform that run directly.
+
 ## Instructions for Reproduction
 
 ```bash
