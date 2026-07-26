@@ -485,6 +485,60 @@
       "sha256": "d1eb8b6b23979205fdf63703ed10f788131a3f812c7b1f72e0119d5d81295150",
       "size_bytes": 108783360,
       "note": "SmolVLM 500M vision projector (SigLIP ~93M + MLP). Q8_0 quantized. Must be loaded alongside smolvlm_500m_q8_gguf."
+    },
+    "lfm25_8b_a1b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "LFM2.5-8B-A1B-Q8_0",
+      "filename": "LFM2.5-8B-A1B-Q8_0.gguf",
+      "env": "LFM25_8B_A1B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "LiquidAI/LFM2.5-8B-A1B-GGUF",
+        "revision": "main",
+        "filename": "LFM2.5-8B-A1B-Q8_0.gguf",
+        "url": "https://huggingface.co/LiquidAI/LFM2.5-8B-A1B-GGUF/resolve/main/LFM2.5-8B-A1B-Q8_0.gguf"
+      },
+      "sha256": "33ab3b8ce6a964fb8ebac89360c9b3cf72c4fa418d5e4c0a94d46883124d5c02",
+      "size": 9010195680,
+      "local_cache": "local-artifacts/models/LFM2.5-8B-A1B-Q8_0.gguf",
+      "board_path": "/data/models/LFM2.5-8B-A1B-Q8_0.gguf"
+    },
+    "plamo_13b_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "plamo-13b-Q8_0",
+      "filename": "plamo-13b.Q8_0.gguf",
+      "env": "PLAMO_13B_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "RichardErkhov/pfnet_-_plamo-13b-gguf",
+        "revision": "df2fc33e398b494f221aae174e0f5a2d376733f1",
+        "filename": "plamo-13b.Q8_0.gguf",
+        "url": "https://huggingface.co/RichardErkhov/pfnet_-_plamo-13b-gguf/resolve/df2fc33e398b494f221aae174e0f5a2d376733f1/plamo-13b.Q8_0.gguf"
+      },
+      "sha256": "7f3f26fd8eb337e82f4e1a5916eccf2b96a7d0e2bd20af71b4c52946c327c66f",
+      "size": 13920140960,
+      "local_cache": "local-artifacts/models/plamo-13b.Q8_0.gguf",
+      "board_path": "/data/models/plamo-13b.Q8_0.gguf"
+    },
+    "ling_mini_2_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "Ling-mini-2.0-Q8_0",
+      "filename": "Ling-mini-2.0-Q8_0.gguf",
+      "env": "LING_MINI_2_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "inclusionAI/Ling-mini-2.0-GGUF",
+        "revision": "eaf4868610e601298e6f00381b2f7e6946a0e432",
+        "filename": "Ling-mini-2.0-Q8_0.gguf",
+        "url": "https://huggingface.co/inclusionAI/Ling-mini-2.0-GGUF/resolve/eaf4868610e601298e6f00381b2f7e6946a0e432/Ling-mini-2.0-Q8_0.gguf"
+      },
+      "sha256": "a87cc4911217c4ec24734959f547666d5c8d970bff3da55a14fdb818963b5f88",
+      "size": 17307656736,
+      "local_cache": "local-artifacts/models/Ling-mini-2.0-Q8_0.gguf",
+      "board_path": "/data/models/Ling-mini-2.0-Q8_0.gguf"
     }
   }
 }
