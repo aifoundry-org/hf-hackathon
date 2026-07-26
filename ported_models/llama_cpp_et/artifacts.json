@@ -485,6 +485,24 @@
       "sha256": "d1eb8b6b23979205fdf63703ed10f788131a3f812c7b1f72e0119d5d81295150",
       "size_bytes": 108783360,
       "note": "SmolVLM 500M vision projector (SigLIP ~93M + MLP). Q8_0 quantized. Must be loaded alongside smolvlm_500m_q8_gguf."
+    },
+    "ernie45_21b_a3b_base_q8_gguf": {
+      "kind": "model",
+      "framework": "llama.cpp-et",
+      "variant": "ERNIE-4.5-21B-A3B-Base-Q8_0",
+      "filename": "ernie45-21b-a3b-base-Q8_0.gguf",
+      "env": "ERNIE45_21B_A3B_BASE_MODEL_PATH",
+      "source": {
+        "type": "huggingface",
+        "repo": "darthceltic85/ernie45-21b-a3b-base-gguf",
+        "revision": "682c6466c62f357d3c18bb668d46e63064ff1fd0",
+        "filename": "ernie45-21b-a3b-base-Q8_0.gguf",
+        "url": "https://huggingface.co/darthceltic85/ernie45-21b-a3b-base-gguf/resolve/682c6466c62f357d3c18bb668d46e63064ff1fd0/ernie45-21b-a3b-base-Q8_0.gguf"
+      },
+      "sha256": "2d18e66097f598c8fb5f3d15fd2fba9e6f916652985426bf0e7e1b478a625d48",
+      "local_cache": "local-artifacts/models/ernie45-21b-a3b-base-Q8_0.gguf",
+      "board_path": "/data/models/ernie45-21b-a3b-base-Q8_0.gguf",
+      "note": "Self-converted (no pre-made Q8_0 GGUF existed); hosted on Hugging Face since the 23.2 GB file far exceeds GitHub's 2 GB release-asset limit. Converted cleanly with the stock, unmodified converter -- Ernie4_5MoeModel was already correctly supported, no fix needed."
     }
   }
 }

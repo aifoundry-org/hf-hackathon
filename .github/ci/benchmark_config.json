@@ -315,6 +315,9 @@
     },
     "smolvlm_500m": {
       "config": "ported_models/llama_cpp_et/benchmarks/smolvlm_500m.json"
+    },
+    "ernie45_21b_a3b_base": {
+      "config": "ported_models/llama_cpp_et/benchmarks/ernie45_21b_a3b_base.json"
     }
   }
 }
